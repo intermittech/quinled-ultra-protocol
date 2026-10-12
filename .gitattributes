@@ -1,0 +1,2 @@
+# Keep LF everywhere: copies of include/ultra_protocol.h must stay byte-identical on every OS.
+* text=auto eol=lf

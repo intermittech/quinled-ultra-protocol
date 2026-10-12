@@ -27,8 +27,8 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 
 - **Protocol 0.2** (wire VERSION 2). Nothing is released as 1.0 yet.
 - The QuinLED dig2analog-ultra-5ch is in development; its firmware implements this version.
-- The reference controller is the `dig2analog_ultra` component for ESPHome in
-  [intermittech/esphome-ws2915-ws2805](https://github.com/intermittech/esphome-ws2915-ws2805).
+- The reference controller, and the most complete implementation, is ESPHome with the `dig2analog_ultra`
+  component from [intermittech/quinled-ultra-esphome](https://github.com/intermittech/quinled-ultra-esphome).
 - A return channel (board → controller, on QuinLED Diff-Power) and firmware-update frames are reserved but not part
   of what a controller needs today.
 

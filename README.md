@@ -25,7 +25,7 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 
 ## Status
 
-- **Protocol version 2.**
+- **Protocol 0.2** (wire VERSION 2). Nothing is released as 1.0 yet.
 - The QuinLED dig2analog-ultra-5ch is in development; its firmware implements this version.
 - The reference controller is the `dig2analog_ultra` component for ESPHome in
   [intermittech/esphome-ws2915-ws2805](https://github.com/intermittech/esphome-ws2915-ws2805).
@@ -37,7 +37,8 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 - Copy `include/ultra_protocol.h` **unchanged** from a tagged release into your project.
 - Every copy (the board firmware, the ESPHome component, your project) must be byte-identical to the header of one
   tag, so a SHA-256 or a plain diff shows which version you have.
-- Tags follow the protocol: `v2.x.y` is protocol version 2 (`ULTRA_VERSION`). See
+- Tags: `v0.2.y` = wire VERSION 2 (`ULTRA_VERSION`). While below 1.0 the MINOR number is the wire VERSION; a
+  compatible addition raises the PATCH number. See
   [Compatibility and versioning](https://github.com/intermittech/quinled-ultra-protocol/wiki/Compatibility-and-Versioning).
 
 ## License

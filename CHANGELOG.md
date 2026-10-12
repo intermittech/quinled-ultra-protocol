@@ -1,8 +1,25 @@
 # Changelog
 
-Protocol versions (`ULTRA_VERSION` in the header byte 2) and releases of this repository.
+Releases of this repository. While below 1.0 they are numbered 0.x.y, and the MINOR number equals the wire
+format's VERSION (`ULTRA_VERSION`, header byte 2): 0.2.y = wire VERSION 2. A compatible addition raises the
+PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
-## v2.0.0 (protocol version 2), 2026
+## v0.2.1 (wire VERSION 2), 2026-10-13
+
+Backward compatible: `ULTRA_VERSION` stays 2, and boards and controllers of 0.2.0 work with 0.2.1 ones.
+
+- **IDENTIFY value 5, `ULTRA_IDENT_VERSION`:** the board blinks its firmware version once on its feedback channel:
+  - 3 fast;
+  - then major, minor and patch as value codes;
+  - then alpha / beta / rc as 1 / 2 / 3 short.
+
+  Firmware from before 0.2.1 ignores it (the value was reserved), so no blink means older firmware.
+  `ultra_slot_identify()` builds it; values 6-255 stay reserved.
+- **Feature bit 10, `ULTRA_FEAT_VERSION_BLINK` (0x00000400):** reports IDENTIFY 5 on the reserved IDENTITY page.
+- **Test vector** `slot_identify_version`.
+- The header's first line names its release.
+
+## v0.2.0 (wire VERSION 2), 2026
 
 The first public version.
 
@@ -17,10 +34,11 @@ The first public version.
   - ranges for slot types, lights, roles, effects, CONFIG ids, return-channel pages and feature bits;
   - broadcast / extension slots after the last board's slot.
 
-## Protocol version 1 (withdrawn, never shipped)
+## Format 1 (withdrawn, never released)
 
 The header came first.
 
 - A board blocks its own slot while it forwards the rest, so the next board saw a ~320 µs LOW gap after the header.
 - That gap ended the frame there, so boards after the first never got their slot.
-- Version 2 moved the header to the end. Boards and controllers reject each other's versions.
+- Wire VERSION 2 (release 0.2.0) moved the header to the end. Boards and controllers reject each other's
+  formats.

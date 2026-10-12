@@ -1,5 +1,5 @@
 {
-  "protocol_version": 2,
+  "wire_version": 2,
   "generator": "test-vectors/gen_vectors.c",
   "vectors": [
     {"name": "hdr_normal", "kind": "header", "bytes": 8, "bits": 64, "description": "TIME 0x00ABCDEF, FLAGS 0.", "hex": "5ad22000abcdefd4"},
@@ -8,7 +8,7 @@
     {"name": "hdr_flag_hint", "kind": "header", "bytes": 8, "bits": 64, "description": "A valid header. A board that doesn't know a hint processes the frame as usual. Hosts send FLAGS 0 until a hint is defined.", "hex": "5ad22200abcdef10"},
     {"name": "hdr_flag_rw", "kind": "header", "bytes": 8, "bits": 64, "description": "A valid header. Today's boards take the clock sync but ignore every slot of the frame and keep their lock. Hosts must not send it yet.", "hex": "5ad22100abcdefb6"},
     {"name": "hdr_bad_crc", "kind": "header-invalid", "bytes": 8, "bits": 64, "description": "Same as hdr_normal with the last TIME bit flipped: the CRC-8 no longer matches.", "hex": "5ad22000abcdeed4"},
-    {"name": "hdr_version1", "kind": "header-invalid", "bytes": 8, "bits": 64, "description": "Protocol v1 (header first, withdrawn). The CRC is correct, but a v2 board rejects every frame of another version: no lock, no clock sync, no slot.", "hex": "5ad21000abcdef82"},
+    {"name": "hdr_version1", "kind": "header-invalid", "bytes": 8, "bits": 64, "description": "Format 1 (header first, withdrawn, never released). The CRC is correct, but a VERSION 2 board rejects every frame of another version: no lock, no clock sync, no slot.", "hex": "5ad21000abcdef82"},
     {"name": "hdr_bad_magic", "kind": "header-invalid", "bytes": 8, "bits": 64, "description": "MAGIC 0x5BD2 instead of 0x5AD2.", "hex": "5bd22000abcdef0b"},
     {"name": "slot_nop", "kind": "slot", "bytes": 32, "bits": 256, "description": "A valid slot that does nothing (idle frames). LIGHT 0, SEQ 0.", "hex": "0000000000000000000000000000000000000000000000000000000000002a45"},
     {"name": "slot_dark", "kind": "slot", "bytes": 32, "bits": 256, "description": "256 zero bits. Deliberately not a valid slot: every board ignores it.", "hex": "0000000000000000000000000000000000000000000000000000000000000000"},
@@ -22,6 +22,7 @@
     {"name": "slot_identify_on", "kind": "slot", "bytes": 32, "bits": 256, "description": "Value 1: blink the identify pattern (30 s). SEQ 0x55.", "hex": "06f05501000000000000000000000000000000000000000000000000000030fe"},
     {"name": "slot_identify_cal", "kind": "slot", "bytes": 32, "bits": 256, "description": "Value 2, argument 0: the standard test at 25 / 50 / 75 / 100 %. Boards without the input current sense ignore it. SEQ 0x56.", "hex": "06f05602000000000000000000000000000000000000000000000000000062e8"},
     {"name": "slot_identify_dark", "kind": "slot", "bytes": 32, "bits": 256, "description": "Value 3, argument 10: fade to dark and hold 10 s (or until value 4, RELEASE). SEQ 0x57.", "hex": "06f057030a000000000000000000000000000000000000000000000000002854"},
+    {"name": "slot_identify_version", "kind": "slot", "bytes": 32, "bits": 256, "description": "Value 5: blink the firmware version once. Firmware from before 0.2.1 ignores it. SEQ 0x58.", "hex": "06f058050000000000000000000000000000000000000000000000000000e723"},
     {"name": "slot_scene", "kind": "slot", "bytes": 32, "bits": 256, "description": "Mode 1, cross-fade 10 x 100 ms, M 32768, A = 0 0 0 65535 32768 (warm-ish white), B = 65535 x 5. SEQ 0x66.", "hex": "080066010a8000000000000000ffff8000ffffffffffffffffffff000000f8ad"},
     {"name": "slot_light_opt", "kind": "slot", "bytes": 32, "bits": 256, "description": "Flags 0x01. CW LED 153.8 mireds (6500 K) = 1538, WW LED 370.4 mireds (2700 K) = 3704, warm end 555.6 mireds (1800 K) = 5556, red assist 19661 (30 %). SEQ 0x77.", "hex": "0900770106020e7815b44ccd0000000000000000000000000000000000006965"},
     {"name": "slot_light_opt_points", "kind": "slot", "bytes": 32, "bits": 256, "description": "Flags 0x03. As slot_light_opt plus 3 points (M, mireds x 10): (65535, 3704) 2700 K at full, (16384, 4545) 2200 K at 25 %, (3277, 5556) 1800 K at 5 %; the 4th point unused (0, 0). SEQ 0x78.", "hex": "0900780306020e7815b44ccdffff0e78400011c10ccd15b4000000000000d7b1"},

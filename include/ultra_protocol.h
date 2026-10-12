@@ -1,16 +1,18 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (C) 2026 QuinLED
  *
- * QuinLED dig2analog Ultra protocol v2 - shared by the board firmware (C) and the controllers (C / C++).
+ * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.1 (CHANGELOG.md). Shared by the
+ * board firmware (C) and the controllers (C / C++).
  * Master: include/ultra_protocol.h in https://github.com/intermittech/quinled-ultra-protocol (spec in its wiki).
- * Every copy (board firmware, ESPHome component, other controllers) must be byte-identical to one tagged release.
+ * Every copy (board firmware, ESPHome component, other controllers) must be byte-identical to one tagged release
+ * (v0.2.y = wire VERSION 2; while below 1.0, the release's MINOR equals the wire VERSION).
  *
  * Link: WS28xx-style one-wire pulses (same timing as WS2915), MSB first, one way host -> boards.
  * Frame:  N x SLOT (32 bytes, one per board)  +  HEADER (8 bytes, a trailer)  +  reset >= 280 us
  *         Each board takes the first slot of what it sees (its hardware gate holds the output LOW for those 256
  *         bits, as in WS2805 mode) and forwards the rest, so the position in the chain is the address and every
  *         board sees one contiguous frame ending with the header. Frame bits = 256 * N + 64.
- *         (v1 had the header first: the board's closed gate then left a 320 us LOW gap after the header, which
+ *         (Format 1, withdrawn and never released, had the header first: the board's closed gate then left a 320 us LOW gap after the header, which
  *         ended the frame at the next board, so boards after the first never got their slot.)
  * HEADER: MAGIC (2) | VERSION<<4 | FLAGS (1) | TIME (4) | CRC-8 (1, SMBus poly 0x07)
  *         TIME = host clock (us, low 32 bits) at the end of the frame (the header's last bit); every board sees
@@ -50,7 +52,8 @@ extern "C" {
 #endif
 
 #define ULTRA_MAGIC        0x5AD2u
-#define ULTRA_VERSION      2u          /* 1: header first (withdrawn, see above). Only an incompatible change bumps it:
+#define ULTRA_VERSION      2u          /* the wire format (releases 0.2.y); 1: header first (withdrawn, never
+                                          released). Only an incompatible change bumps it (release 0.3.0 for 3):
                                           a board rejects other versions entirely (no lock, no clock, no slot) */
 #define ULTRA_HDR_BYTES    8u
 #define ULTRA_SLOT_BYTES   32u
@@ -143,7 +146,8 @@ enum {
 #define ULTRA_FEAT_BOOT_PROTOCOL  0x00000080u  /* CONFIG 22 */
 #define ULTRA_FEAT_STAGGER_ADAPTIVE 0x00000100u /* CONFIG 7 values 3 / 4 */
 #define ULTRA_FEAT_MCU_TEMP       0x00000200u  /* STATUS: the MCU temperature and the 3.3 V rail (ULTRA_ST_*) */
-/*      0x00000400-0x00800000     future official features (e.g. broadcast slots, an EXT extension);
+#define ULTRA_FEAT_VERSION_BLINK  0x00000400u  /* IDENTIFY 5: the firmware version as blinks (0.2.1) */
+/*      0x00000800-0x00800000     future official features (e.g. broadcast slots, an EXT extension);
  *      0x01000000-0x80000000     hardware-specific */
 
 /* SET flags (low nibble of byte 1; the other slot types send FLAGS 0) */
@@ -238,7 +242,7 @@ static inline uint32_t ultra_get24(const uint8_t *p) { return ((uint32_t)p[0] <<
 static inline uint32_t ultra_get32(const uint8_t *p) { return (ultra_get16(p) << 16) | ultra_get16(p + 2); }
 
 /* ----------------------------------------------------------------------------------------------- frame */
-/* layout (v2): slot i at byte ULTRA_SLOT_BYTES x i, the header after the n slots */
+/* layout (wire VERSION 2): slot i at byte ULTRA_SLOT_BYTES x i, the header after the n slots */
 static inline uint32_t ultra_frame_bytes(uint32_t n) { return ULTRA_SLOT_BYTES * n + ULTRA_HDR_BYTES; }
 static inline uint32_t ultra_header_offset(uint32_t n) { return ULTRA_SLOT_BYTES * n; }
 
@@ -459,19 +463,23 @@ static inline void ultra_slot_config(uint8_t *s, uint8_t seq, const uint8_t *ids
  * ULTRA_IDENT_DARK: every output fades to dark (0.3 s) and stays dark for `arg` s (0 = 60 s) or until
  * ULTRA_IDENT_RELEASE, which fades back; the light engine keeps running underneath, so states and effects continue.
  * The hub darkens a whole pin this way and then calibrates its boards one after the other.
- * Values 5-255 and CAL arguments 1-4 / 101-255 are reserved: a board ignores the slot. STOP / ON / RELEASE send
- * argument 0. */
+ * ULTRA_IDENT_VERSION (0.2.1): the board blinks its firmware version once on its feedback channel (3 fast, then
+ * major, minor and patch as value codes, then alpha / beta / rc as 1 / 2 / 3 short), then shows its outputs again.
+ * Firmware from before 0.2.1 ignores it (reserved value): no blink means older firmware.
+ * Values 6-255 and CAL arguments 1-4 / 101-255 are reserved: a board ignores the slot. STOP / ON / RELEASE / VERSION
+ * send argument 0. */
 #define ULTRA_IDENT_STOP 0u
 #define ULTRA_IDENT_ON   1u
 #define ULTRA_IDENT_CAL  2u
 #define ULTRA_IDENT_DARK 3u
 #define ULTRA_IDENT_RELEASE 4u
+#define ULTRA_IDENT_VERSION 5u         /* 0.2.1 */
 #define ULTRA_IDENT_CAL_MIN 5u         /* CAL argument: 0 = the standard test, else MIN..MAX % */
 #define ULTRA_IDENT_CAL_MAX 100u
 static inline void ultra_slot_identify(uint8_t *s, uint8_t seq, uint8_t on)
 {
     ultra_slot_begin(s, ULTRA_IDENTIFY, ULTRA_LIGHT_BOARD, 0, seq);
-    s[ULTRA_PAYLOAD] = on <= ULTRA_IDENT_RELEASE ? on : (uint8_t)ULTRA_IDENT_STOP;
+    s[ULTRA_PAYLOAD] = (on <= ULTRA_IDENT_RELEASE || on == ULTRA_IDENT_VERSION) ? on : (uint8_t)ULTRA_IDENT_STOP;
     ultra_slot_seal(s);
 }
 

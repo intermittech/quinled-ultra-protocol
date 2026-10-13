@@ -4,6 +4,44 @@ Releases of this repository. While below 1.0 they are numbered 0.x.y, and the MI
 format's VERSION (`ULTRA_VERSION`, header byte 2): 0.2.y = wire VERSION 2. A compatible addition raises the
 PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
+## v0.2.3 (wire VERSION 2), 2026-10-13
+
+Backward compatible: `ULTRA_VERSION` stays 2. A board from before 0.2.3 ignores the new slot type and skips the new
+CONFIG id (the rest of the slot applies); the new pages are inside the reserved return channel, which only QuinLED
+Diff-Power ultra receivers will implement.
+
+- **SCENE_EFFECT, slot type 0x0A (`ULTRA_SCENE_EFFECT`): a power-on effect.** From power-up until the controller
+  takes over, the board runs the effect on the light's SCENE values by itself, no controller needed (a candle, a slow
+  colour loop, a sunrise).
+  - Payload: the effect id (1) and its parameters as in EFFECT, without the start time. `ULTRA_FX_NONE` = the plain
+    SCENE values; `ULTRA_FX_STROBE` shows the plain values (its steps aren't stored).
+  - The board stores it with the light's LIGHT_DEF, LIGHT_OPT and SCENE, written only when it changes: send a fixed
+    power-on effect, not the live one.
+  - Its own SEQ space. When the controller takes over, the outputs cross-fade from the effect (the SCENE fade).
+  - `ultra_slot_scene_effect()` builds it; future per-board slot types are now 0x0B-0x7F (`ULTRA_TYPES`).
+- **CONFIG 23, `ULTRA_CFG_SOFT_START` (persisted):** 0 off, 1 on (the default). After power-up and after a trip's
+  retry the board ramps its outputs from 20 to 100 % over 0.3 s, starting 0-100 ms late (from its chip id), so the
+  boards on one supply or one Diff-Power port don't switch their load on at once. `ULTRA_CFG_COUNT` is now 24.
+- **Monitoring pages** (return channel, Diff-Power receivers):
+  - **SUPPLY 0x09 (`ULTRA_SU_*`):** supply dips against a slow mean of the supply (so it works at 12, 24 or 48 V):
+    the count since power-up, the reference, the supply now, the deepest dip (mV, %, age) and a log of the last 4
+    dips (age, lowest mV and %, duration, the board current then; the POLL argument selects one).
+  - **HEALTH 0x0A (`ULTRA_HE_*`):** each channel's class from the last current calibration test (no load, normal,
+    abnormal with the reasons: not rising with the level, far above / below the test before), its change against the
+    test before, the running model against the stored test, the current while every output is off, and the MCU
+    temperature peak since power-up with its age. Display only.
+  - **ENERGY 0x0B (`ULTRA_EN_*`):** the input energy since power-up (mWh) and over the board's life (Wh), the power
+    now, and the age of the stored lifetime value.
+- **POWER page:** a new latch, `ULTRA_PW_EV_SUPPLY_DIP` (0x08). The acknowledge argument gains the dip count (POLL
+  bytes 14-15); a 0.2.2 host sends 0 there, so its acknowledge leaves a dip latched.
+- **Feature bits 12-16:** `ULTRA_FEAT_SUPPLY_DIPS` (0x00001000), `ULTRA_FEAT_HEALTH` (0x00002000),
+  `ULTRA_FEAT_ENERGY` (0x00004000), `ULTRA_FEAT_SOFT_START` (0x00008000), `ULTRA_FEAT_SCENE_EFFECT` (0x00010000).
+- **Pages:** 0x09-0x0B are taken; later official pages are 0x0C-0x7F.
+- **Wording:** CONFIG 11-21 describe the board limit as boards with the input current sense apply it (the measured
+  input current, all channels scaled together); the computed limit of boards without the current sense is gone from
+  the comments.
+- **Test vectors:** `slot_scene_effect` and `slot_config_soft_start`.
+
 ## v0.2.2 (wire VERSION 2), 2026-10-13
 
 Backward compatible: `ULTRA_VERSION` stays 2. Everything is inside the reserved return channel, which only QuinLED

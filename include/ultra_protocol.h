@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (C) 2026 QuinLED
  *
- * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.2 (CHANGELOG.md). Shared by the
+ * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.3 (CHANGELOG.md). Shared by the
  * board firmware (C) and the controllers (C / C++).
  * Master: include/ultra_protocol.h in https://github.com/intermittech/quinled-ultra-protocol (spec in its wiki).
  * Every copy (board firmware, ESPHome component, other controllers) must be byte-identical to one tagged release
@@ -28,7 +28,8 @@
  *
  * Compatibility rules (ULTRA_PROTOCOL.md): a board ignores what it doesn't know, so new features never disturb
  * boards with older firmware; the host sends only values defined here (the builders below never set anything else).
- *  - Unknown slot TYPE (0x0A-0xFF), LIGHT 5-14, IDENTIFY value or argument, SCENE mode: the slot is ignored.
+ *  - Unknown slot TYPE (0x0B-0xFF; 0x0A before 0.2.3), LIGHT 5-14, IDENTIFY value or argument, SCENE mode: the slot
+ *    is ignored.
  *  - Unknown CONFIG id: that pair is skipped, the others apply. Unknown effect id: ULTRA_FX_NONE (the light's plain
  *    state). Unknown role: the channel is not part of the light.
  *  - Unknown flag bits (header HINT, slot FLAGS, SET / LIGHT_DEF / LIGHT_OPT flags), reserved bits and spare payload
@@ -88,7 +89,8 @@ enum {
     ULTRA_POLL = 0x07,         /* reserved: answer / relay in a response window (RW frames only; ignored) */
     ULTRA_SCENE = 0x08,        /* light: power-on scene (persisted on the board) */
     ULTRA_LIGHT_OPT = 0x09,    /* light: options (dim to warm) */
-    ULTRA_TYPES = 0x0A,        /* 0x0A-0x7F: future per-board commands (ignored) */
+    ULTRA_SCENE_EFFECT = 0x0A, /* light: power-on effect on the SCENE values (persisted on the board; 0.2.3) */
+    ULTRA_TYPES = 0x0B,        /* 0x0B-0x7F: future per-board commands (ignored) */
     ULTRA_TYPE_BCAST = 0x80,   /* 0x80-0xFF: broadcast / extension slots only (after the last board's slot), never
                                   applied as a board's own slot. (The UPD frame's block types 0x81-0x85 are another
                                   namespace: ultra_update.h) */
@@ -121,7 +123,10 @@ enum {
     ULTRA_PAGE_CALIBRATION = 0x06,     /* current sense: the model, connected load and limit in effect */
     ULTRA_PAGE_CAL_TEST = 0x07,        /* the stored test, in two parts (POLL argument 0: 0 = CH1-3, 1 = CH4-5 + rest) */
     ULTRA_PAGE_POWER = 0x08,           /* 0.2.2: board current limit and overcurrent events (ULTRA_PW_*) */
-    ULTRA_PAGE_HW = 0x80,              /* 0x09-0x7F: future official pages; 0x80-0xFD: hardware-specific */
+    ULTRA_PAGE_SUPPLY = 0x09,          /* 0.2.3: supply dips (ULTRA_SU_*) */
+    ULTRA_PAGE_HEALTH = 0x0A,          /* 0.2.3: channel health and the MCU temperature peak (ULTRA_HE_*) */
+    ULTRA_PAGE_ENERGY = 0x0B,          /* 0.2.3: input energy (ULTRA_EN_*) */
+    ULTRA_PAGE_HW = 0x80,              /* 0x0C-0x7F: future official pages; 0x80-0xFD: hardware-specific */
     ULTRA_PAGE_BUSY = 0xFE, ULTRA_PAGE_UNSUPPORTED = 0xFF,
 };
 /* IDENTITY page DATA: MCU UID (12) | firmware version word (4, ultra_update.h; 0 = unknown) | bootloader version (1,
@@ -165,6 +170,7 @@ enum {
 #define ULTRA_PW_EV_LIMITED       0x01u  /* latched: a limit event */
 #define ULTRA_PW_EV_OVERLOAD      0x02u  /* latched: an overload trip (above the limit's trip level for 200 ms) */
 #define ULTRA_PW_EV_SHORT         0x04u  /* latched: a short-circuit trip (>= 1.5 x the fuse rating for 50-100 us) */
+#define ULTRA_PW_EV_SUPPLY_DIP    0x08u  /* latched (0.2.3): a supply dip (SUPPLY page) */
 #define ULTRA_PW_SRC_BOARD        0u     /* limit source: the board's rating (also the CALIBRATION page's encoding) */
 #define ULTRA_PW_SRC_USER         1u     /* limit source: CONFIG 21 / the stored setting */
 #define ULTRA_PW_SRC_PWM          2u     /* limit source: the PWM preset (input capacitor) */
@@ -173,11 +179,62 @@ enum {
 #define ULTRA_PW_CAUSE_SHORT      1u
 #define ULTRA_PW_CAUSE_OVERLOAD   2u
 #define ULTRA_PW_HOLD_MS          2000u  /* LIMITING / CH_LIMITING hold, and the quiet time that ends a limit event */
-/* POWER page POLL arguments (slot bytes 7..): flags (1) | limit events (2) | overload trips (2) | short trips (2),
- * the counts the host last read. With ULTRA_PW_ARG_ACK a latch clears when its count equals the acknowledged one,
- * so an event after the host's read stays latched, and a repeated or lost POLL does no harm. The answer shows the
- * state after the acknowledge. */
+/* POWER page POLL arguments (slot bytes 7..): flags (1) | limit events (2) | overload trips (2) | short trips (2) |
+ * supply dips (2, 0.2.3: the SUPPLY page's count), the counts the host last read. With ULTRA_PW_ARG_ACK a latch clears
+ * when its count equals the acknowledged one, so an event after the host's read stays latched, and a repeated or lost
+ * POLL does no harm. The answer shows the state after the acknowledge. (A 0.2.2 host sends 0 for the dips: its
+ * acknowledge leaves a dip latched.) */
 #define ULTRA_PW_ARG_ACK          0x01u
+/* SUPPLY page DATA (0x09, 0.2.3): dips of the supply / bus voltage (ULTRA_FEAT_SUPPLY_DIPS). A dip: the 1 ms readings
+ * fall clearly below a slow mean of the supply (the firmware's: below 90 % of a ~4 s mean for >= 3 ms; it ends above
+ * 93 % for >= 3 ms), so it works at 12, 24 or 48 V alike. Each dip also latches ULTRA_PW_EV_SUPPLY_DIP on the POWER
+ * page. POLL argument (slot byte 7): the logged dip the ULTRA_SU_EV_* fields show, 0 = the newest. Counters wrap; ages
+ * are u24 seconds (0xFFFFFF = none since power-up). */
+#define ULTRA_SU_DIPS             0u     /* u16: dips since power-up */
+#define ULTRA_SU_REF_MV           2u     /* u16: the reference (the slow mean) now, mV; 0 = not known yet */
+#define ULTRA_SU_NOW_MV           4u     /* u16: the supply now (16 ms average), mV */
+#define ULTRA_SU_DEEP_MV          6u     /* u16: the deepest dip since power-up (lowest reading against its reference):
+                                            its lowest reading, mV */
+#define ULTRA_SU_DEEP_PCT         8u     /* u8: ... that reading in % of its reference */
+#define ULTRA_SU_DEEP_AGE         9u     /* u24: ... s since it began */
+#define ULTRA_SU_LOGGED           12u    /* u8: dips in the log, 0..ULTRA_SU_LOG */
+#define ULTRA_SU_EV_AGE           13u    /* u24: the selected dip: s since it began */
+#define ULTRA_SU_EV_MV            16u    /* u16: its lowest reading, mV */
+#define ULTRA_SU_EV_PCT           18u    /* u8: that reading in % of its reference */
+#define ULTRA_SU_EV_MS            19u    /* u16: how long it lasted, ms (65535 = longer, or still going) */
+#define ULTRA_SU_EV_MA            21u    /* u16: the board current at its lowest reading, mA */
+#define ULTRA_SU_LOG              4u     /* dips the board keeps (RAM: a power cycle clears them) */
+/* HEALTH page DATA (0x0A, 0.2.3): channel health from the current calibration test (IDENTIFY 2) and the running
+ * channel model, and the MCU temperature peak (ULTRA_FEAT_HEALTH). Display only: nothing here changes the outputs. */
+#define ULTRA_HE_FLAGS            0u     /* u8: ULTRA_HE_F_* */
+#define ULTRA_HE_CLASS            1u     /* 5 x u8, CH1..CH5: the last test's class (ULTRA_HE_UNTESTED..) | reasons */
+#define ULTRA_HE_TEST_DEV         6u     /* 5 x int8: the last test at 100 % against the test stored before it, %
+                                            (ULTRA_HE_NA: not known) */
+#define ULTRA_HE_MODEL_DEV        11u    /* 5 x int8: the running model at 100 % against the stored test, % */
+#define ULTRA_HE_DARK_MA          16u    /* int16: the board current with every output off, over the stored test's zero
+                                            (logic + offset), mA */
+#define ULTRA_HE_TEMP_PEAK        18u    /* int16: the highest MCU die temperature since power-up, 0.1 C */
+#define ULTRA_HE_TEMP_AGE         20u    /* u24: s since it */
+#define ULTRA_HE_F_TESTED         0x01u  /* a test ran since power-up (the classes are its) */
+#define ULTRA_HE_F_ABNORMAL       0x02u  /* a channel's class is ULTRA_HE_ABNORMAL */
+#define ULTRA_HE_F_DARK           0x04u  /* current with every output off (a FET stuck on, leakage) */
+#define ULTRA_HE_F_DRIFT          0x08u  /* the running model is far off the stored test on a channel */
+#define ULTRA_HE_UNTESTED         0u
+#define ULTRA_HE_NO_LOAD          1u     /* nothing connected (and nothing was at the test before) */
+#define ULTRA_HE_NORMAL           2u
+#define ULTRA_HE_ABNORMAL         3u     /* see the reasons */
+#define ULTRA_HE_R_NOT_RISING     0x10u  /* the current didn't rise with the level (25 / 50 / 75 / 100 %) */
+#define ULTRA_HE_R_ABOVE          0x20u  /* far above the test before */
+#define ULTRA_HE_R_BELOW          0x40u  /* far below the test before, or no load where it had one */
+#define ULTRA_HE_NA               (-128)
+/* ENERGY page DATA (0x0B, 0.2.3): the input energy, supply / bus voltage x the measured input current
+ * (ULTRA_FEAT_ENERGY) */
+#define ULTRA_EN_BOOT_MWH         0u     /* u32: since power-up, mWh */
+#define ULTRA_EN_TOTAL_WH         4u     /* u32: the board's lifetime, Wh (stored on the board at most hourly, and when
+                                            its outputs go dark; a factory reset clears it) */
+#define ULTRA_EN_POWER_MW         8u     /* u32: the input power now, mW */
+#define ULTRA_EN_SAVED_AGE        12u    /* u24: s since the lifetime value was last stored (0xFFFFFF = not since
+                                            power-up) */
 #define ULTRA_FEAT_SCENE          0x00000001u  /* SCENE: power-on scene */
 #define ULTRA_FEAT_DIM_TO_WARM    0x00000002u  /* LIGHT_OPT dim to warm with red assist */
 #define ULTRA_FEAT_DTW_POINTS     0x00000004u  /* LIGHT_OPT set points */
@@ -190,7 +247,12 @@ enum {
 #define ULTRA_FEAT_MCU_TEMP       0x00000200u  /* STATUS: the MCU temperature and the 3.3 V rail (ULTRA_ST_*) */
 #define ULTRA_FEAT_VERSION_BLINK  0x00000400u  /* IDENTIFY 5: the firmware version as blinks (0.2.1) */
 #define ULTRA_FEAT_POWER_EVENTS   0x00000800u  /* POWER page and STATUS byte 8 (0.2.2) */
-/*      0x00001000-0x00800000     future official features (e.g. broadcast slots, an EXT extension);
+#define ULTRA_FEAT_SUPPLY_DIPS    0x00001000u  /* SUPPLY page, POWER latch ULTRA_PW_EV_SUPPLY_DIP (0.2.3) */
+#define ULTRA_FEAT_HEALTH         0x00002000u  /* HEALTH page (0.2.3) */
+#define ULTRA_FEAT_ENERGY         0x00004000u  /* ENERGY page (0.2.3) */
+#define ULTRA_FEAT_SOFT_START     0x00008000u  /* CONFIG 23 (0.2.3) */
+#define ULTRA_FEAT_SCENE_EFFECT   0x00010000u  /* SCENE_EFFECT: power-on effects (0.2.3) */
+/*      0x00020000-0x00800000     future official features (e.g. broadcast slots, an EXT extension);
  *      0x01000000-0x80000000     hardware-specific */
 
 /* SET flags (low nibble of byte 1; the other slot types send FLAGS 0) */
@@ -235,13 +297,17 @@ enum {
     ULTRA_CFG_LOSS = 8,            /* 0 hold, 1 off, 2 fade off */
     ULTRA_CFG_LOSS_TIMEOUT = 9,    /* x 100 ms, 5..600 */
     ULTRA_CFG_FEEDBACK = 10,       /* identify channel: 0 red, 1 all, 2 off */
-    ULTRA_CFG_CH_CURRENT = 11,     /* 11..15: LED current of CH1..CH5 at 100 %, mA (power limit) */
-    ULTRA_CFG_CH_MAX = 16,         /* 16..20: limit per channel, mA (0 = none) */
-    ULTRA_CFG_BOARD_MAX = 21,      /* limit for the board, mA (0 = none); boards with the input current sense:
-                                      the measured board current (0 = the board rating) */
+    ULTRA_CFG_CH_CURRENT = 11,     /* 11..15: LED current of CH1..CH5 at 100 %, mA (for the channel limits) */
+    ULTRA_CFG_CH_MAX = 16,         /* 16..20: limit per channel, mA (0 = none), on the currents of 11..15 */
+    ULTRA_CFG_BOARD_MAX = 21,      /* limit for the board, mA: the board holds its measured input current to it, all
+                                      channels scaled together (0 = the board rating) */
     ULTRA_CFG_BOOT_PROTOCOL = 22,  /* persisted: protocol mode after power-up, 0 auto, 1 WS2915, 2 WS2805, 3 Ultra
                                       (auto / Ultra apply at once; WS2915 / WS2805 from the next power-up on) */
-    ULTRA_CFG_COUNT = 23,          /* 23-127: future official ids; a board skips an unknown id (the others apply) */
+    ULTRA_CFG_SOFT_START = 23,     /* persisted (0.2.3): 0 off, 1 on (the default). After power-up (the first light)
+                                      and after a trip's retry the board ramps its outputs from 20 to 100 % over 0.3 s,
+                                      starting 0-100 ms late (from its chip id), so the boards of a pin don't switch
+                                      their load on at once */
+    ULTRA_CFG_COUNT = 24,          /* 24-127: future official ids; a board skips an unknown id (the others apply) */
     ULTRA_CFG_HW = 128,            /* 128-255: hardware-specific (e.g. a Diff-Power receiver, a current-sense revision) */
     ULTRA_CFG_MCU_TEMP_OFFSET = 128,   /* reserved, not settable yet: MCU temperature offset, int16 0.1 C (a one-point
                                           calibration, core/mcutemp.h); the board skips it like any unknown id */
@@ -560,6 +626,28 @@ static inline void ultra_slot_scene(uint8_t *s, uint8_t light, uint8_t seq, uint
     for (i = 0; i < 5u; i++) {
         ultra_put16(p + 4 + 2 * i, a[i]);
         ultra_put16(p + 14 + 2 * i, b[i]);
+    }
+    ultra_slot_seal(s);
+}
+
+/* SCENE_EFFECT (0.2.3): the light's power-on effect. From the board's power-up until the controller takes over, the
+ * board runs this effect on the light's SCENE values (mode 1) by itself, no controller needed: e.g. a candle, a slow
+ * colour loop, a sunrise. The board stores it in its flash together with the light's LIGHT_DEF, LIGHT_OPT and SCENE
+ * (written only when it changes, a few times a day at most: send a fixed power-on effect, not the live one).
+ * Payload: effect id (1) + its parameters (as EFFECT, ultra_fx_param_bytes; no start time: the effect starts at
+ * power-up). ULTRA_FX_NONE = no effect (the plain SCENE values). ULTRA_FX_STROBE is shown as the plain values (its
+ * steps aren't stored). The effect stays until a SCENE_EFFECT changes it or a factory reset; a light whose SCENE mode
+ * is 0 shows none. When the controller takes over (its first SET / EFFECT, or WS data), the outputs cross-fade from
+ * the effect as from a plain scene (the SCENE fade). Boards before 0.2.3 ignore the slot (an unknown type). */
+static inline void ultra_slot_scene_effect(uint8_t *s, uint8_t light, uint8_t seq, uint8_t fx, const uint8_t *params,
+                                           uint32_t nparams)
+{
+    uint8_t *p = s + ULTRA_PAYLOAD;
+    uint32_t i;
+    ultra_slot_begin(s, ULTRA_SCENE_EFFECT, light, 0, seq);
+    p[0] = fx < ULTRA_FX_COUNT ? fx : (uint8_t)ULTRA_FX_NONE;
+    for (i = 0; i < nparams && i < ultra_fx_param_bytes(p[0]); i++) {
+        p[1 + i] = params[i];
     }
     ultra_slot_seal(s);
 }

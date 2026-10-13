@@ -129,6 +129,9 @@ int main(int argc, char **argv)
     static const uint16_t cfg_vals[8] = { 8, 4, 3000, 3000, 3000, 5000, 5000, 8000 };
     static const uint16_t pt_m[3] = { 65535, 16384, 3277 };
     static const uint16_t pt_mired10[3] = { 3704, 4545, 5556 };
+    static const uint8_t candle_p[4] = { 0x80, 0x00,  0x00, 0x64 };
+    static const uint8_t ss_id[1] = { ULTRA_CFG_SOFT_START };
+    static const uint16_t ss_val[1] = { 0 };
     uint8_t s[ULTRA_SLOT_BYTES], h[ULTRA_HDR_BYTES], f[8 * ULTRA_SLOT_BYTES + ULTRA_HDR_BYTES];
     uint8_t sw[64];
     uint32_t i, n, t;
@@ -256,6 +259,15 @@ int main(int argc, char **argv)
                 "Flags 0x03. As slot_light_opt plus 3 points (M, mireds x 10): (65535, 3704) 2700 K at full, "
                 "(16384, 4545) 2200 K at 25 %, (3277, 5556) 1800 K at 5 %; the 4th point unused (0, 0). SEQ 0x78.",
                 s, 1);
+    ultra_slot_scene_effect(s, 0, 0x79, ULTRA_FX_CANDLE, candle_p, sizeof candle_p);
+    slot_vector("slot_scene_effect", "SCENE_EFFECT candle on light 0 (0.2.3)",
+                "Effect 5 (candle) as light 0's power-on effect, on its SCENE values (slot_scene). Parameters as "
+                "EFFECT without the start time: intensity 32768 (0.5), speed 100 %. Boards from before 0.2.3 ignore "
+                "it. SEQ 0x79.", s, 1);
+    ultra_slot_config(s, 0x45, ss_id, ss_val, 1);
+    slot_vector("slot_config_soft_start", "CONFIG soft start off (0.2.3)",
+                "LIGHT 0xF (board). One pair: id 23 (soft start), value 0 (off; persisted). The other 8 pairs unused "
+                "(0, 0). SEQ 0x45.", s, 1);
 
     /* ----------------------------------------------------------------------------------------------- frames */
     fprintf(md, "## 4. Frames\n\nN slots (board 0 first) + the header as a trailer. Every board takes the first slot "

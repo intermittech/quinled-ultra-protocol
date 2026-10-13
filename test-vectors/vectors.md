@@ -276,6 +276,28 @@ TYPE `0x09`, LIGHT 0, FLAGS `0x0`, SEQ `0x78`, CRC-16 `0xD7B1` (valid)
 40 00 11 C1 0C CD 15 B4 00 00 00 00 00 00 D7 B1
 ```
 
+### `slot_scene_effect`: SCENE_EFFECT candle on light 0 (0.2.3)
+
+Effect 5 (candle) as light 0's power-on effect, on its SCENE values (slot_scene). Parameters as EFFECT without the start time: intensity 32768 (0.5), speed 100 %. Boards from before 0.2.3 ignore it. SEQ 0x79.
+
+TYPE `0x0A`, LIGHT 0, FLAGS `0x0`, SEQ `0x79`, CRC-16 `0x00CD` (valid)
+
+```
+0A 00 79 05 80 00 00 64 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 CD
+```
+
+### `slot_config_soft_start`: CONFIG soft start off (0.2.3)
+
+LIGHT 0xF (board). One pair: id 23 (soft start), value 0 (off; persisted). The other 8 pairs unused (0, 0). SEQ 0x45.
+
+TYPE `0x05`, LIGHT 15, FLAGS `0x0`, SEQ `0x45`, CRC-16 `0x7BC8` (valid)
+
+```
+05 F0 45 17 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 7B C8
+```
+
 ## 4. Frames
 
 N slots (board 0 first) + the header as a trailer. Every board takes the first slot of what reaches it and forwards the rest.

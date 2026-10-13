@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (C) 2026 QuinLED
  *
- * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.1 (CHANGELOG.md). Shared by the
+ * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.2 (CHANGELOG.md). Shared by the
  * board firmware (C) and the controllers (C / C++).
  * Master: include/ultra_protocol.h in https://github.com/intermittech/quinled-ultra-protocol (spec in its wiki).
  * Every copy (board firmware, ESPHome component, other controllers) must be byte-identical to one tagged release
@@ -120,7 +120,8 @@ enum {
     ULTRA_PAGE_IDENTITY = 0x04, ULTRA_PAGE_FW_UPDATE = 0x05,
     ULTRA_PAGE_CALIBRATION = 0x06,     /* current sense: the model, connected load and limit in effect */
     ULTRA_PAGE_CAL_TEST = 0x07,        /* the stored test, in two parts (POLL argument 0: 0 = CH1-3, 1 = CH4-5 + rest) */
-    ULTRA_PAGE_HW = 0x80,              /* 0x08-0x7F: future official pages; 0x80-0xFD: hardware-specific */
+    ULTRA_PAGE_POWER = 0x08,           /* 0.2.2: board current limit and overcurrent events (ULTRA_PW_*) */
+    ULTRA_PAGE_HW = 0x80,              /* 0x09-0x7F: future official pages; 0x80-0xFD: hardware-specific */
     ULTRA_PAGE_BUSY = 0xFE, ULTRA_PAGE_UNSUPPORTED = 0xFF,
 };
 /* IDENTITY page DATA: MCU UID (12) | firmware version word (4, ultra_update.h; 0 = unknown) | bootloader version (1,
@@ -136,6 +137,47 @@ enum {
 #define ULTRA_ST_MCU_TEMP         9u
 #define ULTRA_ST_VDDA             15u
 #define ULTRA_ST_NA               0x8000u
+/* STATUS byte 8 (0.2.2): the board's power state now, so a plain STATUS poll shows it (details: POWER page). */
+#define ULTRA_ST_STATE            8u
+#define ULTRA_ST_LIMITING         0x01u  /* the board limit reduces the outputs (held 2 s after the last reduction) */
+#define ULTRA_ST_TRIPPED          0x02u  /* outputs off after an overcurrent trip, until the retry */
+#define ULTRA_ST_POWER_EVENT      0x04u  /* a power event is latched: a POWER page latch the host hasn't acknowledged */
+#define ULTRA_ST_CH_LIMITING      0x08u  /* a channel limit (CONFIG 16-20) reduces a channel (held 2 s) */
+/*      0x10-0x80                   reserved (0) */
+/* POWER page DATA (0x08, 0.2.2): the board current limit and overcurrent events of boards with the input current
+ * sense (ULTRA_FEAT_POWER_EVENTS); others answer ULTRA_PAGE_UNSUPPORTED. A limit event starts when the limiter
+ * reduces the outputs after ULTRA_PW_HOLD_MS without reducing them. Counters are u16 and wrap; ages are u24 seconds
+ * (0xFFFFFF = none since power-up). While a latch is set, every answer carries RFLAGS ULTRA_RSP_EVENT and STATUS
+ * byte 8 ULTRA_ST_POWER_EVENT. */
+#define ULTRA_PW_NOW              0u     /* u8: ULTRA_ST_LIMITING | ULTRA_ST_TRIPPED | ULTRA_ST_CH_LIMITING now */
+#define ULTRA_PW_LATCHED          1u     /* u8: ULTRA_PW_EV_* since the host's last acknowledge */
+#define ULTRA_PW_LIMIT_EVENTS     2u     /* u16: limit events since power-up */
+#define ULTRA_PW_OVL_TRIPS        4u     /* u16: overload trips since power-up */
+#define ULTRA_PW_SHORT_TRIPS      6u     /* u16: short-circuit trips since power-up */
+#define ULTRA_PW_LIMIT_AGE        8u     /* u24: s since the last limit event started */
+#define ULTRA_PW_TRIP_AGE         11u    /* u24: s since the last trip */
+#define ULTRA_PW_LIMIT_MA         14u    /* u16: board limit in effect, mA (0xFFFF = none) */
+#define ULTRA_PW_SRC_CAUSE        16u    /* u8: limit source (ULTRA_PW_SRC_*) << 4 | last trip cause (ULTRA_PW_CAUSE_*) */
+#define ULTRA_PW_EVENT_MA         17u    /* u16: measured board current when the last limit event started, mA */
+#define ULTRA_PW_TRIP_MA          19u    /* u16: measured current at the last trip, mA (short circuit: the peak sample) */
+#define ULTRA_PW_FACTOR           21u    /* u16: the limiter's scale now, 0..65535 = 0..1 (65535 = none, 0 = tripped) */
+#define ULTRA_PW_RETRY_S          23u    /* u8: s until the retry after a trip (0 = not tripped, 255 = 255 s or more) */
+#define ULTRA_PW_EV_LIMITED       0x01u  /* latched: a limit event */
+#define ULTRA_PW_EV_OVERLOAD      0x02u  /* latched: an overload trip (above the limit's trip level for 200 ms) */
+#define ULTRA_PW_EV_SHORT         0x04u  /* latched: a short-circuit trip (>= 1.5 x the fuse rating for 50-100 us) */
+#define ULTRA_PW_SRC_BOARD        0u     /* limit source: the board's rating (also the CALIBRATION page's encoding) */
+#define ULTRA_PW_SRC_USER         1u     /* limit source: CONFIG 21 / the stored setting */
+#define ULTRA_PW_SRC_PWM          2u     /* limit source: the PWM preset (input capacitor) */
+#define ULTRA_PW_SRC_FUSE         3u     /* limit source: the soldered fuse */
+#define ULTRA_PW_CAUSE_NONE       0u
+#define ULTRA_PW_CAUSE_SHORT      1u
+#define ULTRA_PW_CAUSE_OVERLOAD   2u
+#define ULTRA_PW_HOLD_MS          2000u  /* LIMITING / CH_LIMITING hold, and the quiet time that ends a limit event */
+/* POWER page POLL arguments (slot bytes 7..): flags (1) | limit events (2) | overload trips (2) | short trips (2),
+ * the counts the host last read. With ULTRA_PW_ARG_ACK a latch clears when its count equals the acknowledged one,
+ * so an event after the host's read stays latched, and a repeated or lost POLL does no harm. The answer shows the
+ * state after the acknowledge. */
+#define ULTRA_PW_ARG_ACK          0x01u
 #define ULTRA_FEAT_SCENE          0x00000001u  /* SCENE: power-on scene */
 #define ULTRA_FEAT_DIM_TO_WARM    0x00000002u  /* LIGHT_OPT dim to warm with red assist */
 #define ULTRA_FEAT_DTW_POINTS     0x00000004u  /* LIGHT_OPT set points */
@@ -147,7 +189,8 @@ enum {
 #define ULTRA_FEAT_STAGGER_ADAPTIVE 0x00000100u /* CONFIG 7 values 3 / 4 */
 #define ULTRA_FEAT_MCU_TEMP       0x00000200u  /* STATUS: the MCU temperature and the 3.3 V rail (ULTRA_ST_*) */
 #define ULTRA_FEAT_VERSION_BLINK  0x00000400u  /* IDENTIFY 5: the firmware version as blinks (0.2.1) */
-/*      0x00000800-0x00800000     future official features (e.g. broadcast slots, an EXT extension);
+#define ULTRA_FEAT_POWER_EVENTS   0x00000800u  /* POWER page and STATUS byte 8 (0.2.2) */
+/*      0x00001000-0x00800000     future official features (e.g. broadcast slots, an EXT extension);
  *      0x01000000-0x80000000     hardware-specific */
 
 /* SET flags (low nibble of byte 1; the other slot types send FLAGS 0) */

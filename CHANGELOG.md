@@ -4,6 +4,34 @@ Releases of this repository. While below 1.0 they are numbered 0.x.y, and the MI
 format's VERSION (`ULTRA_VERSION`, header byte 2): 0.2.y = wire VERSION 2. A compatible addition raises the
 PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
+## v0.2.2 (wire VERSION 2), 2026-10-13
+
+Backward compatible: `ULTRA_VERSION` stays 2. Everything is inside the reserved return channel, which only QuinLED
+Diff-Power ultra receivers will implement. No frame a controller sends today changes.
+
+- **The board current limit and overcurrent events**, so a controller can show them (e.g. in Home Assistant):
+  - **STATUS byte 8 (`ULTRA_ST_STATE`):** the power state now.
+    - `ULTRA_ST_LIMITING`: the board limit reduces the outputs.
+    - `ULTRA_ST_TRIPPED`: the outputs are off after an overcurrent trip.
+    - `ULTRA_ST_POWER_EVENT`: an event is latched.
+    - `ULTRA_ST_CH_LIMITING`: a channel limit is active.
+    - The limiting bits are held 2 s, so they don't flicker.
+  - **POWER page 0x08 (`ULTRA_PAGE_POWER`, `ULTRA_PW_*`):**
+    - the state now, and latched events since the controller's last acknowledge (limited, overload trip,
+      short-circuit trip);
+    - counters for limit events, overload trips and short-circuit trips;
+    - the seconds since the last limit event and the last trip;
+    - the board limit in effect and its source (board rating, user, PWM, fuse);
+    - the last trip's cause;
+    - the measured current at the last limit event and at the last trip;
+    - the limiter's factor now;
+    - the seconds until the retry.
+  - **Acknowledge (`ULTRA_PW_ARG_ACK`):** a POLL of the POWER page can carry the counts the controller last read.
+    A latch clears only when its count still matches, so an event after the read is never lost, and a repeated POLL
+    is harmless.
+  - **Feature bit 11, `ULTRA_FEAT_POWER_EVENTS` (0x00000800).**
+- **Pages:** 0x08 is taken; later official pages are 0x09-0x7F.
+
 ## v0.2.1 (wire VERSION 2), 2026-10-13
 
 Backward compatible: `ULTRA_VERSION` stays 2, and boards and controllers of 0.2.0 work with 0.2.1 ones.

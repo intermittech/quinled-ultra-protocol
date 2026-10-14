@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (C) 2026 QuinLED
  *
- * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.4 (CHANGELOG.md). Shared by the
+ * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.5 (CHANGELOG.md). Shared by the
  * board firmware (C) and the controllers (C / C++).
  * Master: include/ultra_protocol.h in https://github.com/intermittech/quinled-ultra-protocol (spec in its wiki).
  * Every copy (board firmware, ESPHome component, other controllers) must be byte-identical to one tagged release
@@ -181,7 +181,10 @@ enum {
     ULTRA_PAGE_SUPPLY = 0x09,          /* 0.2.3: supply dips (ULTRA_SU_*) */
     ULTRA_PAGE_HEALTH = 0x0A,          /* 0.2.3: channel health and the MCU temperature peak (ULTRA_HE_*) */
     ULTRA_PAGE_ENERGY = 0x0B,          /* 0.2.3: input energy (ULTRA_EN_*) */
-    ULTRA_PAGE_HW = 0x80,              /* 0x0C-0x7F: future official pages; 0x80-0xFD: hardware-specific */
+    ULTRA_PAGE_LIFETIME = 0x0C,        /* 0.2.5: the board's lifetime record, its odometer (ULTRA_LT_*) */
+    ULTRA_PAGE_DIAG = 0x0D,            /* 0.2.5: diagnostics in two parts (POLL argument 0: 0 = the running board, 1 =
+                                          the fault memory and the calibration trend; 2-255: UNSUPPORTED) (ULTRA_DG_*) */
+    ULTRA_PAGE_HW = 0x80,              /* 0x0E-0x7F: future official pages; 0x80-0xFD: hardware-specific */
     ULTRA_PAGE_BUSY = 0xFE, ULTRA_PAGE_UNSUPPORTED = 0xFF,
 };
 /* IDENTITY page DATA: MCU UID (12) | firmware version word (4, ultra_update.h; 0 = unknown) | bootloader version (1,
@@ -271,6 +274,22 @@ enum {
 #define ULTRA_ST_TRIPPED          0x02u  /* outputs off after an overcurrent trip, until the retry */
 #define ULTRA_ST_POWER_EVENT      0x04u  /* a power event is latched: a POWER page latch the host hasn't acknowledged */
 #define ULTRA_ST_CH_LIMITING      0x08u  /* a channel limit (CONFIG 16-20) reduces a channel (held 2 s) */
+/* (0.2.5) bits 4-7: why the light isn't as the host set it now, the first of these that applies (the limits: bits 0
+ * and 3, alongside); 0 = nothing (as set) */
+#define ULTRA_ST_WHY_SHIFT        4u
+#define ULTRA_ST_WHY_NONE         0u
+#define ULTRA_ST_WHY_SHORT        1u     /* off after a short-circuit trip, until the retry */
+#define ULTRA_ST_WHY_OVERLOAD     2u     /* off after an overload trip, until the retry */
+#define ULTRA_ST_WHY_RETRIES_OUT  3u     /* off: the retries used up (CONFIG 24), until a new command or a power cycle */
+#define ULTRA_ST_WHY_TEST         4u     /* the test jig's mode */
+#define ULTRA_ST_WHY_CALIBRATING  5u     /* a current calibration test (IDENTIFY 2) */
+#define ULTRA_ST_WHY_HOT          6u     /* too hot: the MCU die over its warning level (a warning only: nothing dims) */
+#define ULTRA_ST_WHY_SUPPLY       7u     /* a supply dip now or in the last ULTRA_ST_DIP_RECENT_S */
+#define ULTRA_ST_WHY_SIGNAL_LOSS  8u     /* signal loss (CONFIG 8) */
+#define ULTRA_ST_WHY_SOFT_START   9u     /* the soft start ramps the outputs */
+#define ULTRA_ST_WHY_DARK_HOLD    10u    /* IDENTIFY 3 */
+#define ULTRA_ST_WHY_PATTERN      11u    /* an identify / acknowledge / version / fault-code pattern */
+#define ULTRA_ST_DIP_RECENT_S     30u
 /*      0x10-0x80                   reserved (0) */
 /* POWER page DATA (0x08, 0.2.2): the board current limit and overcurrent events of boards with the input current
  * sense (ULTRA_FEAT_POWER_EVENTS); others answer ULTRA_PAGE_UNSUPPORTED. A limit event starts when the limiter
@@ -344,6 +363,9 @@ enum {
 #define ULTRA_HE_F_ABNORMAL       0x02u  /* a channel's class is ULTRA_HE_ABNORMAL */
 #define ULTRA_HE_F_DARK           0x04u  /* current with every output off (a FET stuck on, leakage) */
 #define ULTRA_HE_F_DRIFT          0x08u  /* the running model is far off the stored test on a channel */
+#define ULTRA_HE_F_CAL_SUGGESTED  0x10u  /* (named in 0.2.5; sent since firmware 0.6.6) a calibration test is suggested:
+                                            the model far off the stored test for 5 min lit, or a new load */
+#define ULTRA_HE_F_HOT            0x20u  /* (0.2.5) the MCU die over its warning level now (STATUS 8: ULTRA_ST_WHY_HOT) */
 #define ULTRA_HE_UNTESTED         0u
 #define ULTRA_HE_NO_LOAD          1u     /* nothing connected (and nothing was at the test before) */
 #define ULTRA_HE_NORMAL           2u
@@ -360,6 +382,76 @@ enum {
 #define ULTRA_EN_POWER_MW         8u     /* u32: the input power now, mW */
 #define ULTRA_EN_SAVED_AGE        12u    /* u24: s since the lifetime value was last stored (0xFFFFFF = not since
                                             power-up) */
+#define ULTRA_EN_VB               15u    /* (0.2.5) u16: the LED supply after the receiver's buck (V_B), x 10 mV; 0xFFFF
+                                            = not measured */
+#define ULTRA_EN_PEAK_MA          17u    /* (0.2.5) u16: the highest input current (~100 ms average) since this page was
+                                            last answered, mA (an answer the host misses takes its window's peak) */
+/* CALIBRATION page byte 1 (0.2.5): the current model in use (bits 0-3: 0 none, 1 learned, 2 calibrated) | how the last
+ * calibration test (IDENTIFY 2) ended (bits 4-7, ULTRA_CA_END_*). A test that stopped early stores nothing: the
+ * calibration before it stays in use */
+#define ULTRA_CA_MODEL            1u
+#define ULTRA_CA_END_COMPLETE     0u     /* complete, or no test since power-up */
+#define ULTRA_CA_END_TRIP         1u     /* stopped: a trip */
+#define ULTRA_CA_END_LIMIT        2u     /* stopped: the installation's limit (CONFIG 21) reached, never above it */
+#define ULTRA_CA_END_SUPPLY       3u     /* stopped: a supply dip */
+/* LIFETIME page DATA (0x0C, 0.2.5): the board's lifetime record, its odometer: kept across power cuts (stored with the
+ * lifetime energy, ENERGY page; a factory reset keeps it). The values as they are now: the stored ones and what came
+ * since (ULTRA_FEAT_LIFETIME). Counters: their low 24 / 16 bits */
+#define ULTRA_LT_POWERED          0u     /* u24: time powered, 0.1 h */
+#define ULTRA_LT_LIT              3u     /* u24: time with an output on, 0.1 h */
+#define ULTRA_LT_POWER_UPS        6u     /* u24 */
+#define ULTRA_LT_OVERLOAD_TRIPS   9u     /* u16 (saturating) */
+#define ULTRA_LT_SHORT_TRIPS      11u    /* u16 (saturating) */
+#define ULTRA_LT_DIPS             13u    /* u24: supply dips */
+#define ULTRA_LT_TEMP_PEAK        16u    /* u8: the highest MCU die temperature, 0.5 C (0 = none yet) */
+#define ULTRA_LT_CURRENT_PEAK     17u    /* u8: the highest input current (~100 ms average), 0.1 A */
+#define ULTRA_LT_WATCHDOG         18u    /* u8: watchdog resets (saturating) */
+#define ULTRA_LT_UPDATES          19u    /* u16: firmware updates (starts with a new app version) */
+#define ULTRA_LT_RECORDS          21u    /* u24: the record's writes (its flash wear) */
+/* DIAG page DATA (0x0D, 0.2.5): what service looks at first (ULTRA_FEAT_DIAG). POLL argument 0, the running board: */
+#define ULTRA_DG_RESET            0u     /* u8: this start's reset cause, ULTRA_ST_RST_* (as STATUS 7) */
+#define ULTRA_DG_BC_CAUSE         1u     /* u8: the last run's breadcrumbs (kept by a watchdog, software or pin reset):
+                                            the exception's cause (RISC-V mcause; 0 = none: a watchdog reset without
+                                            one); 0xFF = none kept (a power-up) */
+#define ULTRA_DG_BC_PC            2u     /* u16: ... where the exception came from (the address's low 16 bits) */
+#define ULTRA_DG_BC_UPTIME        4u     /* u24: ... how long that run had been up, s (saturating) */
+#define ULTRA_DG_CPU              7u     /* u16: CPU load of the last second, 0.1 % */
+#define ULTRA_DG_CPU_PEAK         9u     /* u16: the busiest second since power-up, 0.1 % */
+#define ULTRA_DG_OVR_CAPTURES     11u    /* u16: frame captures dropped since power-up (saturating) */
+#define ULTRA_DG_OVR_FRAME_ENDS   13u    /* u16: frame ends not classified (saturating) */
+#define ULTRA_DG_OVR_LATE_MS      15u    /* u16: ms the main loop ran late (saturating) */
+#define ULTRA_DG_SUPPLY_Z         17u    /* u16: the supply / cable impedance, mOhm (0: not known yet; saturating) */
+#define ULTRA_DG_FLASH_ERRS       19u    /* u8: flash operations failed in a row (0: the last one succeeded) */
+#define ULTRA_DG_FLASH_PENDING    20u    /* u8: records waiting to be written, ULTRA_DG_FP_* */
+#define ULTRA_DG_SAVE_WAIT        21u    /* u8: why the settings / calibration / scene / effects wait, ULTRA_DG_SW_* */
+#define ULTRA_DG_C10_LOAD         22u    /* u8: the input capacitor's ripple load, % of its rating (0xFF: not measured) */
+#define ULTRA_DG_C10_PEAK         23u    /* u8: ... its peak (0xFF: not measured) */
+#define ULTRA_DG_FP_SETTINGS      0x01u
+#define ULTRA_DG_FP_CALIBRATION   0x02u
+#define ULTRA_DG_FP_SCENE         0x04u
+#define ULTRA_DG_FP_LIFETIME      0x08u  /* a regular write is due (it waits for the outputs to go dark) */
+#define ULTRA_DG_FP_EFFECTS       0x10u  /* the power-on effects */
+#define ULTRA_DG_SW_NONE          0u     /* nothing pending */
+#define ULTRA_DG_SW_DEBOUNCE      1u     /* the last change is under 2 s old */
+#define ULTRA_DG_SW_DARK          2u     /* the outputs are bright and this hour's write while bright is used */
+#define ULTRA_DG_SW_BUDGET        3u     /* the write budget is used up for now */
+#define ULTRA_DG_SW_ERROR         4u     /* the hold-off after a failed flash operation */
+#define ULTRA_DG_SW_SUPPLY        5u     /* the 3.3 V rail is too low to write */
+/* POLL argument 1: the fault memory (the lifetime record's: kept across power cuts once stored) and the calibration
+ * trend */
+#define ULTRA_DG_TRIP             0u     /* u8: the last trip: 1 short, 2 overload (bits 0-1) | its current (a short's
+                                            peak), 0.5 A (bits 2-7, saturating); 0 = none */
+#define ULTRA_DG_TRIP_LIT_H       1u     /* u16: ... the lit hours then (LIFETIME's lit time, saturating) */
+#define ULTRA_DG_DIP_PCT          3u     /* u8: the last supply dip: its lowest reading, % of its reference; 0 = none */
+#define ULTRA_DG_DIP_10MS         4u     /* u8: ... how long, x 10 ms (255: longer) */
+#define ULTRA_DG_DIP_CURRENT      5u     /* u8: ... the input current at its lowest, 0.1 A (saturating) */
+#define ULTRA_DG_RST              6u     /* u8: the last abnormal reset: 1 watchdog, 2 an exception (then the watchdog)
+                                            (bits 0-1) | the exception's mcause (bits 2-7); 0 = none */
+#define ULTRA_DG_RST_UP_H         7u     /* u8: ... how long that run had been up, h (saturating) */
+#define ULTRA_DG_TREND            8u     /* 5 x int8, CH1..CH5: the calibration trend, the newest stored test at 100 %
+                                            against the first, % (ULTRA_HE_NA: not known) */
+#define ULTRA_DG_TREND_LIT_H      13u    /* u16: ... over how many lit hours (0xFFFF: not known) */
+#define ULTRA_DG_TREND_TESTS      15u    /* u8: tests in that history (0: not known) */
 #define ULTRA_FEAT_SCENE          0x00000001u  /* SCENE: power-on scene */
 #define ULTRA_FEAT_DIM_TO_WARM    0x00000002u  /* LIGHT_OPT dim to warm with red assist */
 #define ULTRA_FEAT_DTW_POINTS     0x00000004u  /* LIGHT_OPT set points */
@@ -377,7 +469,11 @@ enum {
 #define ULTRA_FEAT_ENERGY         0x00004000u  /* ENERGY page (0.2.3) */
 #define ULTRA_FEAT_SOFT_START     0x00008000u  /* CONFIG 23 (0.2.3) */
 #define ULTRA_FEAT_SCENE_EFFECT   0x00010000u  /* SCENE_EFFECT: power-on effects (0.2.3) */
-/*      0x00020000-0x00800000     future official features (e.g. broadcast slots, an EXT extension);
+#define ULTRA_FEAT_LIFETIME       0x00020000u  /* LIFETIME page (0.2.5) */
+#define ULTRA_FEAT_DIAG           0x00040000u  /* DIAG page (0.2.5) */
+#define ULTRA_FEAT_RETRY          0x00080000u  /* CONFIG 24: the trips' retry policy (0.2.5) */
+#define ULTRA_FEAT_LOSS_SCENE     0x00100000u  /* CONFIG 8 value 3: signal loss fades to the power-on scene (0.2.5) */
+/*      0x00200000-0x00800000     future official features (e.g. broadcast slots, an EXT extension);
  *      0x01000000-0x80000000     hardware-specific */
 
 /* SET flags (low nibble of byte 1; the other slot types send FLAGS 0) */
@@ -419,7 +515,8 @@ enum {
     ULTRA_CFG_MIN_PULSE = 6,       /* 5..100 x 10 ns */
     ULTRA_CFG_STAGGER = 7,         /* 0 off, 1 fixed (thirds), 2 fixed + spread spectrum,
                                       3 adaptive (least LED_+ ripple), 4 adaptive + spread spectrum */
-    ULTRA_CFG_LOSS = 8,            /* 0 hold, 1 off, 2 fade off */
+    ULTRA_CFG_LOSS = 8,            /* 0 hold, 1 off, 2 fade off, 3 scene (0.2.5): fade to the light's stored power-on
+                                      scene / effect (a light without one holds) */
     ULTRA_CFG_LOSS_TIMEOUT = 9,    /* x 100 ms, 5..600 */
     ULTRA_CFG_FEEDBACK = 10,       /* identify channel: 0 red, 1 all, 2 off */
     ULTRA_CFG_CH_CURRENT = 11,     /* 11..15: LED current of CH1..CH5 at 100 %, mA (for the channel limits) */
@@ -432,7 +529,12 @@ enum {
                                       and after a trip's retry the board ramps its outputs from 20 to 100 % over 0.3 s,
                                       starting 0-100 ms late (from its chip id), so the boards of a pin don't switch
                                       their load on at once */
-    ULTRA_CFG_COUNT = 24,          /* 24-127: future official ids; a board skips an unknown id (the others apply) */
+    ULTRA_CFG_RETRY = 24,          /* persisted (0.2.5): the trips' retry policy, count | interval << 8. Count: 0
+                                      never retry, 1-254 retries, 255 forever; the interval 1-255 s (0 = 1 s). The
+                                      default 0x010A: 10 retries 1 s apart. After the last one the outputs stay off
+                                      until a new command or frame value, or a power cycle; 60 s without a trip
+                                      starts the count again */
+    ULTRA_CFG_COUNT = 25,          /* 25-127: future official ids; a board skips an unknown id (the others apply) */
     ULTRA_CFG_HW = 128,            /* 128-255: hardware-specific (e.g. a Diff-Power receiver, a current-sense revision) */
     ULTRA_CFG_MCU_TEMP_OFFSET = 128,   /* reserved, not settable yet: MCU temperature offset, int16 0.1 C (a one-point
                                           calibration, core/mcutemp.h); the board skips it like any unknown id */

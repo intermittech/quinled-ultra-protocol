@@ -298,6 +298,17 @@ TYPE `0x05`, LIGHT 15, FLAGS `0x0`, SEQ `0x45`, CRC-16 `0x7BC8` (valid)
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 7B C8
 ```
 
+### `slot_config_retry_loss`: CONFIG retry policy and signal loss scene (0.2.5)
+
+LIGHT 0xF (board). Two pairs: id 24 (the trips' retry policy; persisted), value 0x0302 = 2 retries 3 s apart; id 8 (signal loss), value 3 = fade to the power-on scene. The other 7 pairs unused (0, 0). A board from before 0.2.5 skips id 24 and ignores the value 3 (out of its range: its own setting stays). SEQ 0x46.
+
+TYPE `0x05`, LIGHT 15, FLAGS `0x0`, SEQ `0x46`, CRC-16 `0xA6CD` (valid)
+
+```
+05 F0 46 18 03 02 08 00 03 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 A6 CD
+```
+
 ### `slot_poll_status`: POLL STATUS (0.2.4)
 
 LIGHT 0xF (board). Index 0, R = 2 response slots, page 0x00 STATUS, rate 0 (1 Mbaud), no arguments. Only in an RW frame. SEQ 0x60.
@@ -329,6 +340,28 @@ TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x62`, CRC-16 `0xA0FC` (valid)
 ```
 07 F0 62 01 02 08 00 01 00 03 00 01 00 00 00 02
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 A0 FC
+```
+
+### `slot_poll_lifetime`: POLL LIFETIME (0.2.5)
+
+Index 0, R = 1, page 0x0C LIFETIME, rate 1 (500 kbaud), no arguments. A board from before 0.2.5 answers UNSUPPORTED (0xFF). SEQ 0x63.
+
+TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x63`, CRC-16 `0xDC88` (valid)
+
+```
+07 F0 63 00 01 0C 01 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 DC 88
+```
+
+### `slot_poll_diag_faults`: POLL DIAG part 1 (0.2.5)
+
+Index 0, R = 1, page 0x0D DIAG, rate 1. Argument 0 (slot byte 7) = 1: the fault memory and the calibration trend (0: the running board; 2-255: UNSUPPORTED). SEQ 0x64.
+
+TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x64`, CRC-16 `0x03DB` (valid)
+
+```
+07 F0 64 00 01 0D 01 01 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 DB
 ```
 
 ## 4. Frames

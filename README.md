@@ -15,12 +15,14 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 | [Wiki](https://github.com/intermittech/quinled-ultra-protocol/wiki) | The specification: physical layer, frame layout, every slot type, timing, host behaviour, compatibility rules. |
 | [`test-vectors/`](test-vectors) | Example slots and frames as hex, generated from the header. Check your implementation byte for byte. |
 | [`examples/`](examples) | A platform-neutral C example that builds frames, plus notes on driving them out (RMT, SPI, I2S, PARLIO). |
+| [`sender/`](sender) | The reference sender library (C99 + a C++ wrapper): the scheduler, copies, timing and the bit encoding, with ESP32 RMT examples and PlatformIO / Arduino / ESP-IDF packaging. The easiest way to add Ultra to WLED, Tasmota, MoonLight or your own firmware. |
 
 ## Who it's for
 
 - **Controller software** that wants to drive QuinLED Ultra boards: the
   [host implementer's guide](https://github.com/intermittech/quinled-ultra-protocol/wiki/Host-Implementers-Guide)
-  lists the minimum (light definition, state, refresh) and the optional parts (effects, scenes, settings).
+  lists the minimum (light definition, state, refresh) and the optional parts (effects, scenes, settings). The
+  [sender library](https://github.com/intermittech/quinled-ultra-protocol/wiki/Sender-Library) implements it.
 - **Board firmware** that wants to understand the same frames.
 
 ## Status
@@ -29,8 +31,8 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 - The QuinLED dig2analog-ultra-5ch is in development; its firmware implements this version.
 - The reference controller, and the most complete implementation, is ESPHome with the `dig2analog_ultra`
   component from [intermittech/quinled-ultra-esphome](https://github.com/intermittech/quinled-ultra-esphome).
-- **The return channel** (board → controller, 0.2.4) is QuinLED Diff-Power only: the Diff-Power ultra receiver's
-  firmware build implements it (firmware 0.6.8, `BOARD=2`). The dig2analog-ultra never answers. A controller that
+- **The return channel** (board → controller, 0.2.4; the LIFETIME and DIAG pages 0.2.5) is QuinLED Diff-Power only:
+  the Diff-Power ultra receiver's firmware build implements it (firmware 0.6.8, `BOARD=2`; 0.2.5's pages: 0.6.9). The dig2analog-ultra never answers. A controller that
   never sets RW needs none of it. Spec:
   [Return channel](https://github.com/intermittech/quinled-ultra-protocol/wiki/Return-Channel).
 - Firmware-update frames are QuinLED's own (the bootloader's format) and not needed by a controller.
@@ -46,7 +48,7 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 
 ## License
 
-- **Code** (`include/`, `test-vectors/gen_vectors.c`, `examples/`): [MIT](LICENSE). It can be included in projects
+- **Code** (`include/`, `sender/`, `test-vectors/gen_vectors.c`, `examples/`): [MIT](LICENSE). It can be included in projects
   under any license (GPL-3.0, EUPL-1.2, proprietary, ...).
 - **Specification text** (the wiki and the documents in this repository):
   [CC BY 4.0](LICENSE-CC-BY-4.0.txt). Share and adapt it, with attribution to QuinLED.

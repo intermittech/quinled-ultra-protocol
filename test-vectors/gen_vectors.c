@@ -133,6 +133,9 @@ int main(int argc, char **argv)
     static const uint8_t candle_p[4] = { 0x80, 0x00,  0x00, 0x64 };
     static const uint8_t ss_id[1] = { ULTRA_CFG_SOFT_START };
     static const uint16_t ss_val[1] = { 0 };
+    static const uint8_t r5_id[2] = { ULTRA_CFG_RETRY, ULTRA_CFG_LOSS };
+    static const uint16_t r5_val[2] = { 0x0302, 3 };
+    static const uint8_t dg_part1[1] = { 1 };
     uint8_t s[ULTRA_SLOT_BYTES], h[ULTRA_HDR_BYTES], f[8 * ULTRA_SLOT_BYTES + ULTRA_HDR_BYTES];
     uint8_t sw[64];
     uint32_t i, n, t;
@@ -270,6 +273,13 @@ int main(int argc, char **argv)
     slot_vector("slot_config_soft_start", "CONFIG soft start off (0.2.3)",
                 "LIGHT 0xF (board). One pair: id 23 (soft start), value 0 (off; persisted). The other 8 pairs unused "
                 "(0, 0). SEQ 0x45.", s, 1);
+    ultra_slot_config(s, 0x46, r5_id, r5_val, 2);
+    slot_vector("slot_config_retry_loss", "CONFIG retry policy and signal loss scene (0.2.5)",
+                "LIGHT 0xF (board). Two pairs: id 24 (the trips' retry policy; persisted), value 0x0302 = 2 retries "
+                "3 s apart; id 8 (signal loss), value 3 = fade to the power-on scene. The other 7 pairs unused "
+                "(0, 0). A board from before 0.2.5 skips id 24 and ignores the value 3 (out of its range: its own setting "
+                "stays). "
+                "SEQ 0x46.", s, 1);
     ultra_slot_poll(s, 0x60, 0, 2, ULTRA_PAGE_STATUS, ULTRA_RW_RATE_1M, NULL, 0);
     check(ultra_poll_valid(s) == 0, "slot_poll_status");
     slot_vector("slot_poll_status", "POLL STATUS (0.2.4)",
@@ -286,6 +296,16 @@ int main(int argc, char **argv)
                 "Index 1, R = 2, page 0x08 POWER, rate 0. Arguments from slot byte 7: 0x01 ACK, then the counts the "
                 "host last read (u16 each): 3 limit events, 1 overload trip, 0 short trips, 2 supply dips. SEQ 0x62.",
                 s, 1);
+    ultra_slot_poll(s, 0x63, 0, 1, ULTRA_PAGE_LIFETIME, ULTRA_RW_RATE_500K, NULL, 0);
+    check(ultra_poll_valid(s) == 0, "slot_poll_lifetime");
+    slot_vector("slot_poll_lifetime", "POLL LIFETIME (0.2.5)",
+                "Index 0, R = 1, page 0x0C LIFETIME, rate 1 (500 kbaud), no arguments. A board from before 0.2.5 "
+                "answers UNSUPPORTED (0xFF). SEQ 0x63.", s, 1);
+    ultra_slot_poll(s, 0x64, 0, 1, ULTRA_PAGE_DIAG, ULTRA_RW_RATE_500K, dg_part1, sizeof dg_part1);
+    check(ultra_poll_valid(s) == 0, "slot_poll_diag_faults");
+    slot_vector("slot_poll_diag_faults", "POLL DIAG part 1 (0.2.5)",
+                "Index 0, R = 1, page 0x0D DIAG, rate 1. Argument 0 (slot byte 7) = 1: the fault memory and the "
+                "calibration trend (0: the running board; 2-255: UNSUPPORTED). SEQ 0x64.", s, 1);
 
     /* ----------------------------------------------------------------------------------------------- frames */
     fprintf(md, "## 4. Frames\n\nN slots (board 0 first) + the header as a trailer. Every board takes the first slot "

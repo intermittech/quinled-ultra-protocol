@@ -1,0 +1,9 @@
+# The library from this repository: a local component is named after its folder (sender). In your own project use
+# the git repository instead (any name; the component then has that name):
+#   ultra_sender:
+#     git: https://github.com/intermittech/quinled-ultra-protocol.git
+#     path: sender
+#     version: v0.2.5
+dependencies:
+  sender:
+    path: ../../..

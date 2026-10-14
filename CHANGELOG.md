@@ -4,6 +4,56 @@ Releases of this repository. While below 1.0 they are numbered 0.x.y, and the MI
 format's VERSION (`ULTRA_VERSION`, header byte 2): 0.2.y = wire VERSION 2. A compatible addition raises the
 PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
+## v0.2.5 (wire VERSION 2), 2026-10-14
+
+Backward compatible: `ULTRA_VERSION` stays 2. A board from before 0.2.5 skips CONFIG id 24, ignores signal loss
+value 3 (out of its range: its own setting stays) and answers the new pages UNSUPPORTED (0xFF). Implemented by the
+dig2analog-ultra firmware 0.6.9 (the CONFIG additions) and the QuinLED Diff-Power ultra receiver's (`BOARD=2`: the
+pages too).
+
+- **CONFIG 24, the trips' retry policy** (`ULTRA_CFG_RETRY`, persisted like 22 and 23): count | interval << 8. Count
+  0 = never retry, 1-254 retries, 255 = forever; interval 1-255 s (0 = 1 s). Default 0x010A: 10 retries 1 s apart.
+  After the last retry the outputs stay off until a new command or frame value, or a power cycle; 60 s without a
+  trip starts the count again. `ULTRA_CFG_COUNT` is 25.
+- **Signal loss value 3, "scene"** (CONFIG 8): when the controller stops, the board fades to the light's stored
+  power-on scene / effect; a light without one holds. The controller's next frames take over as after power-up.
+- **LIFETIME page** (0x0C, `ULTRA_LT_*`): the board's odometer from its lifetime record: time powered and lit (0.1 h),
+  power-ups, overload and short trips, supply dips, the MCU temperature and input current peaks, watchdog resets,
+  firmware updates, the record's writes.
+- **DIAG page** (0x0D, `ULTRA_DG_*`), two parts (POLL argument 0):
+  - part 0, the running board: the reset cause, the last run's breadcrumbs (the exception's cause, its address, that
+    run's uptime), the CPU load and its recent peak, the overruns, the supply / cable impedance, the flash (failures in
+    a row, the records waiting, why they wait: `ULTRA_DG_FP_*`, `ULTRA_DG_SW_*`) and the input capacitor's ripple load
+    (0xFF: not measured);
+  - part 1, the fault memory (kept in the lifetime record across power cuts): the last trip (cause, current, the lit
+    hours then), the last supply dip (depth, length, current), the last abnormal reset (watchdog or exception, that
+    run's uptime); and the calibration trend (per channel, % since the first stored test; `ULTRA_HE_NA` / 0xFFFF / 0
+    when not known);
+  - parts 2-255 answer UNSUPPORTED.
+- **CALIBRATION byte 1** (`ULTRA_CA_MODEL`): its high nibble says how the last calibration test ended
+  (`ULTRA_CA_END_*`: complete, or stopped by a trip, the installation's limit or a supply dip; a stopped test stores
+  nothing).
+- **STATUS byte 8, bits 4-7: why the light isn't as set** (`ULTRA_ST_WHY_*`, the first that applies): off after a
+  short / an overload, off with the retries used up, the test jig, a calibration test, too hot, a supply dip in the
+  last 30 s, signal loss, the soft start, a dark hold, a blink pattern; 0 = as set. The limits stay in bits 0 and 3.
+  Polled with STATUS (every 2-5 s), it gives a host its status sensor without another page.
+- **ENERGY bytes 15-18:** the LED supply after a Diff-Power receiver's buck (`ULTRA_EN_VB`, × 10 mV) and the input
+  current's highest ~100 ms average since the page was last answered (`ULTRA_EN_PEAK_MA`: the PTC-threatening
+  peaks between polls).
+- **HEALTH flags:** 0x10 `ULTRA_HE_F_CAL_SUGGESTED` named (sent since firmware 0.6.6), 0x20 `ULTRA_HE_F_HOT` (the MCU
+  die over its warning level; firmware 0.6.9: 95 °C, until 85 °C).
+- **Which side:** on the Diff-Power ultra receiver every current and power is the bus side, before its buck (STATUS
+  17, POWER, ENERGY, the channel model's shares on OUTPUTS); its limits are the link's (2.25 A, 3 × 750 mA PTCs per
+  port). The LED side: ENERGY's V_B only (wiki: Return channel).
+- **Features** (IDENTITY): `ULTRA_FEAT_LIFETIME`, `_DIAG`, `_RETRY`, `_LOSS_SCENE`; 0x00200000-0x00800000 stay free.
+- Page ids 0x0E-0x7F stay reserved for future official pages.
+- **Test vectors:** new `slot_config_retry_loss`, `slot_poll_lifetime`, `slot_poll_diag_faults`. Every other vector
+  is unchanged.
+- **New: the reference sender library** (`sender/`, MIT, version 0.2.5): C99 with a C++ wrapper, ESP32 RMT examples
+  (ESP-IDF and Arduino), PlatformIO / Arduino / ESP-IDF component manifests, and its own tests against the vectors and
+  the board firmware. It is meant for projects such as WLED, Tasmota or MoonLight that want to drive Ultra boards
+  (wiki: Sender library).
+
 ## v0.2.4 (wire VERSION 2), 2026-10-14
 
 Backward compatible: `ULTRA_VERSION` stays 2. Nothing changes for a board without a return channel (every

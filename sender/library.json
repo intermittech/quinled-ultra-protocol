@@ -1,0 +1,32 @@
+{
+  "name": "quinled-ultra-sender",
+  "version": "0.2.5",
+  "description": "QuinLED Ultra protocol sender: drive QuinLED dig2analog-ultra boards from any controller. Builds every frame by the protocol's host rules (copies, refresh, preamble, start times); portable C99, no heap, with ESP32 RMT / SPI / pulse encoders.",
+  "keywords": "quinled, ultra, led, dig2analog, ws2805, ws2915, rmt, dimmer, pwm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/intermittech/quinled-ultra-protocol.git"
+  },
+  "homepage": "https://github.com/intermittech/quinled-ultra-protocol/tree/main/sender",
+  "authors": [
+    {
+      "name": "QuinLED",
+      "url": "https://quinled.info",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "frameworks": ["arduino", "espidf"],
+  "platforms": "*",
+  "headers": ["ultra_sender.h", "ultra_sender.hpp", "ultra_sender_bits.h", "ultra_sender_rc.h", "ultra_esp32_rmt.h",
+              "ultra_protocol.h"],
+  "build": {
+    "srcDir": "src",
+    "includeDir": "src"
+  },
+  "export": {
+    "include": ["library.json", "library.properties", "idf_component.yml", "CMakeLists.txt", "README.md", "LICENSE",
+                "src", "examples"]
+  },
+  "examples": ["examples/esp32_arduino/*.ino"]
+}

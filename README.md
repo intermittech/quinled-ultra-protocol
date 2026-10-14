@@ -29,8 +29,11 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 - The QuinLED dig2analog-ultra-5ch is in development; its firmware implements this version.
 - The reference controller, and the most complete implementation, is ESPHome with the `dig2analog_ultra`
   component from [intermittech/quinled-ultra-esphome](https://github.com/intermittech/quinled-ultra-esphome).
-- A return channel (board → controller, on QuinLED Diff-Power) and firmware-update frames are reserved but not part
-  of what a controller needs today.
+- **The return channel** (board → controller, 0.2.4) is QuinLED Diff-Power only: the Diff-Power ultra receiver's
+  firmware build implements it (firmware 0.6.8, `BOARD=2`). The dig2analog-ultra never answers. A controller that
+  never sets RW needs none of it. Spec:
+  [Return channel](https://github.com/intermittech/quinled-ultra-protocol/wiki/Return-Channel).
+- Firmware-update frames are QuinLED's own (the bootloader's format) and not needed by a controller.
 
 ## Using the header
 

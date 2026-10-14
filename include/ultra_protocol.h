@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (C) 2026 QuinLED
  *
- * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.3 (CHANGELOG.md). Shared by the
+ * QuinLED dig2analog Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.4 (CHANGELOG.md). Shared by the
  * board firmware (C) and the controllers (C / C++).
  * Master: include/ultra_protocol.h in https://github.com/intermittech/quinled-ultra-protocol (spec in its wiki).
  * Every copy (board firmware, ESPHome component, other controllers) must be byte-identical to one tagged release
@@ -66,11 +66,12 @@ extern "C" {
 #define ULTRA_LIGHT_BOARD  0x0Fu       /* LIGHT field for board-level commands */
 #define ULTRA_MAX_STEPS    8u          /* strobe / sequence steps per light */
 
-/* header FLAGS (low nibble of byte 2), for later protocol parts. Firmware 0.4 implements none of them: on an RW or EXT
- * frame a board keeps its lock and clock sync but ignores every slot, an UPD frame it leaves to the update side (no
- * clock sync, no slot), HINT it ignores. RW and UPD are never set together; a board ignores such a frame. The hub sets
- * none of them in normal frames (0x00). */
-#define ULTRA_HDR_RW       0x01u       /* a response window follows this frame; every slot is a POLL (wiki: Reserved extensions) */
+/* header FLAGS (low nibble of byte 2). On an RW or EXT frame a board keeps its lock and clock sync; a board without a
+ * return channel (every dig2analog-ultra) ignores every slot of it, and a Diff-Power ultra receiver answers its POLL of
+ * an RW frame without EXT (the return channel, 0.2.4, below). An UPD frame a board leaves to the update side (no clock
+ * sync, no slot), HINT it ignores. RW and UPD are never set together; a board ignores such a frame. The hub sets none
+ * of them in normal frames (0x00). */
+#define ULTRA_HDR_RW       0x01u       /* a response window follows this frame (wiki: Return channel) */
 #define ULTRA_HDR_HINT     0x02u       /* optional: a frame-level hint (none defined yet); a board that doesn't know it
                                           processes the frame as usual */
 #define ULTRA_HDR_EXT      0x04u       /* must understand: the frame uses an extension (none defined yet; it is named
@@ -86,7 +87,7 @@ enum {
     ULTRA_STEP = 0x04,         /* light: one strobe step (SEQ = the EFFECT's SEQ) */
     ULTRA_CONFIG = 0x05,       /* board: up to 9 settings (id, value) */
     ULTRA_IDENTIFY = 0x06,     /* board: blink pattern */
-    ULTRA_POLL = 0x07,         /* reserved: answer / relay in a response window (RW frames only; ignored) */
+    ULTRA_POLL = 0x07,         /* answer / relay in a response window (RW frames only; 0.2.4: the return channel) */
     ULTRA_SCENE = 0x08,        /* light: power-on scene (persisted on the board) */
     ULTRA_LIGHT_OPT = 0x09,    /* light: options (dim to warm) */
     ULTRA_SCENE_EFFECT = 0x0A, /* light: power-on effect on the SCENE values (persisted on the board; 0.2.3) */
@@ -96,32 +97,86 @@ enum {
                                   namespace: ultra_update.h) */
 };
 
-/* Return channel (reserved, not implemented; wiki: Reserved extensions). All times in us after t0 = the last
- * falling edge of the RW frame as each board measures it locally (the last edge the tail copy finds in the DIN ring,
- * not the shared clock's phase). During the window the forwarding gate is held CLOSED (DOUT LOW, not high-Z): DIN
- * sees the relayed answers, and a re-armed plan would forward them downstream. No POLL before the chain is locked
- * (after the DARK preamble) or during an update session; UID16 in the answers shows index shifts. */
-#define ULTRA_POLL_RELAY_ONLY 0xFFu    /* POLL index: relay, don't answer */
+/* Return channel (0.2.4: QuinLED Diff-Power ultra receivers only, firmware 0.6.6 and later with BOARD=2; wiki: Return
+ * channel). All times in us after t0 = the last falling edge of the RW frame as each board measures it locally (the
+ * last edge the tail copy finds in the DIN ring, not the shared clock's phase), in host us (a board scales them with
+ * the shared clock's measured rate). During the window the forwarding gate is held CLOSED (DOUT LOW, not high-Z): DIN
+ * sees the relayed answers, and a re-armed plan would forward them downstream.
+ * Host: no RW frame before the chain is locked (after the DARK preamble) and has sent headers for ULTRA_RW_LOCK_MS,
+ * none during an update session, never with UPD, and never with EXT (until an extension defines it). In one RW frame
+ * every POLL carries the same R and rate; the answer indices are unique, < R and rise along the chain, and the boards
+ * between the hub and an answering board get ULTRA_POLL_RELAY_ONLY. Behind the last board that answers or relays, the
+ * slots may be of any type (those boards don't take part and don't turn around). The next frame >= W +
+ * ULTRA_RW_HOLDOFF_US after t0, answers or not; a missing answer (a lost POLL, a flash write just before the frame,
+ * a late main loop, a board's clock not rated yet) is retried in a later window with a new SEQ. UID16 in the answers
+ * shows index shifts.
+ * Board: takes part when its own slot is a valid POLL (ultra_poll_valid) and the header has RW and not EXT. It turns
+ * around in DIR_MIN..DIR_MAX, does the turnaround check at CHECK_US (the line HIGH for <= CHECK_HIGH_US, read back:
+ * LOW = the segment above is still driven, a board there doesn't take part), sends its burst in its slot with the same
+ * read-back after the line goes HIGH, and is in forward mode again W .. W + ULTRA_RW_END_US. A failed read-back (at
+ * the check or at the burst): no answer and no relay for the rest of this window, CONTENTION in its next answer. A
+ * valid POLL is always answered, a repeated SEQ too.
+ * Burst (board i, s_i = FIRST + i x pitch): the line HIGH at s_i - EARLY .. s_i + LATE (slot 0: from s_0 - EARLY0),
+ * the first start bit START_MIN .. START_MAX after it, then ULTRA_RW_LEAD_BYTES x ULTRA_RSP_LEAD and the 32-byte answer,
+ * UART 8N1, LSB first, at the POLL's rate; the line LOW again (idle, a break at the hub's UART) by s_i + pitch - GUARD.
+ * Hub: the turnaround checks' pulses reach it as junk UART bytes (CHECK_US .. ~1000 us); it discards every byte before
+ * a SYNC without a framing error (any number of lead bytes), takes 32 bytes, and drops the answer on a framing error
+ * or a CRC failure (ultra_answer_check). */
+#define ULTRA_POLL_RELAY_ONLY 0xFFu    /* POLL index: relay, don't answer (the page and its arguments are ignored) */
 #define ULTRA_RW_MAX_SLOTS    16u      /* INDEX is a nibble in the answer */
 #define ULTRA_RW_RELEASE_US   150u     /* host / sender has stopped driving */
 #define ULTRA_RW_DIR_MIN_US   250u     /* boards turn around between MIN and MAX */
 #define ULTRA_RW_DIR_MAX_US   900u
+#define ULTRA_RW_CHECK_US     920u     /* the turnaround check, 920-977 us (after DIR_MAX, before slot 0) */
+#define ULTRA_RW_CHECK_HIGH_US 5u      /* ... the line HIGH at most this long */
 #define ULTRA_RW_FIRST_US     1000u    /* response slot 0 */
-#define ULTRA_RW_SLOT_US      450u     /* response slot pitch */
+#define ULTRA_RW_SLOT_US      460u     /* response slot pitch at 1 Mbaud (ultra_rw_slot_us: every rate) */
+#define ULTRA_RW_EARLY_US     20u      /* a burst's line HIGH within s_i - EARLY .. s_i + LATE */
+#define ULTRA_RW_EARLY0_US    5u       /* ... slot 0's from s_0 - EARLY0: its lead byte after the check pulses' junk
+                                          bytes (with up to 15 us more hop delay to the hub than slot 0's) */
+#define ULTRA_RW_LATE_US      80u
+#define ULTRA_RW_START_MIN_US 2u       /* the first start bit (the lead byte's) START_MIN .. START_MAX after the line goes
+                                          HIGH */
+#define ULTRA_RW_START_MAX_US 10u
+#define ULTRA_RW_GUARD_US     30u      /* the line LOW again by s_i + pitch - GUARD, the lead byte included (430 us at
+                                          1 Mbaud) */
+#define ULTRA_RW_END_US       80u      /* forward mode again W .. W + END (W = FIRST + R x pitch); a 50 us tick with
+                                          +-200 ppm and the ISR latency needs more than the proposal's 60 */
 #define ULTRA_RW_HOLDOFF_US   200u     /* host: next frame >= window end + this */
-#define ULTRA_RW_BAUD         1000000u /* UART 8N1, LSB first, line idle LOW between bursts */
-/* response slot: SYNC | PAGE | INDEX<<4 | RFLAGS | SEQ | UID16 (2) | DATA (24) | CRC-16 (2) */
+#define ULTRA_RW_LOCK_MS      1000u    /* host: the first RW frame this long after the chain's preamble */
+#define ULTRA_RW_BAUD         1000000u /* UART 8N1, LSB first, line idle LOW between bursts (rate 0) */
+#define ULTRA_RW_LEAD_BYTES   1u       /* a board sends exactly this many ULTRA_RSP_LEAD before SYNC */
+#define ULTRA_RW_SYNC_IDLE_BITS 9u     /* SYNC's start bit follows >= this many bit times of HIGH (the lead byte's data
+                                          and stop bits): the hub's UART is idle at SYNC, whatever it made of the
+                                          check pulses and the short HIGH before the lead byte */
+/* POLL slot (type ULTRA_POLL, LIGHT 0xF; the payload's offsets, as slot bytes) */
+#define ULTRA_POLL_INDEX      3u       /* answer index 0..R-1, or ULTRA_POLL_RELAY_ONLY */
+#define ULTRA_POLL_SLOTS      4u       /* R: response slots in this window, 1..ULTRA_RW_MAX_SLOTS */
+#define ULTRA_POLL_PAGE       5u       /* ULTRA_PAGE_* */
+#define ULTRA_POLL_RATE       6u       /* ULTRA_RW_RATE_* */
+#define ULTRA_POLL_ARG        7u       /* page arguments, slot bytes 7..29 ("POLL argument 0" = slot byte 7) */
+#define ULTRA_RW_RATE_1M      0u       /* 1 Mbaud: pitch 460 us */
+#define ULTRA_RW_RATE_500K    1u       /* 500 kbaud: 790 us (segments over 50 m, longer chains) */
+#define ULTRA_RW_RATE_250K    2u       /* 250 kbaud: 1450 us (beyond 100 m) */
+#define ULTRA_RW_RATES        3u       /* 3-255 reserved: not a valid POLL (the board doesn't take part) */
+/* response slot: SYNC | PAGE | INDEX<<4 | RFLAGS | SEQ | UID16 (2) | DATA (24) | CRC-16 (2), after the lead byte.
+ * UID16: CRC-16 (ultra_crc16) over the 12 bytes of the MCU's unique id in address order (IDENTITY 0..11); a
+ * fingerprint, not an identity (the host reads IDENTITY for that). Unknown RFLAGS bits are ignored. */
+#define ULTRA_RSP_LEAD        0xFFu    /* the lead byte: one falling edge, its start bit */
 #define ULTRA_RSP_SYNC        0xA5u
 #define ULTRA_RSP_DATA        6u
 #define ULTRA_RSP_DATA_LEN    24u
-#define ULTRA_RSP_EVENT       0x01u
-#define ULTRA_RSP_STALE       0x02u
-#define ULTRA_RSP_CONTENTION  0x04u
+#define ULTRA_RSP_EVENT       0x01u    /* a POWER latch is set (ULTRA_PW_LATCHED) */
+#define ULTRA_RSP_STALE       0x02u    /* reserved, not sent: every answer is built when its POLL's frame ends (the
+                                          pages' own ages say how old an event is) */
+#define ULTRA_RSP_CONTENTION  0x04u    /* a turnaround check or a burst found the line taken since the last answer that
+                                          went out (that window: no relay, no answer) */
 enum {
     ULTRA_PAGE_STATUS = 0x00, ULTRA_PAGE_OUTPUTS = 0x01, ULTRA_PAGE_ACKS = 0x02, ULTRA_PAGE_ERRORS = 0x03,
     ULTRA_PAGE_IDENTITY = 0x04, ULTRA_PAGE_FW_UPDATE = 0x05,
     ULTRA_PAGE_CALIBRATION = 0x06,     /* current sense: the model, connected load and limit in effect */
-    ULTRA_PAGE_CAL_TEST = 0x07,        /* the stored test, in two parts (POLL argument 0: 0 = CH1-3, 1 = CH4-5 + rest) */
+    ULTRA_PAGE_CAL_TEST = 0x07,        /* the stored test, in two parts (POLL argument 0: 0 = CH1-3, 1 = CH4-5 + rest;
+                                          2-255: UNSUPPORTED) */
     ULTRA_PAGE_POWER = 0x08,           /* 0.2.2: board current limit and overcurrent events (ULTRA_PW_*) */
     ULTRA_PAGE_SUPPLY = 0x09,          /* 0.2.3: supply dips (ULTRA_SU_*) */
     ULTRA_PAGE_HEALTH = 0x0A,          /* 0.2.3: channel health and the MCU temperature peak (ULTRA_HE_*) */
@@ -130,18 +185,86 @@ enum {
     ULTRA_PAGE_BUSY = 0xFE, ULTRA_PAGE_UNSUPPORTED = 0xFF,
 };
 /* IDENTITY page DATA: MCU UID (12) | firmware version word (4, ultra_update.h; 0 = unknown) | bootloader version (1,
- * 0 = none) | hardware id (1) | hardware capabilities (2, wiki: Reserved extensions) | firmware features (4,
- * ULTRA_FEAT_*). Capability reporting is reserved: without a return channel the host can't know a board's features and
- * relies on the compatibility rules above (an unknown command does nothing, an unknown effect shows the plain state). */
+ * 0 = none) | hardware id (1) | hardware capabilities (2, ULTRA_HWCAP_*: 0.2.4) | firmware features (4,
+ * ULTRA_FEAT_*). Only over the return channel: for a board without one (every dig2analog-ultra) the host can't know its
+ * features and relies on the compatibility rules above (an unknown command does nothing, an unknown effect shows the
+ * plain state). */
 #define ULTRA_ID_FW_VERSION       12u
+#define ULTRA_ID_BL_VERSION       16u    /* 0.2.4: (the offsets of the layout above) */
+#define ULTRA_ID_HW_ID            17u    /* 1 dig2analog-ultra-5ch (never answers), 2 Diff-Power ultra receiver */
+#define ULTRA_ID_HW_CAPS          18u
 #define ULTRA_ID_FEATURES         20u
-/* STATUS page DATA (wiki: Reserved extensions), the fields the firmware measures already (console `status`):
+#define ULTRA_HWCAP_RETURN        0x0001u  /* 0.2.4: answers POLLs */
+#define ULTRA_HWCAP_RELAY         0x0002u  /* relays the answers of the boards behind it */
+#define ULTRA_HWCAP_VBUS          0x0004u  /* measures its supply / bus voltage (STATUS 13) */
+#define ULTRA_HWCAP_CURRENT       0x0008u  /* measures its input current (STATUS 17) */
+#define ULTRA_HWCAP_NTC           0x0010u  /* a board temperature sensor (STATUS 11) */
+/*      0x0020-0x8000             reserved (0.2.4: the proposal's AUX_V 0x0020 dropped, no page carries its value) */
+/* STATUS page DATA (wiki: Return channel), the fields the firmware measures already (console `status`):
  * the MCU (die) temperature from the CH32V203's internal sensor, int16 0.1 C, ULTRA_ST_NA = not valid (no good
  * conversion yet, or 5 bad ones in a row; core/mcutemp.h), and the 3.3 V rail from VREFINT, mV (0 = not known).
  * The temperature's absolute offset varies per chip (up to ~+-20 C): a trend / over-temperature value. */
 #define ULTRA_ST_MCU_TEMP         9u
 #define ULTRA_ST_VDDA             15u
 #define ULTRA_ST_NA               0x8000u
+/* the rest of STATUS (0.2.4) */
+#define ULTRA_ST_FW_VERSION       0u     /* u24: major, minor, patch (0 = a development build) */
+#define ULTRA_ST_HW               3u     /* u8: hardware id << 4 | revision */
+#define ULTRA_ST_UPTIME           4u     /* u24: s since power-up (wraps after 194 days: compare modulo 2^24; after a
+                                            restart it starts at 0 again, RESET has the cause) */
+#define ULTRA_ST_RESET            7u     /* u8: the reset cause of this start, ULTRA_ST_RST_* (several may be set) */
+#define ULTRA_ST_TEMP_BOARD       11u    /* int16: a board sensor, 0.1 C; ULTRA_ST_NA = none (ULTRA_HWCAP_NTC) */
+#define ULTRA_ST_VBUS             13u    /* u16: the supply / bus voltage, x 10 mV; 0xFFFF = not measured */
+#define ULTRA_ST_CURRENT          17u    /* u16: the measured input current (~100 ms average), mA */
+#define ULTRA_ST_MEASURED         19u    /* u8: ULTRA_ST_M_* */
+#define ULTRA_ST_PWM_PRESET       20u    /* u8: the PWM preset in use (CONFIG 1), 0xFF = a raw period (CONFIG 2) */
+#define ULTRA_ST_CONFIG_CRC       21u    /* u16: ultra_crc16 over (id, value u16) of every CONFIG id the host set, in id
+                                            order (ultra_config_crc: the host compares it with what it sent) */
+#define ULTRA_ST_MODES            23u    /* u8: the protocol mode (CONFIG 22's values) << 4 | the stagger (CONFIG 7) */
+#define ULTRA_ST_RST_PIN          0x01u  /* (the CH32V203's RSTSCKR bits 26-31) */
+#define ULTRA_ST_RST_POWER        0x02u
+#define ULTRA_ST_RST_SOFTWARE     0x04u  /* also a firmware update's restart */
+#define ULTRA_ST_RST_WATCHDOG     0x08u
+#define ULTRA_ST_RST_WWDG         0x10u
+#define ULTRA_ST_RST_LOW_POWER    0x20u
+#define ULTRA_ST_M_VBUS           0x01u  /* STATUS 13 is measured */
+#define ULTRA_ST_M_CURRENT        0x02u  /* STATUS 17 is measured (the current sense in use) */
+#define ULTRA_ST_M_NTC            0x04u  /* STATUS 11 is measured */
+#define ULTRA_ST_M_CALIBRATED     0x08u  /* the channel currents (OUTPUTS 10..19) come from a calibrated model */
+/* OUTPUTS page DATA (0.2.4; optional: a board may answer ULTRA_PAGE_UNSUPPORTED) */
+#define ULTRA_OU_LEVEL            0u     /* 5 x u16: CH1..CH5 output now, after every limit (what the PWM shows) */
+#define ULTRA_OU_CURRENT          10u    /* 5 x u16: CH1..CH5 current from the channel model at that output, mA */
+#define ULTRA_OU_EFFECTS          20u    /* u8: lights with an effect running (bit n = light n) */
+#define ULTRA_OU_DEFINED          21u    /* u8: lights with a LIGHT_DEF since power-up */
+#define ULTRA_OU_SCENE            22u    /* u8: channels still showing the power-on scene / effect (bit n = CH n+1) */
+#define ULTRA_OU_WHY              23u    /* u8: why the outputs differ from the lights' states now, ULTRA_OU_W_* */
+#define ULTRA_OU_W_LIMIT          0x01u  /* the board limit reduces them */
+#define ULTRA_OU_W_TRIPPED        0x02u  /* off after a trip */
+#define ULTRA_OU_W_CH_LIMIT       0x04u  /* a channel limit (CONFIG 16-20) */
+#define ULTRA_OU_W_DARK_HOLD      0x08u  /* IDENTIFY 3 */
+#define ULTRA_OU_W_PATTERN        0x10u  /* an identify / acknowledge / version pattern */
+#define ULTRA_OU_W_SOFT_START     0x20u  /* the soft start ramps them */
+#define ULTRA_OU_W_SIGNAL_LOSS    0x40u  /* signal loss (CONFIG 8) */
+#define ULTRA_OU_W_TEST           0x80u  /* a current calibration test or the test jig's pattern */
+/* ACKS page (0.2.4; optional): the last SEQ taken per target and slot type. POLL arguments (slot bytes 7, 8, 9): three
+ * slot types for the three columns (0 = LIGHT_DEF, SET, EFFECT respectively). */
+#define ULTRA_AK_SEQ              0u     /* 18 x u8: targets lights 0..4 then the board (LIGHT 0xF), 3 columns each:
+                                            byte 3 x target + column */
+#define ULTRA_AK_NEVER            18u    /* u24: bit (3 x target + column) = none since power-up (its byte reads 0) */
+#define ULTRA_AK_CONFIG_CRC       21u    /* u16: as ULTRA_ST_CONFIG_CRC */
+/* ERRORS page (0.2.4; optional): u16 counters since power-up (wrap; the host takes differences) */
+#define ULTRA_ER_FRAMES           0u     /* frame ends seen */
+#define ULTRA_ER_HEADERS          2u     /* Ultra headers decoded */
+#define ULTRA_ER_TAIL_ERRORS      4u     /* frames of an Ultra length without a valid header */
+#define ULTRA_ER_DECODED          6u     /* own slots decoded */
+#define ULTRA_ER_DECODE_ERRORS    8u     /* captures that failed to decode */
+#define ULTRA_ER_WINDOWS          10u    /* response windows taken part in (before this one) */
+#define ULTRA_ER_ANSWERS          12u    /* answers sent (before this one) */
+#define ULTRA_ER_MISSED           14u    /* POLLs decoded but no part taken (clock not rated, too late) */
+#define ULTRA_ER_ABORTED          16u    /* windows given up for contention (check or burst) */
+#define ULTRA_ER_FLASH_WRITES     18u    /* flash records written */
+#define ULTRA_ER_STACK            20u    /* the stack's high-water mark, bytes */
+/*      22-23                     reserved */
 /* STATUS byte 8 (0.2.2): the board's power state now, so a plain STATUS poll shows it (details: POWER page). */
 #define ULTRA_ST_STATE            8u
 #define ULTRA_ST_LIMITING         0x01u  /* the board limit reduces the outputs (held 2 s after the last reduction) */
@@ -201,7 +324,8 @@ enum {
 #define ULTRA_SU_EV_AGE           13u    /* u24: the selected dip: s since it began */
 #define ULTRA_SU_EV_MV            16u    /* u16: its lowest reading, mV */
 #define ULTRA_SU_EV_PCT           18u    /* u8: that reading in % of its reference */
-#define ULTRA_SU_EV_MS            19u    /* u16: how long it lasted, ms (65535 = longer, or still going) */
+#define ULTRA_SU_EV_MS            19u    /* u16: how long it lasted, ms (65535 = 65.5 s or longer; a dip still going
+                                            isn't in the log yet) */
 #define ULTRA_SU_EV_MA            21u    /* u16: the board current at its lowest reading, mA */
 #define ULTRA_SU_LOG              4u     /* dips the board keeps (RAM: a power cycle clears them) */
 /* HEALTH page DATA (0x0A, 0.2.3): channel health from the current calibration test (IDENTIFY 2) and the running
@@ -213,8 +337,9 @@ enum {
 #define ULTRA_HE_MODEL_DEV        11u    /* 5 x int8: the running model at 100 % against the stored test, % */
 #define ULTRA_HE_DARK_MA          16u    /* int16: the board current with every output off, over the stored test's zero
                                             (logic + offset), mA */
-#define ULTRA_HE_TEMP_PEAK        18u    /* int16: the highest MCU die temperature since power-up, 0.1 C */
-#define ULTRA_HE_TEMP_AGE         20u    /* u24: s since it */
+#define ULTRA_HE_TEMP_PEAK        18u    /* int16: the highest MCU die temperature since power-up, 0.1 C (ULTRA_ST_NA =
+                                            none) */
+#define ULTRA_HE_TEMP_AGE         20u    /* u24: s since it (0xFFFFFF = none) */
 #define ULTRA_HE_F_TESTED         0x01u  /* a test ran since power-up (the classes are its) */
 #define ULTRA_HE_F_ABNORMAL       0x02u  /* a channel's class is ULTRA_HE_ABNORMAL */
 #define ULTRA_HE_F_DARK           0x04u  /* current with every output off (a FET stuck on, leakage) */
@@ -231,7 +356,7 @@ enum {
  * (ULTRA_FEAT_ENERGY) */
 #define ULTRA_EN_BOOT_MWH         0u     /* u32: since power-up, mWh */
 #define ULTRA_EN_TOTAL_WH         4u     /* u32: the board's lifetime, Wh (stored on the board at most hourly, and when
-                                            its outputs go dark; a factory reset clears it) */
+                                            its outputs go dark; a factory reset keeps it) */
 #define ULTRA_EN_POWER_MW         8u     /* u32: the input power now, mW */
 #define ULTRA_EN_SAVED_AGE        12u    /* u24: s since the lifetime value was last stored (0xFFFFFF = not since
                                             power-up) */
@@ -438,8 +563,8 @@ static inline void ultra_slot_set(uint8_t *s, uint8_t light, uint8_t seq, uint8_
     ultra_slot_seal(s);
 }
 
-/* LIGHT_DEF: role per channel CH1..CH5 (ULTRA_ROLE_NONE = not part of this light), gamma x1000, flags,
- * min / max power per channel (0..65535 = 0..1, ESPHome output min_power / max_power).
+/* LIGHT_DEF: role per channel CH1..CH5 (ULTRA_ROLE_NONE = not part of this light), gamma x1000 (0 = linear, as 1000),
+ * flags, min / max power per channel (0..65535 = 0..1, ESPHome output min_power / max_power).
  * Payload: roles as nibbles (p0 = CH1<<4 | CH2, p1 = CH3<<4 | CH4, p2 = CH5<<4), gamma (2), flags (1),
  * min[5] (2 each), max[5] (2 each), 1 spare byte. */
 #define ULTRA_DEF_ZERO_MEANS_ZERO      0x01u
@@ -669,6 +794,61 @@ static inline void ultra_slot_dark(uint8_t *s)
     for (i = 0; i < ULTRA_SLOT_BYTES; i++) {
         s[i] = 0;
     }
+}
+
+/* POLL (0.2.4; host side): in an RW frame (ultra_build_header_flags ULTRA_HDR_RW), board k's slot. index 0..slots-1 or
+ * ULTRA_POLL_RELAY_ONLY; up to 23 argument bytes */
+static inline void ultra_slot_poll(uint8_t *s, uint8_t seq, uint8_t index, uint8_t slots, uint8_t page, uint8_t rate,
+                                   const uint8_t *arg, uint32_t nargs)
+{
+    uint32_t i;
+    ultra_slot_begin(s, ULTRA_POLL, ULTRA_LIGHT_BOARD, 0, seq);
+    s[ULTRA_POLL_INDEX] = index;
+    s[ULTRA_POLL_SLOTS] = slots;
+    s[ULTRA_POLL_PAGE] = page;
+    s[ULTRA_POLL_RATE] = rate;
+    for (i = 0; i < nargs && i < 23u; i++) {
+        s[ULTRA_POLL_ARG + i] = arg[i];
+    }
+    ultra_slot_seal(s);
+}
+
+/* a slot (CRC-checked) is a valid POLL (the board's rule): 0, else -1 */
+static inline int ultra_poll_valid(const uint8_t *s)
+{
+    uint32_t r = s[ULTRA_POLL_SLOTS], i = s[ULTRA_POLL_INDEX];
+    return (s[0] == ULTRA_POLL && (s[1] >> 4) == ULTRA_LIGHT_BOARD && r - 1u < ULTRA_RW_MAX_SLOTS &&
+            (i < r || i == ULTRA_POLL_RELAY_ONLY) && s[ULTRA_POLL_RATE] < ULTRA_RW_RATES) ? 0 : -1;
+}
+
+/* the slot pitch and the window W for a rate, us (host: next frame >= W + ULTRA_RW_HOLDOFF_US after the frame end).
+ * The pitch: the burst's 33 bytes (the lead byte and the answer, 330 bit times) + 130 us for EARLY / LATE / START /
+ * GUARD and the gap to the next slot */
+static inline uint32_t ultra_rw_slot_us(uint8_t rate) { return (330u << rate) + 130u; }
+static inline uint32_t ultra_rw_window_us(uint8_t slots, uint8_t rate)
+{
+    return ULTRA_RW_FIRST_US + ultra_rw_slot_us(rate) * slots;
+}
+
+/* an answer (32 bytes as received): 0 = SYNC and CRC valid */
+static inline int ultra_answer_check(const uint8_t *a)
+{
+    return (a[0] == ULTRA_RSP_SYNC && ultra_crc16(a, 30) == ultra_get16(a + 30)) ? 0 : -1;
+}
+
+/* STATUS 21 / ACKS 21: ultra_crc16 over (id, value) of the CONFIG ids set (bit id of `valid`), in id order */
+static inline uint16_t ultra_config_crc(uint32_t valid, const uint16_t *values)
+{
+    uint8_t b[ULTRA_CFG_COUNT * 3u];
+    uint32_t id, n = 0;
+    for (id = 0; id < ULTRA_CFG_COUNT; id++) {
+        if (valid & (1u << id)) {
+            b[n] = (uint8_t)id;
+            ultra_put16(b + n + 1u, values[id]);
+            n += 3u;
+        }
+    }
+    return ultra_crc16(b, n);
 }
 
 /* ------------------------------------------------- switching boards that are forced to WS2805 / WS2915 to Ultra */

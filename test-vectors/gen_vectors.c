@@ -114,6 +114,7 @@ static void header_vector(const char *name, const char *title, const char *desc,
 
 int main(int argc, char **argv)
 {
+    static const uint8_t pw_ack[9] = { ULTRA_PW_ARG_ACK, 0, 3, 0, 1, 0, 0, 0, 2 };
     static const uint8_t check_str[] = "123456789";
     static const uint16_t full[5] = { 65535, 65535, 65535, 65535, 65535 };
     static const uint16_t zero5[5] = { 0, 0, 0, 0, 0 };
@@ -179,9 +180,10 @@ int main(int argc, char **argv)
                   "A valid header. A board that doesn't know a hint processes the frame as usual. Hosts send FLAGS 0 "
                   "until a hint is defined.", h, 1);
     ultra_build_header_flags(h, 0x00ABCDEFu, ULTRA_HDR_RW);
-    header_vector("hdr_flag_rw", "FLAGS 0x01 (RW, reserved for the return channel)",
-                  "A valid header. Today's boards take the clock sync but ignore every slot of the frame and keep "
-                  "their lock. Hosts must not send it yet.", h, 1);
+    header_vector("hdr_flag_rw", "FLAGS 0x01 (RW, the return channel)",
+                  "A valid header: a response window follows the frame (0.2.4, Diff-Power ultra receivers). A board "
+                  "without a return channel takes the clock sync, ignores every slot and keeps its lock; a receiver "
+                  "answers its POLL (frame_rw_poll).", h, 1);
     ultra_build_header(h, 0x00ABCDEFu);
     h[6] ^= 0x01u;
     header_vector("hdr_bad_crc", "one TIME bit flipped, CRC not updated",
@@ -268,6 +270,22 @@ int main(int argc, char **argv)
     slot_vector("slot_config_soft_start", "CONFIG soft start off (0.2.3)",
                 "LIGHT 0xF (board). One pair: id 23 (soft start), value 0 (off; persisted). The other 8 pairs unused "
                 "(0, 0). SEQ 0x45.", s, 1);
+    ultra_slot_poll(s, 0x60, 0, 2, ULTRA_PAGE_STATUS, ULTRA_RW_RATE_1M, NULL, 0);
+    check(ultra_poll_valid(s) == 0, "slot_poll_status");
+    slot_vector("slot_poll_status", "POLL STATUS (0.2.4)",
+                "LIGHT 0xF (board). Index 0, R = 2 response slots, page 0x00 STATUS, rate 0 (1 Mbaud), no arguments. "
+                "Only in an RW frame. SEQ 0x60.", s, 1);
+    ultra_slot_poll(s, 0x61, ULTRA_POLL_RELAY_ONLY, 2, ULTRA_PAGE_STATUS, ULTRA_RW_RATE_1M, NULL, 0);
+    check(ultra_poll_valid(s) == 0, "slot_poll_relay");
+    slot_vector("slot_poll_relay", "POLL relay only (0.2.4)",
+                "Index 0xFF: the board turns around and relays the answers of the boards behind it, but doesn't "
+                "answer (its page is ignored). The same R and rate as the frame's other POLLs. SEQ 0x61.", s, 1);
+    ultra_slot_poll(s, 0x62, 1, 2, ULTRA_PAGE_POWER, ULTRA_RW_RATE_1M, pw_ack, sizeof pw_ack);
+    check(ultra_poll_valid(s) == 0, "slot_poll_power_ack");
+    slot_vector("slot_poll_power_ack", "POLL POWER with an acknowledge (0.2.4)",
+                "Index 1, R = 2, page 0x08 POWER, rate 0. Arguments from slot byte 7: 0x01 ACK, then the counts the "
+                "host last read (u16 each): 3 limit events, 1 overload trip, 0 short trips, 2 supply dips. SEQ 0x62.",
+                s, 1);
 
     /* ----------------------------------------------------------------------------------------------- frames */
     fprintf(md, "## 4. Frames\n\nN slots (board 0 first) + the header as a trailer. Every board takes the first slot "
@@ -313,6 +331,18 @@ int main(int argc, char **argv)
         frame_vector("frame_preamble_dark_2boards", "2 boards, preamble (DARK)", d, f, 2, 1);
     }
     check(n == 10u, "preamble count for 2 boards");
+
+    ultra_slot_poll(f, 0x61, ULTRA_POLL_RELAY_ONLY, 2, ULTRA_PAGE_STATUS, ULTRA_RW_RATE_1M, NULL, 0);
+    ultra_slot_poll(f + 32, 0x60, 0, 2, ULTRA_PAGE_STATUS, ULTRA_RW_RATE_1M, NULL, 0);
+    ultra_slot_poll(f + 64, 0x62, 1, 2, ULTRA_PAGE_POWER, ULTRA_RW_RATE_1M, pw_ack, sizeof pw_ack);
+    ultra_build_header_flags(f + ultra_header_offset(3), 0x00ABCDEFu, ULTRA_HDR_RW);
+    check(ultra_rw_window_us(2, ULTRA_RW_RATE_1M) == 1920u, "frame_rw_poll window");
+    frame_vector("frame_rw_poll", "3 receivers, an RW frame (0.2.4)",
+                 "Header FLAGS 0x01 (RW). Board 0: slot_poll_relay. Board 1: slot_poll_status (answer index 0). "
+                 "Board 2: slot_poll_power_ack (index 1). Every POLL has R = 2 and rate 0, so the window is W = "
+                 "1000 + 2 x 460 = 1920 us (ultra_rw_window_us) after the frame's last falling edge; the host's next "
+                 "frame comes >= W + 200 us after it. Board 1 answers at 1000 us, board 2 at 1460 us; each burst is "
+                 "a 0xFF lead byte and the 32-byte answer.", f, 3, 0);
 
     /* ----------------------------------------------------------------------- WS config-frame switch sequence */
     fprintf(md, "## 5. Switching boards forced to WS2805 / WS2915: the WS config-frame sequence for 2 boards\n\n");

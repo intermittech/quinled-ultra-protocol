@@ -56,9 +56,9 @@ A board (wire VERSION 2) **accepts** this header.
 5A D2 22 00 AB CD EF 10
 ```
 
-### `hdr_flag_rw`: FLAGS 0x01 (RW, reserved for the return channel)
+### `hdr_flag_rw`: FLAGS 0x01 (RW, the return channel)
 
-A valid header. Today's boards take the clock sync but ignore every slot of the frame and keep their lock. Hosts must not send it yet.
+A valid header: a response window follows the frame (0.2.4, Diff-Power ultra receivers). A board without a return channel takes the clock sync, ignores every slot and keeps its lock; a receiver answers its POLL (frame_rw_poll).
 
 A board (wire VERSION 2) **accepts** this header.
 
@@ -298,6 +298,39 @@ TYPE `0x05`, LIGHT 15, FLAGS `0x0`, SEQ `0x45`, CRC-16 `0x7BC8` (valid)
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 7B C8
 ```
 
+### `slot_poll_status`: POLL STATUS (0.2.4)
+
+LIGHT 0xF (board). Index 0, R = 2 response slots, page 0x00 STATUS, rate 0 (1 Mbaud), no arguments. Only in an RW frame. SEQ 0x60.
+
+TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x60`, CRC-16 `0x69A6` (valid)
+
+```
+07 F0 60 00 02 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 69 A6
+```
+
+### `slot_poll_relay`: POLL relay only (0.2.4)
+
+Index 0xFF: the board turns around and relays the answers of the boards behind it, but doesn't answer (its page is ignored). The same R and rate as the frame's other POLLs. SEQ 0x61.
+
+TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x61`, CRC-16 `0x5D9C` (valid)
+
+```
+07 F0 61 FF 02 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 5D 9C
+```
+
+### `slot_poll_power_ack`: POLL POWER with an acknowledge (0.2.4)
+
+Index 1, R = 2, page 0x08 POWER, rate 0. Arguments from slot byte 7: 0x01 ACK, then the counts the host last read (u16 each): 3 limit events, 1 overload trip, 0 short trips, 2 supply dips. SEQ 0x62.
+
+TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x62`, CRC-16 `0xA0FC` (valid)
+
+```
+07 F0 62 01 02 08 00 01 00 03 00 01 00 00 00 02
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 A0 FC
+```
+
 ## 4. Frames
 
 N slots (board 0 first) + the header as a trailer. Every board takes the first slot of what reaches it and forwards the rest.
@@ -382,6 +415,21 @@ One line per 32-byte slot, the 8-byte header last:
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 5A D2 20 00 AB CD EF D4
+```
+
+### `frame_rw_poll`: 3 receivers, an RW frame (0.2.4)
+
+Header FLAGS 0x01 (RW). Board 0: slot_poll_relay. Board 1: slot_poll_status (answer index 0). Board 2: slot_poll_power_ack (index 1). Every POLL has R = 2 and rate 0, so the window is W = 1000 + 2 x 460 = 1920 us (ultra_rw_window_us) after the frame's last falling edge; the host's next frame comes >= W + 200 us after it. Board 1 answers at 1000 us, board 2 at 1460 us; each burst is a 0xFF lead byte and the 32-byte answer.
+
+3 slot(s) + header = 104 bytes = 832 bits. Header TIME `0x00ABCDEF`, FLAGS `0x1`, CRC-8 `0xB6`. On the wire with the hub's default bit timing: 1085.8 us from the first rising edge to the last falling edge, then the reset gap (>= 280 us).
+
+One line per 32-byte slot, the 8-byte header last:
+
+```
+07 F0 61 FF 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 5D 9C
+07 F0 60 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 69 A6
+07 F0 62 01 02 08 00 01 00 03 00 01 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 A0 FC
+5A D2 21 00 AB CD EF B6
 ```
 
 ## 5. Switching boards forced to WS2805 / WS2915: the WS config-frame sequence for 2 boards

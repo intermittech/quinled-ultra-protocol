@@ -4,6 +4,57 @@ Releases of this repository. While below 1.0 they are numbered 0.x.y, and the MI
 format's VERSION (`ULTRA_VERSION`, header byte 2): 0.2.y = wire VERSION 2. A compatible addition raises the
 PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
+## v0.2.4 (wire VERSION 2), 2026-10-14
+
+Backward compatible: `ULTRA_VERSION` stays 2. Nothing changes for a board without a return channel (every
+dig2analog-ultra) or for a controller that never sets RW. **The return channel is defined:** a controller can now be
+written from the spec alone. It is implemented by the QuinLED Diff-Power ultra receiver's firmware (0.6.8, `BOARD=2`).
+
+- **POLL** (slot type 0x07, LIGHT 0xF; `ULTRA_POLL_INDEX` / `_SLOTS` / `_PAGE` / `_RATE` / `_ARG` = slot bytes 3-7):
+  answer index, R, page, rate, then the page arguments from slot byte 7. Valid (`ultra_poll_valid`): 1 ≤ R ≤ 16,
+  index < R or 0xFF (relay only: the page and its arguments are ignored), a known rate. A valid POLL is always
+  answered, a repeated SEQ too.
+- **Fixed:** the POWER acknowledge and the SUPPLY selector are at **slot byte 7** ("argument 0"), as the header always
+  said; the 0.2.3 text's "payload byte 7" was wrong. CAL_TEST's part is argument 0 too; parts 2-255 answer UNSUPPORTED.
+- **Who takes part:** a board whose own slot is a valid POLL in a frame with RW **and without EXT**.
+- **Host rules:**
+  - the first RW frame `ULTRA_RW_LOCK_MS` (1 s) after the chain's preamble; none during an update session, never with
+    UPD or EXT;
+  - in one RW frame every POLL has **the same R and rate**; the answer indices are unique, < R and rise along the
+    chain; boards between the hub and an answering board get 0xFF;
+  - behind the last board that answers or relays, the slots may be of any type;
+  - the next frame ≥ W + 200 µs after the frame end, answers or not; a missing answer is retried in a later window
+    with a new SEQ.
+- **Rates** (`ULTRA_RW_RATE_*`): 0 = 1 Mbaud, 1 = 500 kbaud, 2 = 250 kbaud; 3-255 reserved.
+- **The burst:** one **0xFF lead byte** (`ULTRA_RSP_LEAD`, `ULTRA_RW_LEAD_BYTES`) and the 32-byte answer, UART 8N1,
+  LSB first. The hub discards every byte before a SYNC without a framing error: the turnaround checks' pulses reach it
+  as junk bytes, and the lead byte ends any of them before SYNC (`ULTRA_RW_SYNC_IDLE_BITS`: ≥ 9 bit times of HIGH
+  before SYNC's start bit).
+- **Slot pitch** `(330 << rate) + 130` µs = **460 / 790 / 1450 µs** (`ultra_rw_slot_us`, `ultra_rw_window_us`; the
+  burst's 33 bytes plus 130 µs of tolerance); `ULTRA_RW_SLOT_US` is 460.
+- **Burst timing** (s_i = 1000 µs + i × pitch): the line HIGH at s_i − 20 / + 80 µs (`ULTRA_RW_EARLY_US`,
+  `_LATE_US`; slot 0 from s_0 − 5 µs, `ULTRA_RW_EARLY0_US`), the first start bit 2-10 µs later (`_START_MIN_US`,
+  `_START_MAX_US`), the line LOW again by s_i + pitch − 30 µs (`_GUARD_US`), the lead byte included.
+- **Window end:** forward mode again W .. **W + 80 µs** (`ULTRA_RW_END_US`; the receiver measures W + 1.3 .. 66.8 µs
+  over every R, rate, ±200 ppm and ±2.2 % HSI).
+- **Turnaround check** (`ULTRA_RW_CHECK_US` 920, `_CHECK_HIGH_US` 5): every board taking part drives the line HIGH for
+  at most 5 µs and reads it back. LOW = a board above it doesn't take part: no relay and no answer for the rest of the
+  window. **The same after a burst's read-back finds the line taken.** Either sets CONTENTION in the next answer.
+- **Answer:** UID16 = `ultra_crc16` over the 12 unique-id bytes in address order (a fingerprint; IDENTITY has the
+  full id). RFLAGS: EVENT and CONTENTION; **STALE is reserved and never sent**; unknown bits are ignored.
+- **STATUS** completed (`ULTRA_ST_*`): firmware version, hardware id, uptime, reset cause, board temperature, bus
+  voltage, input current, what is measured, PWM preset, CONFIG fingerprint (`ultra_config_crc`), modes.
+- **OUTPUTS, ACKS, ERRORS** defined (`ULTRA_OU_*`, `ULTRA_AK_*`, `ULTRA_ER_*`); optional: a board may answer 0xFF.
+- **IDENTITY:** offsets named (`ULTRA_ID_BL_VERSION`, `_HW_ID`, `_HW_CAPS`), hardware capabilities defined
+  (`ULTRA_HWCAP_RETURN`, `_RELAY`, `_VBUS`, `_CURRENT`, `_NTC`; 0x0020-0x8000 reserved).
+- **HEALTH:** no temperature peak yet = 0x8000 and age 0xFFFFFF.
+- **LIGHT_DEF:** gamma 0 means linear, as 1000.
+- **Host guidance** (wiki: Return channel): decoding, when to poll, the POWER acknowledge, page intervals.
+- Host helpers: `ultra_slot_poll`, `ultra_poll_valid`, `ultra_rw_slot_us`, `ultra_rw_window_us`,
+  `ultra_answer_check`, `ultra_config_crc`.
+- **Test vectors:** `hdr_flag_rw` reworded; new `slot_poll_status`, `slot_poll_relay`, `slot_poll_power_ack` and
+  `frame_rw_poll`. Every other vector is unchanged.
+
 ## v0.2.3 (wire VERSION 2), 2026-10-13
 
 Backward compatible: `ULTRA_VERSION` stays 2. A board from before 0.2.3 ignores the new slot type and skips the new

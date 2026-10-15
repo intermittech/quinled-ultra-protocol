@@ -30,6 +30,39 @@ int ultra_rc_request_add(ultra_rc_request_t *r, uint16_t board, uint8_t page, co
     return ULTRA_OK;
 }
 
+int ultra_rc_request_life_sync(ultra_rc_request_t *r, uint16_t board, uint16_t uid16, const uint8_t lifetime[16],
+                               uint32_t total_wh, uint8_t records_lo)
+{
+    ultra_rc_ask_t *a;
+    uint32_t i;
+    if (lifetime == 0 || ultra_rc_request_add(r, board, ULTRA_PAGE_LIFE_SYNC, 0, 0) != ULTRA_OK) {
+        return ULTRA_ERR_ARG;
+    }
+    a = &r->ask[r->count - 1u];                  /* the arguments straight into the request: ULTRA_LS_* */
+    ultra_put16(a->args + ULTRA_LS_UID16, uid16);
+    for (i = 0; i < 16u; i++) {
+        a->args[ULTRA_LS_LIFETIME + i] = lifetime[i];
+    }
+    ultra_put32(a->args + ULTRA_LS_TOTAL_WH, total_wh);
+    a->args[ULTRA_LS_RECORDS] = records_lo;
+    a->nargs = ULTRA_LS_RECORDS + 1u;
+    return ULTRA_OK;
+}
+
+/* an RW frame in buf: no frame before its response window's end + the hold-off */
+static int64_t rw_hold(const ultra_sender_t *l, const uint8_t *buf)
+{
+    uint32_t i;
+    for (i = 0; i < l->n; i++) {
+        const uint8_t *s = buf + ULTRA_SLOT_BYTES * i;
+        if (s[0] == ULTRA_POLL) {
+            return l->last_time_us + (int64_t)ultra_rw_window_us(s[ULTRA_POLL_SLOTS], s[ULTRA_POLL_RATE]) +
+                   ULTRA_RW_HOLDOFF_US;
+        }
+    }
+    return l->last_time_us;
+}
+
 uint32_t ultra_rc_slot_start_us(uint8_t rate, uint8_t index)
 {
     return ULTRA_RW_FIRST_US + ultra_rw_slot_us(rate) * index;
@@ -49,8 +82,8 @@ uint32_t ultra_sender_rc_frame(ultra_sender_t *l, const ultra_rc_request_t *r, i
     if (l->n == 0u || r->count == 0u || r->count > ULTRA_RW_MAX_SLOTS || r->rate >= ULTRA_RW_RATES ||
         r->ask[r->count - 1u].board >= l->n || l->switch_frame < ULTRA_SWITCH_WS_FRAMES || l->preamble_left != 0u ||
         l->ready_us == INT64_MIN || now_us < l->ready_us + (int64_t)ULTRA_RW_LOCK_MS * 1000 || now_us < l->hold_us ||
-        l->ready_frames < lock_frames(l)) {
-        return 0;
+        l->ready_frames < lock_frames(l) || l->off != 0u) {
+        return 0;                                /* (nor during or after a power-off notice: until the wake) */
     }
     last = r->ask[r->count - 1u].board;
     for (i = 0; i < l->n; i++) {
@@ -79,7 +112,8 @@ uint32_t ultra_sender_rc_frame(ultra_sender_t *l, const ultra_rc_request_t *r, i
     l->kind = ULTRA_KIND_ULTRA;
     l->last_bytes = (uint16_t)ultra_frame_bytes(l->n);
     ultra_sender_finish_(l, now_us, buf);
-    l->hold_us = ultra_sender_rw_hold_(l, buf);
+    ultra_sender_rw_hold_ = rw_hold;             /* (retime moves the window with the frame) */
+    l->hold_us = rw_hold(l, buf);
     return l->last_bytes;
 }
 

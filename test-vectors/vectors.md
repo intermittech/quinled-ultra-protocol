@@ -58,7 +58,7 @@ A board (wire VERSION 2) **accepts** this header.
 
 ### `hdr_flag_rw`: FLAGS 0x01 (RW, the return channel)
 
-A valid header: a response window follows the frame (0.2.4, Diff-Power ultra receivers). A board without a return channel takes the clock sync, ignores every slot and keeps its lock; a receiver answers its POLL (frame_rw_poll).
+A valid header: a response window follows the frame (0.2.4, Diff-Power Ultra-Analog receivers). A board without a return channel takes the clock sync, ignores every slot and keeps its lock; a receiver answers its POLL (frame_rw_poll).
 
 A board (wire VERSION 2) **accepts** this header.
 
@@ -364,6 +364,28 @@ TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x64`, CRC-16 `0x03DB` (valid)
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 DB
 ```
 
+### `slot_poll_life_sync`: POLL LIFE_SYNC (0.2.6)
+
+Index 0, R = 1, page 0x0E LIFE_SYNC, rate 1. Arguments from slot byte 7 (ULTRA_LS_*): UID16 0x1234; LIFETIME bytes 0-15 as the hub's ledger has them: powered 10020 x 0.1 h, lit 4010 x 0.1 h, 531 power-ups, overload trips 5, short trips 1, 22 supply dips; the lifetime energy 9050 Wh; RECORDS' low byte 7. A board from before 0.2.6 answers UNSUPPORTED (0xFF). SEQ 0x65.
+
+TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x65`, CRC-16 `0x0EE1` (valid)
+
+```
+07 F0 65 00 01 0E 01 12 34 00 27 24 00 0F AA 00
+02 13 00 05 00 01 00 00 16 00 00 23 5A 07 0E E1
+```
+
+### `slot_identify_power_off`: IDENTIFY planned power-off (0.2.6)
+
+Value 7, argument 0 (ultra_slot_power_off): 3 copies with the same SEQ (applied once) at 0, 50 and 100 ms, the line's power cut at 200 ms. A Diff-Power Ultra-Analog receiver (ULTRA_FEAT_STANDBY) fades to dark and takes the cut as planned (no supply dip); other boards and firmware from before 0.2.6 ignore it. SEQ 0x59.
+
+TYPE `0x06`, LIGHT 15, FLAGS `0x0`, SEQ `0x59`, CRC-16 `0xE97B` (valid)
+
+```
+06 F0 59 07 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 E9 7B
+```
+
 ## 4. Frames
 
 N slots (board 0 first) + the header as a trailer. Every board takes the first slot of what reaches it and forwards the rest.
@@ -465,6 +487,21 @@ One line per 32-byte slot, the 8-byte header last:
 5A D2 21 00 AB CD EF B6
 ```
 
+### `frame_power_off`: 3 receivers, the planned power-off notice (0.2.6)
+
+Every board's slot: slot_identify_power_off (SEQ 0x59). The hub sends this frame at 0, 50 and 100 ms (the same SEQ: each board applies it once; the time differs) and cuts the line's power at 200 ms.
+
+3 slot(s) + header = 104 bytes = 832 bits. Header TIME `0x00ABCDEF`, FLAGS `0x0`, CRC-8 `0xD4`. On the wire with the hub's default bit timing: 1085.7 us from the first rising edge to the last falling edge, then the reset gap (>= 280 us).
+
+One line per 32-byte slot, the 8-byte header last:
+
+```
+06 F0 59 07 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E9 7B
+06 F0 59 07 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E9 7B
+06 F0 59 07 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E9 7B
+5A D2 20 00 AB CD EF D4
+```
+
 ## 5. Switching boards forced to WS2805 / WS2915: the WS config-frame sequence for 2 boards
 
 10 frames, sent with the same WS bit timing and a reset gap after each. Frames 0-3: WS2805 format (5 bytes per board = the message `D2 A5 01 03 CRC`), frame 4: WS2805 all zero; frames 5-8: WS2915 format (header `FF FF FF 80`, then per board the message and its complement), frame 9: WS2915 all zero. Consecutive frames differ in length by 1 byte of zero padding. Afterwards the host sends the start-up preamble and everything again.
@@ -483,3 +520,19 @@ One line per 32-byte slot, the 8-byte header last:
 | 9 | 26 | `FF FF FF 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00` |
 
 The message: MAGIC `D2 A5`, CMD `01` (protocol), ARG `03` (Ultra), CRC-8/SMBus over those 4 bytes = `75`.
+
+## 6. Answers (the return channel)
+
+A board's response slot: SYNC `A5` | PAGE | INDEX << 4 | RFLAGS | SEQ | UID16 (2) | DATA (24) | CRC-16 (2) over the first 30 bytes, big-endian fields.
+
+### `answer_life_sync_applied`: LIFE_SYNC answer, APPLIED (0.2.6)
+
+The answer to slot_poll_life_sync from a board that was behind in every field by less than its step (before: powered 10000 x 0.1 h, lit 4000 x 0.1 h, 501 power-ups, trips 3 / 1, 20 dips, 9000 Wh; RECORDS 7): DATA 0-15 the LIFETIME counters after the merge (the ledger's), 16-19 the lifetime energy 9050 Wh, 20 the result 0 APPLIED, 21 the counters raised 0x3F (powered, lit, power-ups, trips, dips, energy), 22-23 RECORDS 7. Index 0, RFLAGS 0, SEQ 0x65, UID16 0x1234.
+
+SYNC `0xA5`, PAGE `0x0E`, INDEX 0, RFLAGS `0x0`, SEQ `0x65`, UID16 `0x1234`, CRC-16 `0xE4DE` over bytes 0-29. On the wire: a `0xFF` lead byte, then these 32 bytes, UART 8N1 at the POLL's rate.
+
+```
+A5 0E 00 65 12 34 00 27 24 00 0F AA 00 02 13 00
+05 00 01 00 00 16 00 00 23 5A 00 3F 00 07 E4 DE
+```
+

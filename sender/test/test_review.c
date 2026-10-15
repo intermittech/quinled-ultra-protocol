@@ -25,6 +25,8 @@
 #include <string.h>
 
 #include "ultra_sender.h"
+/* an item's start (kept in two 32-bit halves) */
+#define ITEM_START(it) ((int64_t)(((uint64_t)(it).start_hi << 32) | (it).start_lo))
 #include "ultra_sender_rc.h"
 
 static ultra_sender_t line, line2, line3;
@@ -131,8 +133,9 @@ static void mixed_startup(void)
     ultra_sender_join_group(&line2, &g);
     (void)ultra_sender_set(&line2, 0, 0, &v, 1000, 0, ta);
     (void)ultra_sender_set(&line, 0, 0, &v, 1000, 0, ta + 2000);
-    CHECK(line.items[0].start_us == line2.items[0].start_us, "5: two lines starting up share one start (%lld, %lld)",
-          (long long)line.items[0].start_us, (long long)line2.items[0].start_us);
+    CHECK(ITEM_START(line.items[0]) == ITEM_START(line2.items[0]),
+          "5: two lines starting up share one start (%lld, %lld)", (long long)ITEM_START(line.items[0]),
+          (long long)ITEM_START(line2.items[0]));
     oa = first_set_offset(&line, &ta, &fa);
     ob = first_set_offset(&line2, &tb, &fb);
     CHECK(fa && fb && oa >= 0 && ob >= 0, "5: both lines' first copies arrive before it (%d, %d ms ahead)", oa, ob);
@@ -151,7 +154,7 @@ static void dynamic_lights(void)
     (void)ultra_sender_set_lights(&line, 0, 5);
     for (i = 0; i < 5u; i++) {
         (void)ultra_sender_set(&line, 0, (uint8_t)i, &v, 1000, 0, now);
-        starts[i] = items[i].start_us;
+        starts[i] = ITEM_START(items[i]);
     }
     CHECK(starts[0] == starts[4], "6: set_lights 1 -> 5, 5 SETs at once: one start (%lld .. %lld)",
           (long long)starts[0], (long long)starts[4]);

@@ -4,6 +4,8 @@
  * QuinLED Ultra sender: the scheduler and frame builder (ultra_sender.h). The rules follow the reference host, the
  * ESPHome component dig2analog_ultra (ultra_core.h, class Scheduler, and the hub's start delay / group start).
  */
+#include <string.h>
+
 #include "ultra_sender.h"
 #include "ultra_sender_internal.h"
 
@@ -17,6 +19,11 @@
 #define GROUP_MAX       1024u          /* lines walked in a group at most (a damaged list never hangs) */
 #define STAMP_PASSES    8u             /* TIME / start offset passes at most (finish) */
 #define BIT32(n)        ((uint32_t)1 << (n))   /* (never 1u << n: 16-bit int targets) */
+/* A frame's wire time in ns fits 32 bits (solve_header, finish: no 64-bit maths): 1024 boards at the slowest legal
+ * '1' (12 us) is (32 x 1024 + 8) x 8 x 12000 = 3.15e9 ns */
+#if ULTRA_SENDER_MAX_BOARDS > 1024
+#error "ULTRA_SENDER_MAX_BOARDS: at most 1024 (a frame's time in ns must fit 32 bits)"
+#endif
 
 /* the kinds of state of a light, in refresh order */
 enum { RK_DEF = 0, RK_OPT, RK_SET, RK_EFFECT, RK_SCENE, RK_SCENE_FX, RK_STEP };
@@ -52,6 +59,18 @@ static int same32(const uint8_t *a, const uint8_t *b)
         }
     }
     return 1;
+}
+
+/* an item's start (int64_t, kept in two 32-bit halves) */
+static int64_t it_start(const ultra_sender_item_t *it)
+{
+    return (int64_t)(((uint64_t)it->start_hi << 32) | it->start_lo);
+}
+
+static void it_set_start(ultra_sender_item_t *it, int64_t t)
+{
+    it->start_lo = (uint32_t)(uint64_t)t;
+    it->start_hi = (uint32_t)((uint64_t)t >> 32);
 }
 
 static uint8_t rnd8(ultra_sender_t *l)
@@ -165,7 +184,6 @@ static ultra_sender_item_t *item_get(ultra_sender_t *l, ultra_sender_board_t *b,
 {
     ultra_sender_item_t *it = item_find(l, b, key);
     uint16_t idx, *link;
-    uint32_t i;
     if (it != 0) {
         return it;
     }
@@ -174,16 +192,9 @@ static ultra_sender_item_t *item_get(ultra_sender_t *l, ultra_sender_board_t *b,
     }
     idx = l->used++;
     it = &l->items[idx];
-    it->start_us = ULTRA_NO_START;
-    it->q.order = 0;
-    it->q.sends = it->q.copies = it->q.behind = it->q.spare = 0;
-    it->aux = it->last_us = 0;
+    memset(it, 0, sizeof *it);                   /* (not queued, no flags, an empty slot) */
+    it_set_start(it, ULTRA_NO_START);
     it->key = key;
-    it->flags = 0;
-    it->spare[0] = it->spare[1] = it->spare[2] = 0;
-    for (i = 0; i < ULTRA_SLOT_BYTES; i++) {
-        it->slot[i] = 0;
-    }
     it->slot[2] = rnd8(l);                       /* the next command takes this + 1 */
     link = &b->first;
     while (*link != END && l->items[*link].key < key) {
@@ -220,7 +231,7 @@ static void drop_steps(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t light
         ultra_sender_item_t *st = item_find(l, b, KEY(light, RK_STEP, i));
         if (st != 0) {
             q_drop(l, b, &st->q, 1);
-            st->flags = 0;
+            st->q.flags = 0;
         }
     }
 }
@@ -229,14 +240,14 @@ static void drop_steps(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t light
  * content queues nothing, else the next SEQ and 3 copies */
 static void put_static(ultra_sender_t *l, ultra_sender_board_t *b, ultra_sender_item_t *it, uint8_t *s)
 {
-    if ((it->flags & IT_VALID) && same32(s, it->slot)) {
+    if ((it->q.flags & IT_VALID) && same32(s, it->slot)) {
         return;
     }
     s[2] = next_seq(b, it);
     ultra_slot_seal(s);
     copy32(it->slot, s);
-    it->flags = IT_VALID;
-    it->start_us = ULTRA_NO_START;
+    it->q.flags = IT_VALID;
+    it_set_start(it, ULTRA_NO_START);
     q_put(l, b, &it->q, 0, 1);
 }
 
@@ -265,6 +276,8 @@ static void build_identify(const ultra_sender_board_t *b, uint8_t *s)
         ultra_slot_calibrate(s, b->id_seq, b->id_arg);
     } else if (b->id_val == ULTRA_IDENT_DARK) {
         ultra_slot_hold_dark(s, b->id_seq, b->id_arg);
+    } else if (b->id_val == ULTRA_IDENT_POWER_OFF) {
+        ultra_slot_power_off(s, b->id_seq);       /* (0.2.6: ultra_sender_power_off) */
     } else {
         ultra_slot_identify(s, b->id_seq, b->id_val);
     }
@@ -307,26 +320,25 @@ static void clear_put(ultra_sender_t *l, ultra_sender_board_t *b)
  * without a period has no phase to keep: a day back (a board takes a start 2^31 ms back as one still to come). */
 static int64_t recent_start(const ultra_sender_item_t *it, int64_t now_us)
 {
-    int64_t p;
-    if (it->start_us == ULTRA_NO_START || now_us - it->start_us < DAY_US || it->slot[0] != ULTRA_EFFECT) {
-        return it->start_us;
+    uint64_t k;
+    if (it_start(it) == ULTRA_NO_START || now_us - it_start(it) < DAY_US || it->slot[0] != ULTRA_EFFECT) {
+        return it_start(it);
     }
     if (it->aux == 0u) {
         return now_us - DAY_US;
     }
-    p = (int64_t)it->aux * 1000;
-    return it->start_us + (now_us - it->start_us) / p * p;
+    /* whole periods since the start: (now - start) / (aux x 1000) = whole ms / aux (a floor of a floor) */
+    k = ultra_udiv64_(ultra_udiv64_((uint64_t)(now_us - it_start(it)), 1000u), it->aux);
+    return it_start(it) + (int64_t)(k * it->aux * 1000u);
 }
 
 /* the latest start <= start_us that is a whole number of periods after the clock's zero */
 static int64_t phase_start(int64_t start_us, uint32_t period_ms)
 {
-    int64_t p;
     if (period_ms == 0u || start_us < 0) {
         return start_us;
     }
-    p = (int64_t)period_ms * 1000;
-    return start_us - start_us % p;
+    return (int64_t)(ultra_udiv64_(ultra_udiv64_((uint64_t)start_us, 1000u), period_ms) * period_ms * 1000u);
 }
 
 /* how far ahead a command starts so it is on the wire first: the frame that may be on the wire, a frame per command
@@ -487,15 +499,15 @@ int ultra_sender_config_check(const ultra_sender_config_t *c)
 int ultra_sender_init(ultra_sender_t *l, const ultra_sender_config_t *c, ultra_sender_board_t *boards,
                       ultra_sender_item_t *items, uint16_t n_items)
 {
-    uint32_t i, j;
+    uint32_t i;
     if (ultra_sender_config_check(c) != ULTRA_OK || boards == 0 || (items == 0 && n_items != 0u)) {
         return ULTRA_ERR_ARG;
     }
+    memset(l, 0, sizeof *l);                     /* (every field 0 but these: counters, flags, queues, times) */
     l->boards = boards;
     l->items = items;
     l->n = c->boards;
     l->n_items = n_items;
-    l->used = 0;
     l->timing = c->timing;
     l->refresh_us = (uint32_t)c->refresh_ms * 1000u;
     l->start_delay_us = c->start_delay_us < 0 ? -1 : c->start_delay_us;
@@ -504,58 +516,26 @@ int ultra_sender_init(ultra_sender_t *l, const ultra_sender_config_t *c, ultra_s
     l->group_commands = c->group_commands;
     l->max_lights = 1;
     l->clear_unused = c->clear_unused != 0u;
-    l->order = 0;
-    l->queued = 0;
-    l->frames = 0;
     l->rng = c->seed ^ 0x9E3779B9u;
     l->frame_us = ultra_frame_max_us(&l->timing, ultra_frame_bytes(l->n));
     l->switch_us = ultra_frame_max_us(&l->timing, ultra_switch_frame_bytes(l->n));
-    l->last_start_us = l->last_time_us = 0;
-    l->hold_us = l->ready_us = INT64_MIN;
-    l->ready_frames = 0;
-    l->last_ends_preamble = 0;
-    l->hdr_flags = 0;
+    l->hold_us = l->ready_us = l->off_cut_us = INT64_MIN;
     l->own_group.start = ULTRA_NO_START;
     l->own_group.lines = l;
     l->group = &l->own_group;
-    l->group_next = 0;
     l->preamble_left = (uint16_t)ultra_preamble_frames(l->n);
     l->preamble_full = 1;
-    l->synced_once = 0;
     l->powered = 1;
-    l->has_sent = 0;
-    l->switch_frame = ULTRA_SWITCH_WS_FRAMES;
-    l->kind = KIND_NONE;
-    l->last_bytes = 0;
+    l->switch_frame = ULTRA_SWITCH_WS_FRAMES;    /* (kind: KIND_NONE, 0) */
     for (i = 0; i < l->n; i++) {
         ultra_sender_board_t *b = &boards[i];
-        for (j = 0; j < ULTRA_CFG_COUNT; j++) {
-            b->cfg[j] = 0;
-        }
-        for (j = 0; j < ULTRA_SENDER_CFG_WORDS; j++) {
-            b->cfg_have[j] = 0;
-        }
-        for (j = 0; j < ULTRA_SENDER_CFG_PAGES; j++) {
-            b->cfg_q[j].copies = 0;
-            b->cfg_pseq[j] = 0;
-        }
-        b->id_q.copies = 0;
-        b->clr_q.copies = 0;
+        memset(b, 0, sizeof *b);
         b->f_start = ULTRA_NO_START;
-        b->f_dur = 0;
         b->first = END;
-        b->rr = 0;
-        b->unsent = 0;
-        b->cfg_seq = rnd8(l);
-        b->cfg_dirty = 0;
+        b->cfg_seq = rnd8(l);                    /* (the first SEQs: in this order, as before) */
         b->id_seq = rnd8(l);
-        b->id_val = b->id_arg = 0;
         b->lights = c->lights;
         b->clr_seq = rnd8(l);
-        b->clr_pos = 0;
-        b->clr_mask = 0;
-        b->urgent_run = 0;
-        b->f_floor = 0;
         b->poll_seq = rnd8(l);
         clear_put(l, b);
     }
@@ -582,7 +562,7 @@ int ultra_sender_set_lights(ultra_sender_t *l, uint16_t board, uint8_t lights)
         it = &l->items[i];
         if (KEY_LIGHT(it->key) >= lights) {
             q_drop(l, b, &it->q, 1);               /* not sent any more */
-        } else if (KEY_LIGHT(it->key) >= old && (it->flags & IT_VALID)) {
+        } else if (KEY_LIGHT(it->key) >= old && (it->q.flags & IT_VALID)) {
             q_put(l, b, &it->q, 0, 1);             /* back: its state again */
         }
     }
@@ -617,7 +597,8 @@ static void stamp(uint8_t *s, int64_t start_us, int64_t hdr_us, int floor, uint3
         return;
     }
     d = (floor && start_us < hdr_us) ? 0 : start_us - hdr_us;
-    ms = d >= 0 ? (d + 500) / 1000 : -((-d + 499) / 1000);
+    ms = d >= 0 ? (int64_t)ultra_udiv64_((uint64_t)d + 500u, 1000u)
+                : -(int64_t)ultra_udiv64_((uint64_t)-d + 499u, 1000u);
     if (s[0] == ULTRA_SET) {
         if (ms < -32768) {
             const uint64_t lost = (uint64_t)(-32768 - ms);
@@ -657,42 +638,39 @@ static uint32_t ones_in(const uint8_t *d, uint32_t n)
 /* The header for the slots as they are: the TIME at which a frame carrying that header ends. Its TIME and CRC bits
  * set the frame's length too, so the candidates in the window those 40 bits can span are tried (a few at the
  * recommended timing, ~450 where '0' and '1' differ most), and the one whose frame measures exactly its own TIME is
- * taken, the earliest if several do (none: the one measuring closest, nearest `hint`). The header is written. */
+ * taken, the earliest if several do (none: the one measuring closest, nearest `hint`). The header is written. The
+ * search runs in us after start_us (32-bit: a frame lasts < 2^32 ns; hint is one of finish's TIMEs, >= start_us). */
 static int64_t solve_header(ultra_sender_t *l, int64_t start_us, uint8_t *out, int64_t hint)
 {
     const ultra_timing_t *tm = &l->timing;
     const uint32_t lead = ULTRA_SLOT_BYTES * l->n + 3u;          /* the slots and the header's fixed bytes */
-    const uint64_t p0 = (uint64_t)tm->t0h_ns + tm->t0l_ns, p1 = (uint64_t)tm->t1h_ns + tm->t1l_ns;
-    const uint64_t pmin = p0 < p1 ? p0 : p1, pmax = p0 < p1 ? p1 : p0;
+    const uint32_t p0 = (uint32_t)tm->t0h_ns + tm->t0l_ns, p1 = (uint32_t)tm->t1h_ns + tm->t1l_ns;
+    const uint32_t pmin = p0 < p1 ? p0 : p1, pmax = p0 < p1 ? p1 : p0;
     const uint32_t lmin = tm->t0l_ns < tm->t1l_ns ? tm->t0l_ns : tm->t1l_ns;
     const uint32_t lmax = tm->t0l_ns < tm->t1l_ns ? tm->t1l_ns : tm->t0l_ns;
+    const uint32_t s32 = (uint32_t)start_us, rh = (uint32_t)(hint - start_us);
     uint8_t *h = out + ULTRA_SLOT_BYTES * l->n;
-    uint64_t fixed;
-    int64_t lo, hi, t, best = hint, best_err = INT64_MAX, best_d = INT64_MAX;
-    uint32_t ones;
+    uint32_t ones, fixed, r, hi, best = rh, best_err = UINT32_MAX, best_d = UINT32_MAX;   /* (ns, us: < 2^32) */
     ultra_build_header_flags(h, 0, l->hdr_flags);                /* (MAGIC, VERSION / FLAGS: fixed) */
     ones = ones_in(out, lead);
-    fixed = (uint64_t)ones * p1 + ((uint64_t)lead * 8u - ones) * p0;
-    lo = start_us + (int64_t)((fixed + 40u * pmin - lmax) / 1000u) - 1;
-    hi = start_us + (int64_t)((fixed + 40u * pmax - lmin + 999u) / 1000u) + 1;
-    for (t = lo; t <= hi; t++) {
-        int64_t m, err, d;
-        uint32_t k;
-        ultra_build_header_flags(h, (uint32_t)t, l->hdr_flags);
+    fixed = ones * p1 + (lead * 8u - ones) * p0;
+    r = (fixed + 40u * pmin - lmax) / 1000u - 1u;
+    hi = (fixed + 40u * pmax - lmin + 999u) / 1000u + 1u;
+    for (; r <= hi; r++) {
+        uint32_t k, m, err, d;
+        ultra_build_header_flags(h, s32 + r, l->hdr_flags);
         k = ones_in(h + 3, 5);
-        m = start_us + (int64_t)((fixed + (uint64_t)k * p1 + (40u - (uint64_t)k) * p0 - ((h[7] & 1u) ? tm->t1l_ns
-                                                                                                    : tm->t0l_ns) +
-                                  500u) / 1000u);
-        err = m > t ? m - t : t - m;
-        d = t > hint ? t - hint : hint - t;
-        if (err < best_err || (err == best_err && err != 0 && d < best_d)) {   /* (exact: the earliest) */
+        m = (fixed + k * p1 + (40u - k) * p0 - ((h[7] & 1u) ? tm->t1l_ns : tm->t0l_ns) + 500u) / 1000u;
+        err = m > r ? m - r : r - m;
+        d = r > rh ? r - rh : rh - r;
+        if (err < best_err || (err == best_err && err != 0u && d < best_d)) {   /* (exact: the earliest) */
             best_err = err;
             best_d = d;
-            best = t;
+            best = r;
         }
     }
-    ultra_build_header_flags(h, (uint32_t)best, l->hdr_flags);
-    return best;
+    ultra_build_header_flags(h, s32 + best, l->hdr_flags);
+    return start_us + best;
 }
 
 /* the worst start a frame gives, us: its slots' offsets against the frame's real end e (SETs clipped at their int16
@@ -738,8 +716,8 @@ int64_t ultra_sender_finish_(ultra_sender_t *l, int64_t start_us, uint8_t *out)
 {
     const uint32_t bytes = ultra_frame_bytes(l->n);
     const ultra_timing_t *tm = &l->timing;
-    const uint64_t avg = ((uint64_t)tm->t0h_ns + tm->t0l_ns + tm->t1h_ns + tm->t1l_ns) / 2u;
-    int64_t t = start_us + (int64_t)((uint64_t)bytes * 8u * avg / 1000u), sol = t, best_t = t, best_err = INT64_MAX;
+    const uint32_t avg = ((uint32_t)tm->t0h_ns + tm->t0l_ns + tm->t1h_ns + tm->t1l_ns) / 2u;
+    int64_t t = start_us + (int64_t)(bytes * 8u * avg / 1000u), sol = t, best_t = t, best_err = INT64_MAX;
     uint32_t pass;
     for (pass = 0; pass < STAMP_PASSES; pass++) {
         int64_t err;
@@ -828,7 +806,7 @@ static int take_urgent(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t *s, i
     case C_ITEM:
         copy32(s, bit->slot);
         b->f_start = recent_start(bit, now_us);
-        if (bit->flags & IT_STREAM) {
+        if (bit->q.flags & IT_STREAM) {
             uint32_t glide = bit->aux;
             if (bit->q.behind && bit->last_us != 0u) {
                 const uint32_t since = ((uint32_t)now_us - bit->last_us) / 1000u;
@@ -879,12 +857,12 @@ static int take_refresh(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t *s, 
         }
         {
             const ultra_sender_item_t *it = &l->items[i];
-            if (!(it->flags & IT_VALID) || KEY_LIGHT(it->key) >= b->lights) {
+            if (!(it->q.flags & IT_VALID) || KEY_LIGHT(it->key) >= b->lights) {
                 continue;
             }
             copy32(s, it->slot);
             b->f_start = recent_start(it, now_us);
-            b->f_floor = (it->flags & IT_STREAM) ? 1u : 0u;
+            b->f_floor = (it->q.flags & IT_STREAM) ? 1u : 0u;
             return 1;
         }
     }
@@ -938,32 +916,43 @@ static void build_frame(ultra_sender_t *l, int64_t start_us, uint8_t *out)
     }
 }
 
-static void build_dark(ultra_sender_t *l, uint8_t *out)
+/* the power-off notice (0.2.6): l->off counts its copies down to OFF_QUIET (all out: nothing until the wake); they go
+ * at least OFF_GAP_US apart, the cut OFF_CUT_US after the first */
+#define OFF_QUIET  1u
+#define OFF_COPIES 3u
+#define OFF_GAP_US 50000
+#define OFF_CUT_US 200000
+
+/* a notice copy went out at start_us (or was retimed to it): the next not before 50 ms; the first sets the cut */
+static void notice_at(ultra_sender_t *l, int64_t start_us)
 {
-    uint32_t i;
-    for (i = 0; i < l->n; i++) {
-        ultra_slot_dark(out + ULTRA_SLOT_BYTES * i);
-        l->boards[i].f_start = ULTRA_NO_START;
-        l->boards[i].f_floor = 0;
+    l->hold_us = start_us + OFF_GAP_US;
+    if (l->off == OFF_QUIET + OFF_COPIES - 1u) {
+        l->off_cut_us = start_us + OFF_CUT_US;
     }
 }
 
-int64_t ultra_sender_rw_hold_(const ultra_sender_t *l, const uint8_t *buf)
+int64_t (*ultra_sender_rw_hold_)(const ultra_sender_t *l, const uint8_t *buf);
+
+/* the WS config-frame sequence's next frame (no Ultra header), with the line's bit timing. Reached through ws_frame,
+ * which ultra_sender_switch_to_ultra() sets: a host that never switches boards doesn't link it */
+static uint32_t ws_frame_build(ultra_sender_t *l, int64_t now_us, uint8_t *buf)
 {
-    uint32_t i;
-    for (i = 0; i < l->n; i++) {
-        const uint8_t *s = buf + ULTRA_SLOT_BYTES * i;
-        if (s[0] == ULTRA_POLL) {
-            return l->last_time_us + (int64_t)ultra_rw_window_us(s[ULTRA_POLL_SLOTS], s[ULTRA_POLL_RATE]) +
-                   ULTRA_RW_HOLDOFF_US;
-        }
-    }
-    return l->last_time_us;
+    const uint32_t len = ultra_switch_frame(buf, l->switch_frame++, l->n);
+    l->kind = KIND_WS;
+    l->last_time_us = now_us + (int64_t)(((uint32_t)ultra_wire_ns(&l->timing, buf, len) + 500u) / 1000u);
+    l->last_bytes = (uint16_t)len;
+    return len;
 }
+
+static uint32_t (*ws_frame)(ultra_sender_t *l, int64_t now_us, uint8_t *buf);
 
 int ultra_sender_busy(const ultra_sender_t *l)
 {
-    if (l->switch_frame < ULTRA_SWITCH_WS_FRAMES || l->preamble_left != 0u || l->queued != 0u) {
+    if (l->off == OFF_QUIET) {
+        return 0;                                /* (commands wait for the wake) */
+    }
+    if (l->switch_frame < ULTRA_SWITCH_WS_FRAMES || l->preamble_left != 0u || l->queued != 0u || l->off != 0u) {
         return 1;
     }
     {
@@ -979,16 +968,17 @@ int ultra_sender_busy(const ultra_sender_t *l)
 
 int64_t ultra_sender_due_us(const ultra_sender_t *l)
 {
-    const int64_t due = (!l->has_sent || ultra_sender_busy(l)) ? l->last_start_us
-                                                                : l->last_start_us + (int64_t)l->refresh_us;
-    return due > l->hold_us ? due : l->hold_us;   /* not before a response window's end */
+    const int64_t due = l->off == OFF_QUIET ? INT64_MAX               /* nothing until the wake */
+                      : (!l->has_sent || ultra_sender_busy(l)) ? l->last_start_us
+                                                               : l->last_start_us + (int64_t)l->refresh_us;
+    return due > l->hold_us ? due : l->hold_us;   /* not before a response window's end (or the notice's next copy) */
 }
 
 uint32_t ultra_sender_next_frame(ultra_sender_t *l, int64_t now_us, uint8_t *buf)
 {
     uint32_t len;
-    if (l->n == 0u) {
-        return 0;                                /* deinitialized */
+    if (l->n == 0u || l->off == OFF_QUIET) {
+        return 0;                                /* deinitialized; after a power-off notice until the wake */
     }
     flush_config(l);
     if (now_us < l->hold_us ||
@@ -1000,20 +990,35 @@ uint32_t ultra_sender_next_frame(ultra_sender_t *l, int64_t now_us, uint8_t *buf
     l->last_start_us = now_us;
     l->last_ends_preamble = 0;
     l->frames++;
-    if (l->switch_frame < ULTRA_SWITCH_WS_FRAMES) {
-        /* a WS config frame (no Ultra header), with the same bit timing */
-        len = ultra_switch_frame(buf, l->switch_frame++, l->n);
-        l->kind = KIND_WS;
-        l->last_time_us = now_us + (int64_t)((ultra_wire_ns(&l->timing, buf, len) + 500u) / 1000u);
-        l->last_bytes = (uint16_t)len;
-        return len;
+    if (l->switch_frame < ULTRA_SWITCH_WS_FRAMES && l->off == 0u) {
+        return ws_frame(l, now_us, buf);         /* a WS config frame (only after ultra_sender_switch_to_ultra) */
     }
     len = ultra_frame_bytes(l->n);
-    if (l->preamble_left != 0u) {
-        l->preamble_left--;
-        build_dark(l, buf);
+    l->last_notice = l->off != 0u;               /* (quiet returned above: copies to send) */
+    if (l->last_notice || l->preamble_left != 0u) {
+        /* one slot kind on every board: the power-off notice (before everything; each board's IDENTIFY SEQ), else
+         * the preamble's DARK */
+        uint32_t i;
+        if (l->last_notice) {
+            l->off--;
+        } else {
+            l->preamble_left--;
+        }
+        for (i = 0; i < l->n; i++) {
+            ultra_sender_board_t *b = &l->boards[i];
+            uint8_t *s = buf + ULTRA_SLOT_BYTES * i;
+            if (l->last_notice) {
+                build_identify(b, s);
+            } else {
+                ultra_slot_dark(s);
+            }
+            b->f_start = ULTRA_NO_START;
+            b->f_floor = 0;
+        }
         ultra_sender_finish_(l, now_us, buf);
-        if (l->preamble_left == 0u) {
+        if (l->last_notice) {
+            notice_at(l, now_us);
+        } else if (l->preamble_left == 0u) {
             l->ready_us = l->last_time_us;       /* (moved again if this frame is retimed) */
             l->ready_frames = 0;
             l->last_ends_preamble = 1;
@@ -1047,8 +1052,12 @@ uint32_t ultra_sender_retime(ultra_sender_t *l, int64_t now_us, uint8_t *buf)
         if (l->last_ends_preamble) {
             l->ready_us = l->last_time_us;       /* the preamble ends when its last frame really goes out */
         }
+        if (l->last_notice) {
+            notice_at(l, now_us);                /* its spacing and the cut move with it */
+        }
     } else if (l->kind == KIND_WS) {
-        l->last_time_us = now_us + (int64_t)((ultra_wire_ns(&l->timing, buf, l->last_bytes) + 500u) / 1000u);
+        l->last_time_us = now_us + (int64_t)(((uint32_t)ultra_wire_ns(&l->timing, buf, l->last_bytes) + 500u) /
+                                             1000u);
     }
     return l->last_bytes;
 }
@@ -1076,11 +1085,11 @@ static void replay(ultra_sender_t *l, int64_t start_us)
         }
         for (k = b->first; k != END; k = l->items[k].next) {
             ultra_sender_item_t *it = &l->items[k];
-            if (!(it->flags & IT_VALID) || KEY_LIGHT(it->key) >= b->lights) {
+            if (!(it->q.flags & IT_VALID) || KEY_LIGHT(it->key) >= b->lights) {
                 continue;
             }
             if (KEY_RANK(it->key) == RK_SET) {
-                it->start_us = start_us;
+                it_set_start(it, start_us);
             }
             q_put(l, b, &it->q, 0, 1);
         }
@@ -1116,7 +1125,30 @@ void ultra_sender_power(ultra_sender_t *l, int on, int64_t now_us)
         return;
     }
     l->powered = 1;
+    l->off = 0;                                  /* (a power-off notice is over: the boards start afresh) */
     resync(l, now_us, !l->synced_once);
+}
+
+int ultra_sender_power_off(ultra_sender_t *l)
+{
+    uint32_t i;
+    if (l->n == 0u || l->off != 0u) {
+        return ULTRA_ERR_ARG;                    /* deinitialized, or a notice under way */
+    }
+    for (i = 0; i < l->n; i++) {
+        ultra_sender_board_t *b = &l->boards[i];
+        q_drop(l, b, &b->id_q, 1);               /* (a queued IDENTIFY gives way) */
+        b->id_seq++;                             /* the notice's SEQ: new, one for its 3 copies */
+        b->id_val = ULTRA_IDENT_POWER_OFF;
+    }
+    l->off = OFF_QUIET + OFF_COPIES;
+    return ULTRA_OK;
+}
+
+int64_t ultra_sender_power_off_at(const ultra_sender_t *l)
+{
+    return l->off == 0u ? INT64_MIN : l->off != OFF_QUIET ? INT64_MAX
+         : l->off_cut_us > l->last_time_us ? l->off_cut_us : l->last_time_us;
 }
 
 int ultra_sender_switch_to_ultra(ultra_sender_t *l, int64_t now_us, uint8_t boot_protocol)
@@ -1124,6 +1156,7 @@ int ultra_sender_switch_to_ultra(ultra_sender_t *l, int64_t now_us, uint8_t boot
     if (l->n == 0u || (boot_protocol != 0xFFu && !ultra_config_value_ok(ULTRA_CFG_BOOT_PROTOCOL, boot_protocol))) {
         return ULTRA_ERR_ARG;
     }
+    ws_frame = ws_frame_build;
     l->switch_frame = 0;
     if (boot_protocol != 0xFFu) {
         (void)ultra_sender_config(l, ULTRA_SENDER_ALL, ULTRA_CFG_BOOT_PROTOCOL, boot_protocol);
@@ -1194,8 +1227,8 @@ static int set_impl(ultra_sender_t *l, uint16_t board, uint8_t light, const ultr
         return ULTRA_ERR_FULL;
     }
     ultra_slot_set(it->slot, light, next_seq(b, it), flags, v->m, v->a, v->b, transition_ms, 0);
-    it->flags = IT_VALID;
-    it->start_us = autostart ? ultra_sender_start_time(l, board, t_us) : t_us;
+    it->q.flags = IT_VALID;
+    it_set_start(it, autostart ? ultra_sender_start_time(l, board, t_us) : t_us);
     q_put(l, b, &it->q, 0, 1);
     return ULTRA_OK;
 }
@@ -1226,8 +1259,8 @@ int ultra_sender_stream(ultra_sender_t *l, uint16_t board, uint8_t light, const 
         return ULTRA_ERR_FULL;
     }
     ultra_slot_set(it->slot, light, next_seq(b, it), 0, v->m, v->a, v->b, glide_ms, 0);
-    it->flags = IT_VALID | IT_STREAM;
-    it->start_us = now_us + stream_lead(l);
+    it->q.flags = IT_VALID | IT_STREAM;
+    it_set_start(it, now_us + stream_lead(l));
     it->aux = glide_ms;
     q_put(l, b, &it->q, 1, 1);
     return ULTRA_OK;
@@ -1266,27 +1299,35 @@ static int fx_args_ok(uint8_t fx, const uint8_t *params, uint32_t nparams)
     return fx < ULTRA_FX_COUNT && nparams == ultra_fx_param_bytes(fx) && (params != 0 || nparams == 0u);
 }
 
+/* The light's EFFECT item (0: the pool is full): the slot, its period (a strobe's from its steps, else as the board
+ * reads the parameters), its start (t_us, or autostart: the group start for now t_us on the effect's phase), the old
+ * effect's steps dropped (also from the queue), queued */
+static ultra_sender_item_t *effect_put(ultra_sender_t *l, uint16_t board, uint8_t light, uint8_t fx,
+                                       const uint8_t *params, uint32_t nparams, const ultra_strobe_step_t *steps,
+                                       uint8_t count, int64_t t_us, int autostart)
+{
+    ultra_sender_board_t *b = &l->boards[board];
+    ultra_sender_item_t *it = item_get(l, b, KEY(light, RK_EFFECT, 0));
+    if (it == 0) {
+        return 0;
+    }
+    ultra_slot_effect(it->slot, light, next_seq(b, it), fx, 0, params, nparams);
+    it->q.flags = IT_VALID;
+    it->aux = ultra_fx_period_ms(fx, it->slot + ULTRA_PAYLOAD + 5, nparams, steps, count);
+    it_set_start(it, autostart ? phase_start(ultra_sender_start_time(l, board, t_us), it->aux) : t_us);
+    drop_steps(l, b, light, 0);
+    q_put(l, b, &it->q, 0, 1);
+    return it;
+}
+
 /* EFFECT with an absolute start, or (autostart) the group start for now_us on the effect's phase */
 static int effect_impl(ultra_sender_t *l, uint16_t board, uint8_t light, uint8_t fx, const uint8_t *params,
                        uint32_t nparams, int64_t t_us, int autostart)
 {
-    ultra_sender_board_t *b;
-    ultra_sender_item_t *it;
     if (!light_ok(l, board, light) || fx == ULTRA_FX_STROBE || !fx_args_ok(fx, params, nparams)) {
         return ULTRA_ERR_ARG;
     }
-    b = &l->boards[board];
-    it = item_get(l, b, KEY(light, RK_EFFECT, 0));
-    if (it == 0) {
-        return ULTRA_ERR_FULL;
-    }
-    ultra_slot_effect(it->slot, light, next_seq(b, it), fx, 0, params, nparams);
-    it->flags = IT_VALID;
-    it->aux = ultra_fx_period_ms(fx, it->slot + ULTRA_PAYLOAD + 5, nparams, 0, 0);   /* (as the board reads it) */
-    it->start_us = autostart ? phase_start(ultra_sender_start_time(l, board, t_us), it->aux) : t_us;
-    drop_steps(l, b, light, 0);                  /* a new effect drops the old one's steps, also from the queue */
-    q_put(l, b, &it->q, 0, 1);
-    return ULTRA_OK;
+    return effect_put(l, board, light, fx, params, nparams, 0, 0, t_us, autostart) != 0 ? ULTRA_OK : ULTRA_ERR_FULL;
 }
 
 int ultra_sender_effect_at(ultra_sender_t *l, uint16_t board, uint8_t light, uint8_t fx, const uint8_t *params,
@@ -1320,22 +1361,16 @@ static int strobe_impl(ultra_sender_t *l, uint16_t board, uint8_t light, const u
     if (missing > items_free(l)) {
         return ULTRA_ERR_FULL;                   /* all or nothing */
     }
-    it = item_get(l, b, KEY(light, RK_EFFECT, 0));
-    seq = next_seq(b, it);
     p[0] = count;
-    ultra_slot_effect(it->slot, light, seq, ULTRA_FX_STROBE, 0, p, 1);
-    it->flags = IT_VALID;
-    it->aux = ultra_fx_period_ms(ULTRA_FX_STROBE, p, 1, steps, count);
-    it->start_us = autostart ? phase_start(ultra_sender_start_time(l, board, t_us), it->aux) : t_us;
-    drop_steps(l, b, light, 0);
-    q_put(l, b, &it->q, 0, 1);
+    it = effect_put(l, board, light, ULTRA_FX_STROBE, p, 1, steps, count, t_us, autostart);
+    seq = it->slot[2];
     for (i = 0; i < count; i++) {
         const ultra_strobe_step_t *st = &steps[i];
         ultra_sender_item_t *si = item_get(l, b, KEY(light, RK_STEP, i));
         ultra_slot_step(si->slot, light, seq, (uint8_t)i, count, st->duration_ms, st->transition_ms, st->v.m, st->v.a,
                         st->v.b);
-        si->flags = IT_VALID;
-        si->start_us = ULTRA_NO_START;
+        si->q.flags = IT_VALID;
+        it_set_start(si, ULTRA_NO_START);
         q_put(l, b, &si->q, 0, 1);
     }
     return ULTRA_OK;
@@ -1532,14 +1567,14 @@ void ultra_pwm_for_hz(uint32_t hz, uint16_t *preset, uint16_t *period)
         /* |f - hz| / hz with f = clock / steps, as |clock - hz x steps| / (hz x steps), compared in fixed point */
         const uint64_t hs = (uint64_t)hz * pwm_steps[i];
         const uint64_t diff = hs > PWM_CLOCK_HZ ? hs - PWM_CLOCK_HZ : PWM_CLOCK_HZ - hs;
-        const uint64_t err = diff * 1000000u / hs;   /* ppm */
+        const uint64_t err = ultra_udiv64_(diff * 1000000u, hs);   /* ppm */
         if (err < best) {
             best = err;
             *preset = (uint16_t)i;
         }
     }
     if (best > 5000u) {
-        uint64_t steps = ((uint64_t)PWM_CLOCK_HZ + hz / 2u) / hz;
+        uint32_t steps = (PWM_CLOCK_HZ + hz / 2u) / hz;          /* (< 2^32: no 64-bit division) */
         *period = (uint16_t)(steps < 1440u ? 1440u : steps > 65535u ? 65535u : steps);
     }
 }
@@ -1631,7 +1666,7 @@ int ultra_sender_preset_seq(ultra_sender_t *l, uint16_t board, uint8_t light, ui
     if (it == 0) {
         return ULTRA_ERR_FULL;
     }
-    if (it->flags & IT_VALID) {
+    if (it->q.flags & IT_VALID) {
         return ULTRA_ERR_ARG;
     }
     it->slot[2] = (uint8_t)(seq - 1u);

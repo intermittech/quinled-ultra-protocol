@@ -1,6 +1,6 @@
 {
   "name": "quinled-ultra-sender",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "QuinLED Ultra protocol sender: drive QuinLED dig2analog-ultra boards from any controller. Builds every frame by the protocol's host rules (copies, refresh, preamble, start times); portable C99, no heap, with ESP32 RMT / SPI / pulse encoders.",
   "keywords": "quinled, ultra, led, dig2analog, ws2805, ws2915, rmt, dimmer, pwm",
   "repository": {

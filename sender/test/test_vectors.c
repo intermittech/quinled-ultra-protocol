@@ -448,6 +448,18 @@ static void frames(void)
     uint8_t p[ULTRA_FX_PARAMS];
     uint32_t n, i;
 
+    /* 0.2.6: the planned power-off notice on 3 boards (each board's IDENTIFY SEQ 0x59) */
+    line_new(3);
+    skip_preamble();
+    for (i = 0; i < 3u; i++) {
+        ultra_sender_preset_seq(&line, (uint16_t)i, ULTRA_LIGHT_BOARD, ULTRA_IDENTIFY, 0x59);
+    }
+    (void)ultra_sender_power_off(&line);
+    want_frame = "frame_power_off";
+    n = frame_at(TIME_V);
+    compare("slot_identify_power_off", buf, 32);
+    compare("frame_power_off", buf, (int)n);
+
     /* 3 boards: LIGHT_DEF, EFFECT breathe on light 1, NOP */
     line_new(3);
     skip_preamble();
@@ -566,6 +578,65 @@ static void return_channel(void)
         static const uint8_t diag_part1[1] = { 1 };
         rc_page_slot("slot_poll_lifetime", ULTRA_PAGE_LIFETIME, NULL, 0, 0x63);
         rc_page_slot("slot_poll_diag_faults", ULTRA_PAGE_DIAG, diag_part1, sizeof diag_part1, 0x64);
+    }
+    /* 0.2.6: LIFE_SYNC, the hub's ledger (ultra_rc_request_life_sync), and a board's APPLIED answer: built here from
+     * the header's layout and compared, then taken apart through ultra_rc_answer and the ultra_rc_ls_* accessors */
+    {
+        uint8_t lt[16], a[32], rx[33], fe[33], got[32];
+        int i, ok;
+        memset(lt, 0, sizeof lt);
+        ultra_put24(lt + ULTRA_LT_POWERED, 10020u);
+        ultra_put24(lt + ULTRA_LT_LIT, 4010u);
+        ultra_put24(lt + ULTRA_LT_POWER_UPS, 531u);
+        ultra_put16(lt + ULTRA_LT_OVERLOAD_TRIPS, 5u);
+        ultra_put16(lt + ULTRA_LT_SHORT_TRIPS, 1u);
+        ultra_put24(lt + ULTRA_LT_DIPS, 22u);
+        line_new(1);
+        skip_preamble();
+        ultra_rc_request_init(&rq, ULTRA_RW_RATE_500K);
+        ultra_rc_request_life_sync(&rq, 0, 0x1234u, lt, 9050u, 7u);
+        ultra_sender_preset_seq(&line, 0, ULTRA_LIGHT_BOARD, ULTRA_POLL, 0x65);
+        t = line.last_time_us + 300;
+        for (i = 0; i < 6; i++) {                    /* a second of refresh frames */
+            t += 200000;
+            (void)ultra_sender_next_frame(&line, t, buf);
+            t = line.last_time_us + 300;
+        }
+        if (ultra_sender_rc_frame(&line, &rq, t, buf) == 0) {
+            memset(buf, 0, 32);
+        }
+        compare("slot_poll_life_sync", buf, 32);
+        memset(a, 0, sizeof a);
+        a[0] = ULTRA_RSP_SYNC;
+        a[1] = ULTRA_PAGE_LIFE_SYNC;
+        a[3] = 0x65u;
+        ultra_put16(a + 4, 0x1234u);
+        memcpy(a + ULTRA_RSP_DATA, lt, sizeof lt);
+        ultra_put32(a + ULTRA_RSP_DATA + ULTRA_LS_A_TOTAL_WH, 9050u);
+        a[ULTRA_RSP_DATA + ULTRA_LS_A_RESULT] = ULTRA_LS_R_APPLIED;
+        a[ULTRA_RSP_DATA + ULTRA_LS_A_APPLIED] = ULTRA_LS_F_POWERED | ULTRA_LS_F_LIT | ULTRA_LS_F_UPS |
+                                                 ULTRA_LS_F_TRIPS | ULTRA_LS_F_DIPS | ULTRA_LS_F_WH;
+        ultra_put16(a + ULTRA_RSP_DATA + ULTRA_LS_A_RECORDS, 7u);
+        ultra_put16(a + 30, ultra_crc16(a, 30));
+        compare("answer_life_sync_applied", a, 32);
+        rx[0] = ULTRA_RSP_LEAD;                      /* the vector as the hub's UART takes it: the lead byte first */
+        if (vector("answer_life_sync_applied", rx + 1, 32) != 32) {
+            memset(rx + 1, 0, 32);
+        }
+        memset(fe, 0, sizeof fe);
+        ok = ultra_rc_answer(rx, fe, sizeof rx, got) == ULTRA_OK && ultra_rc_page(got) == ULTRA_PAGE_LIFE_SYNC &&
+             ultra_rc_index(got) == 0u && ultra_rc_seq(got) == 0x65u && ultra_rc_uid16(got) == 0x1234u &&
+             ultra_rc_ls_result(got) == ULTRA_LS_R_APPLIED && ultra_rc_ls_applied(got) == 0x3Fu &&
+             ultra_rc_ls_total_wh(got) == 9050u && ultra_rc_ls_records(got) == 7u &&
+             ultra_get24(got + ULTRA_RSP_DATA + ULTRA_LT_POWERED) == 10020u &&
+             ultra_get16(got + ULTRA_RSP_DATA + ULTRA_LT_OVERLOAD_TRIPS) == 5u;
+        checked++;
+        if (!ok) {
+            printf("FAIL answer_life_sync_applied: ultra_rc_answer / the ultra_rc_ls_* accessors\n");
+            failures++;
+        } else {
+            printf("ok   answer_life_sync_applied: ultra_rc_answer and the ultra_rc_ls_* accessors\n");
+        }
     }
 }
 

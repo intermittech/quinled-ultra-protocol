@@ -3,7 +3,7 @@
 #   ultra_sender:
 #     git: https://github.com/intermittech/quinled-ultra-protocol.git
 #     path: sender
-#     version: v0.2.5
+#     version: v0.2.6
 dependencies:
   sender:
     path: ../../..

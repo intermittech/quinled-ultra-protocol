@@ -1,6 +1,6 @@
 # quinled-ultra-protocol
 
-The **QuinLED Ultra protocol**: how a controller talks to LED boards such as the **QuinLED dig2analog-ultra-5ch** in
+The **QuinLED Ultra protocol**: how a controller talks to LED boards such as the **QuinLED Dig2Analog-Ultra-5ch** in
 Ultra mode. The controller can be ESPHome, WLED, MoonLight or your own firmware.
 
 The controller sends **what** should happen: a colour with a transition length, an effect, a setting. The board
@@ -28,11 +28,11 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 ## Status
 
 - **Protocol 0.2** (wire VERSION 2). Nothing is released as 1.0 yet.
-- The QuinLED dig2analog-ultra-5ch is in development; its firmware implements this version.
+- The QuinLED Dig2Analog-Ultra-5ch is in development; its firmware implements this version.
 - The reference controller, and the most complete implementation, is ESPHome with the `dig2analog_ultra`
   component from [intermittech/quinled-ultra-esphome](https://github.com/intermittech/quinled-ultra-esphome).
 - **The return channel** (board → controller, 0.2.4; the LIFETIME and DIAG pages 0.2.5) is QuinLED Diff-Power only:
-  the Diff-Power ultra receiver's firmware build implements it (firmware 0.6.8, `BOARD=2`; 0.2.5's pages: 0.6.9). The dig2analog-ultra never answers. A controller that
+  the QuinLED Diff-Power Ultra-Analog receiver's firmware build implements it (firmware 0.6.8, `BOARD=2`; 0.2.5's pages: 0.6.9). The Dig2Analog-Ultra never answers. A controller that
   never sets RW needs none of it. Spec:
   [Return channel](https://github.com/intermittech/quinled-ultra-protocol/wiki/Return-Channel).
 - Firmware-update frames are QuinLED's own (the bootloader's format) and not needed by a controller.

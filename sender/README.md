@@ -1,8 +1,8 @@
 # QuinLED Ultra sender library
 
 A portable C99 library that lets any controller speak the **QuinLED Ultra protocol 0.2** (wire VERSION 2) to
-QuinLED dig2analog-ultra-5ch boards and QuinLED Diff-Power ultra receivers: WLED, Tasmota, MoonLight, or your own
-ESP32 / RP2040 / STM32 firmware.
+QuinLED Dig2Analog-Ultra-5ch boards and QuinLED Diff-Power Ultra receivers (Ultra-Digital and Ultra-Analog):
+WLED, Tasmota, MoonLight, or your own ESP32 / RP2040 / STM32 firmware.
 
 You say what the lights should do. The library keeps every board's state and builds each frame by the host rules of
 the reference controller (ESPHome's `dig2analog_ultra`). You only turn the bytes into pulses.
@@ -19,7 +19,7 @@ integrators: the wiki page [Sender library](https://github.com/intermittech/quin
 
 ## Install
 
-Version 0.2.5: the protocol release it targets. One package for PlatformIO, Arduino and ESP-IDF; everything is in
+Version 0.2.6: the protocol release it targets. One package for PlatformIO, Arduino and ESP-IDF; everything is in
 `src/`, also `ultra_protocol.h` (a byte-identical copy of the release's `include/ultra_protocol.h`).
 
 - **PlatformIO** (WLED, MoonLight, Tasmota): `library.json`. Put `sender/` in the project's `lib/` folder, or
@@ -32,7 +32,7 @@ Version 0.2.5: the protocol release it targets. One package for PlatformIO, Ardu
     ultra_sender:
       git: https://github.com/intermittech/quinled-ultra-protocol.git
       path: sender
-      version: v0.2.5
+      version: v0.2.6
   ```
 - **Anything else** (CMake, Make, an IDE): compile `src/*.c` (C99) with `src/` on the include path.
 
@@ -43,9 +43,9 @@ Version 0.2.5: the protocol release it targets. One package for PlatformIO, Ardu
 | `src/ultra_sender.h`, `.c` | The scheduler and frame builder: the line, lights, effects, settings, start times. |
 | `src/ultra_sender_bits.h`, `.c` | Bit timing, and the encoders: `{high_ns, low_ns}` pulses, ESP32 RMT symbols, SPI bytes. |
 | `src/ultra_esp32_rmt.h` | ESP32 only, header-only: an RMT output for a line (ESP-IDF 5.3+, Arduino-ESP32 3.1+). |
-| `src/ultra_sender_rc.h`, `.c` | Optional: the return channel (POLL frames, answers; QuinLED Diff-Power only). |
+| `src/ultra_sender_rc.h`, `.c` | Optional: the return channel (POLL frames, answers; Diff-Power Ultra receivers only). |
 | `src/ultra_sender.hpp` | Optional: a thin C++ wrapper with the storage built in. |
-| `src/ultra_protocol.h` | The protocol header of release 0.2.5, unchanged. |
+| `src/ultra_protocol.h` | The protocol header of release 0.2.6, unchanged. |
 | `examples/` | `host_minimal.c` (any PC), `esp32_idf_rmt/` (ESP-IDF, the library as a component), `esp32_arduino/` (Arduino-ESP32). |
 | `test/` | `run_tests.py` and the tests (not part of the packages). |
 
@@ -119,6 +119,7 @@ item pool is full; nothing changed, the group's start neither).
 | `ultra_sender_busy()`, `ultra_sender_due_us()` | When to call again. |
 | `ultra_sender_resync(&line, now_us)` | The preamble again, then everything as new commands (a manual resync). |
 | `ultra_sender_power(&line, on, now_us)` | The boards' supply: after a switch-on (and its power-on delay) a short preamble (10 frames) once a full one reached them, then everything again. |
+| `ultra_sender_power_off(&line)`, `ultra_sender_power_off_at(&line)` | 0.2.6, the planned power-off notice (a host that switches the line's power, e.g. a Diff-Power port in standby): the next frames carry IDENTIFY 7 in every board's slot, 3 copies with one SEQ per board, 50 ms apart; then the line sends nothing until `ultra_sender_power(&line, 1, now_us)` wakes it (commands given meanwhile go out then). `_power_off_at()`: when the power may be cut, 200 ms after the first copy (never before the last one's end); `INT64_MAX` while copies are still to go out. No take-back: once given, cut. |
 | `ultra_sender_switch_to_ultra(&line, now_us, boot)` | Boards forced to WS2805 / WS2915: the WS config-frame sequence, the preamble, everything again; CONFIG 22 = `boot` (0 auto, 3 Ultra, 0xFF leave; another value: `ULTRA_ERR_ARG`). |
 
 **Lights** (`board`, `light` = 0..lights-1)
@@ -161,22 +162,25 @@ then shows partly done. The budget is a SET per light of the fullest board (it f
 when one change also sends EFFECTs, STEPs or SCENEs, raise it: `ultra_sender_set_group_commands()`. Periodic effects
 start on the clock's phase, so lights started apart run in step. `cfg.start_delay_us` sets a fixed lead instead.
 
-**Storage.** Size it with `sizeof`: on the ESP32 `ultra_sender_t` is 144 bytes, `ultra_sender_board_t` 136 per
-board, `ultra_sender_item_t` 64 per piece of a light's state it ever had (LIGHT_DEF, SET, EFFECT, LIGHT_OPT, SCENE,
+**Storage.** Size it with `sizeof`: on the ESP32 `ultra_sender_t` is 144 bytes, `ultra_sender_board_t` 128 per
+board, `ultra_sender_item_t` 60 per piece of a light's state it ever had (LIGHT_DEF, SET, EFFECT, LIGHT_OPT, SCENE,
 SCENE_EFFECT, each strobe step: at most 14 per light; items stay taken until the line is initialized again,
 `ultra_sender_items_used()` shows them), plus the frame buffer (32 N + 8 bytes). 50 boards with one RGBWW light each
-(3 items): ~18 KB; 10 boards × 5 lights: ~11 KB.
+(3 items): ~17 KB; 10 boards × 5 lights: ~10.5 KB. The library itself keeps two function pointers (8 bytes, set by
+`ultra_sender_switch_to_ultra()` and the return channel) and no other state.
 
 **Lifetime.** `init()` keeps pointers to the line, its boards and items and its group: they stay alive at the same
 addresses until `ultra_sender_deinit()` (never copy an initialized `ultra_sender_t`; the C++ `ultra::Line` can't be
 copied or moved). A refused `init()` or C++ `begin()` changes nothing: a running line keeps running, in its group
-(`ultra_sender_config_check()` tells beforehand). Commands copy their inputs. The frame buffer is the caller's; the line keeps the timing data of the
-last frame it built only, so build a frame when it can go out.
+(`ultra_sender_config_check()` tells beforehand). Commands copy their inputs. The frame buffer is the caller's; the line
+keeps the timing data of the last frame it built only, so build a frame when it can go out.
 
-**Code size** (`-Os`, after the linker drops what isn't called): ~9 KB on an ESP32 (Xtensa) and ~10 KB on RV32IMC
-for a host that defines lights, sets states, runs effects and sends settings; every function: 13.9 / 15.5 KB; the
-return channel +1 KB. Cortex-M (Thumb-2) is usually a little smaller than RV32IMC. The 64-bit divisions come from
-libgcc.
+**Code size** (`-Os`, after the linker drops what isn't called): ~6.1 KB on an ESP32 (Xtensa) and ~7.1 KB on RV32IMC
+for a host that only sets states and refreshes; ~8.3 / 9.7 KB for one that defines lights, sets states, runs effects
+and sends settings; every function: 13.4 / 15.2 KB; the return channel +1.2 / 1.4 KB. Cortex-M (Thumb-2) is usually a
+little smaller than RV32IMC. No 64-bit division from libgcc (the library divides with its own exact helper, a 32-bit
+division in the frame path); from libc only `memset` / `memcpy`. The WS switch frames and the return channel's
+response window link in only with `ultra_sender_switch_to_ultra()` / `ultra_sender_rc_frame()`.
 
 **Threads.** One line (or one group of lines) belongs to one task. Commands from other tasks: take the same lock
 around them and around `ultra_sender_next_frame()`. Don't change the frame buffer while it is being sent.
@@ -226,7 +230,7 @@ frame. Send each frame in one go: DMA, or a FIFO refilled well within 50 µs. Ne
 RP2040: the pico-examples `ws2812` PIO program works with T1 = 2, T2 = 4, T3 = 4 cycles of 130 ns (1.3 µs per bit:
 '0' 260 / 1040 ns, '1' 780 / 520 ns). Its stock 800 kHz timing doesn't: a '1' would be LOW for only 375 ns.
 
-**Level:** the QuinLED dig2analog-ultra-5ch wants 5 V data: a 74AHCT125-type buffer with ~33 Ω in series.
+**Level:** the Dig2Analog-Ultra wants 5 V data: a 74AHCT125-type buffer with ~33 Ω in series.
 
 ## Chain length and timing
 
@@ -273,17 +277,30 @@ several pins in parallel (the bit patterns: the protocol's `examples/README.md`)
 
 ## Return channel (optional)
 
-`ultra_sender_rc.h` builds RW frames with POLL slots for QuinLED Diff-Power ultra receivers (protocol 0.2.4; the
-LIFETIME and DIAG pages of 0.2.5) and extracts their answers from the UART bytes of each response slot. The dig2analog-ultra never answers; a host that never
-polls needs none of it. Status: a preview, checked against the protocol's vectors, not yet against a receiver.
+`ultra_sender_rc.h` builds RW frames with POLL slots for Diff-Power Ultra receivers (protocol 0.2.4; the LIFETIME and
+DIAG pages of 0.2.5, LIFE_SYNC of 0.2.6) and extracts their answers from the UART bytes of each response slot. The
+Dig2Analog-Ultra never answers (it doesn't report back); a host that never polls needs none of it. Status: a preview,
+checked against the protocol's vectors, not yet against a receiver.
 
 - No RW frame until the chain has seen a second of headers after its preamble (time and frames).
 - The transport sends the RW frame without the reset gap and releases the line within 150 µs.
-- Any page with its arguments: `ultra_rc_request_add(&rq, board, ULTRA_PAGE_DIAG, &part, 1)` (`uint8_t part`: 0 the running
-  board, 1 the fault memory); a board without the page answers `ULTRA_PAGE_UNSUPPORTED`.
+- Any page with its arguments: `ultra_rc_request_add(&rq, board, ULTRA_PAGE_DIAG, &part, 1)` (`uint8_t part`: 0 the
+  running board, 1 the fault memory); a board without the page answers `ULTRA_PAGE_UNSUPPORTED`.
 - The answer's DATA with the header's offsets and `ultra_get16/24/32`; `ultra_rc_features()` (IDENTITY: what the
   board takes, `ULTRA_FEAT_*`) and `ultra_rc_status_why()` (STATUS, 0.2.5: why the light isn't as set,
   `ULTRA_ST_WHY_*`).
+- **The hub's lifetime counters** (0.2.6, LIFE_SYNC, `ULTRA_FEAT_LIFE_SYNC`): a hub that keeps a ledger of each
+  receiver's LIFETIME counters (by its UID) gives them back after the receiver's power-up, so what it couldn't store
+  before a power cut isn't lost: `ultra_rc_request_life_sync(&rq, board, uid16, lifetime, total_wh, records_lo)`
+  (LIFETIME bytes 0-15 as the ledger has them, the lifetime Wh, the low byte of the RECORDS the ledger was reconciled
+  against). The receiver merges once per power-up, only with its own UID16 and RECORDS byte, raises each counter by at
+  most its step and never lowers one. The answer: `ultra_rc_ls_result()` (`ULTRA_LS_R_*`), `ultra_rc_ls_applied()`
+  (`ULTRA_LS_F_*`), `ultra_rc_ls_total_wh()`, `ultra_rc_ls_records()`, and the counters after the merge in DATA
+  0-15. Once per receiver power-up when the ledger is ahead; before a planned power-off, sync first, then the notice.
+  The ledger is the hub's own accounting, never an echo of the board's reads: each session's seconds and mWh (STATUS
+  uptime / the port's on time, ENERGY's BOOT_MWH) added to fine totals and sent as whole wire units; POWER_UPS = the
+  ledger + the power-on just performed; a board read raises a time / energy total only by its lead beyond one unit
+  (the wiki: Return channel, "The hub's ledger").
 - `ultra_rc_answer()` checks SYNC, framing and CRC; match INDEX, SEQ, PAGE and UID16 to the window you sent, start each
   window's parsing afresh, and poll little enough that commands and the refresh still get their frames.
 
@@ -318,6 +335,9 @@ python sender/test/run_tests.py
   CONFIG ids 16 and up.
 - **`test_cpp`** also: a refused `begin()` (lights, timing, boards) leaves a running line as it was, in its group.
 - **`test_cpp`:** the C++ wrapper at run time: capacity, no copy / move, begin again, group teardown.
+- **`test_equiv`:** the arithmetic the size pass changed (round 9) against its old code, kept verbatim in the test:
+  the division helper against 64-bit division, the whole TIME / start-offset pipeline on random frames, the effects'
+  phase, the PWM presets, the RMT ticks, the frame time and the SPI encoder: identical results.
 - **`test_rmt`:** `ultra_esp32_rmt.h` against a mocked ESP-IDF RMT driver (refusing what ESP-IDF refuses): the IRAM
   encoder's symbols, unwinding a failed set-up, OK / not sent / aborted after a stall / stuck, and `end()` keeping
   everything while the channel can't be stopped or a transaction is still in flight.
@@ -332,6 +352,13 @@ python sender/test/run_tests.py
   starts, CONFIG, clearing, power-on, resync, streams, strobe, the pool, the encoders), the wraps of the queue order
   and the stream history, `ultra_rc_answer()` (valid, junk, A5 in DATA, truncated, corrupt, framing errors), the
   pulse / RMT / SPI output decoded on its own against TIME, every effect's parameter layout.
+- **`test_sim_rx`:** the same firmware built as the Diff-Power Ultra-Analog receiver (`BOARD=2`). LIFE_SYNC: the library's POLL
+  through the line's RW frame into the receiver's own merge (`energy_sync`) and answer, read back with the accessors:
+  merged once per power-up, a wrong UID16 or RECORDS byte merges nothing, a ledger behind lowers nothing. The power-off
+  notice: applied once on every board, also with a flash stall over one or two of its copies; after the cut every board
+  powers up dark and has the host's state right after the wake's preamble (`test_sim`: a Dig2Analog-Ultra ignores the
+  notice). The receiver's own standby (the 0.3 s fade, the 1.5 s grace before its power-on scene) is its main loop's,
+  not simulated.
 - **`test_sim`:** the frames through the board firmware's own receive path and light engine (`frame_rx.c`,
   `proto.c`, `ultra.c`), each board with its own clock error, forwarding by its own gate plan: every command type on
   1-64 boards with 20 % frame loss, new and WS2805-locked boards through the preamble, effects and transitions in
@@ -340,9 +367,9 @@ python sender/test/run_tests.py
   retry policy in every board's settings. It needs the firmware's `src/core` (`--firmware DIR` or `ULTRA_FIRMWARE`) of
   the same protocol release: its `ultra_protocol.h` byte-identical to `src/ultra_protocol.h` (both sides share one
   translation unit), else the step fails; without a firmware it is skipped (a failure with `--release`).
-- **Targets:** an `unsigned int` of 32 bits or more (`ultra_sender.h` stops the build otherwise: the 0.2.5 protocol
-  header shifts `1u` by CONFIG ids up to 24); any byte order (every multi-byte field is built byte by byte; not run
-  on a big-endian target here). RMT timing on hardware isn't covered.
+- **Targets:** an `unsigned int` of 32 bits or more (`ultra_sender.h` stops the build otherwise: the protocol header is
+  16-bit-`int` safe since 0.2.6, the library has never been built or tested on such a target); any byte order (every
+  multi-byte field is built byte by byte; not run on a big-endian target here). RMT timing on hardware isn't covered.
 
 ## License
 

@@ -14,11 +14,14 @@
    - test_review: the regressions of the independent review (round 7);
    - test_cpp: the C++ wrapper at run time;
    - test_rmt: the ESP32 RMT helper (ultra_esp32_rmt.h) against a mocked ESP-IDF RMT driver;
+   - test_equiv: the arithmetic of the size pass (round 9) against its old code, kept verbatim in the test;
    - test_sim: the library's frames through the board firmware's own receive path and light engine (frame_rx.c,
      proto.c, ultra.c), 1-64 boards, frame loss, power cycles, group starts. Needs the firmware sources: --firmware,
      ULTRA_FIRMWARE, or a checkout next to this repository; skipped (with a note) when there is none, a failure with
      --release. Both sides share one translation unit, so the firmware's ultra_protocol.h must be byte-identical to
      src/ultra_protocol.h (a firmware of the same protocol release): a different one is a failure, never mixed;
+     test_sim_rx: the same firmware built as the Diff-Power Ultra receiver (BOARD=2): the power-off notice, and
+     LIFE_SYNC into the receiver's own merge (energy.c and what it needs);
    - examples/host_minimal.c builds and runs;
    - asan: test_unit, test_vectors, test_review, test_cpp and test_rmt again under AddressSanitizer (MSVC
      /fsanitize=address; gcc / clang: -fsanitize=address,undefined).
@@ -54,6 +57,8 @@ SRC = SENDER / "src"
 LIB = [SRC / f for f in ("ultra_sender.c", "ultra_sender_bits.c", "ultra_sender_rc.c")]
 INC = [SRC]                                      # every header, the protocol header's copy too
 FW_FILES = ("frame_rx.c", "proto.c", "ultra.c", "ultra_tables.c")
+# the receiver build (test_sim_rx) also: its lifetime record and LIFE_SYNC merge (energy.c) and their dependencies
+RX_FILES = ("energy.c", "rc.c", "config.c", "scene.c", "isense.c", "pagepair.c", "store.c", "presets.c")
 
 results = []
 
@@ -289,20 +294,21 @@ def firmware_dir(arg):
     return (same or found or [None])[0]
 
 
-def build_firmware_objs(kind, cc, core):
-    """the board firmware's receive path and engine, compiled as the firmware's host tests do"""
+def build_firmware_objs(kind, cc, core, defines=(), sub="fw", files=FW_FILES):
+    """the board firmware's receive path and engine, compiled as the firmware's host tests do (defines: e.g. BOARD=2,
+    the Diff-Power ultra receiver's build)"""
     objs = []
-    fwb = BUILD / "fw"
+    fwb = BUILD / sub
     fwb.mkdir(parents=True, exist_ok=True)
-    for f in FW_FILES:
+    for f in files:
         if kind == "msvc":
             obj = fwb / (Path(f).stem + ".obj")
-            r = run_msvc(cc, ["/nologo", "/c", "/O2", "/W3", "/wd4996", "/I", str(core), "/Fo" + str(obj),
-                              str(core / f)], BUILD)
+            r = run_msvc(cc, ["/nologo", "/c", "/O2", "/W3", "/wd4996", *["/D" + d for d in defines], "/I", str(core),
+                              "/Fo" + str(obj), str(core / f)], BUILD)
         else:
             obj = fwb / (Path(f).stem + ".o")
-            r = subprocess.run([cc, "-std=c99", "-O2", "-w", f"-I{core}", "-c", str(core / f), "-o", str(obj)],
-                               capture_output=True, text=True)
+            r = subprocess.run([cc, "-std=c99", "-O2", "-w", *["-D" + d for d in defines], f"-I{core}", "-c",
+                                str(core / f), "-o", str(obj)], capture_output=True, text=True)
         if r.returncode != 0:
             print(r.stdout, getattr(r, "stderr", ""))
             return None
@@ -416,7 +422,7 @@ def main():
     ap.add_argument("--firmware", help="the board firmware (its src/core): frame_rx.c, proto.c, ultra.c")
     ap.add_argument("--skip-cross", action="store_true", help="no cross-compiler warnings / size check")
     ap.add_argument("--only", help="comma list of steps: manifests, warnings, cross, vectors, unit, review, cpp, rmt, "
-                                   "minimal, sim, asan")
+                                   "equiv, minimal, sim, asan")
     ap.add_argument("--release", action="store_true",
                     help="a release check: a step that can't run (no firmware for sim) is a failure, not a note")
     ap.add_argument("--sync-header", action="store_true", help="copy include/ultra_protocol.h into src/ and stop")
@@ -452,6 +458,8 @@ def main():
         "cpp": ("test_cpp", [HERE / "test_cpp.cpp", *LIB], lib_incs, [], (), True),
         "rmt": ("test_rmt", [HERE / "test_rmt.c", *LIB[:2]], [HERE / "mock_idf", *lib_incs], [], ("ESP_PLATFORM",),
                 False),
+        # round 9: the changed arithmetic against its old code, verbatim (the library's sources compiled in)
+        "equiv": ("test_equiv", [HERE / "test_equiv.c"], lib_incs, [], (), False),
     }
     for step, (name, srcs, incs, args, defines, cpp) in host.items():
         if want(step):
@@ -485,10 +493,17 @@ def main():
             else:
                 print(f"one ultra_protocol.h for both sides: md5 {hashlib.md5(pkg_h).hexdigest()}")
                 build_run(kind, cc, "test_sim", [HERE / "test_sim.c", *LIB[:2]], [core] + INC, fw_objs=objs)
+                # the same receive path built as the Diff-Power ultra receiver (BOARD=2: it takes IDENTIFY 7)
+                rx = build_firmware_objs(kind, cc, core, ("BOARD=2",), "fw_rx", FW_FILES + RX_FILES)
+                if rx is None:
+                    note(False, "test_sim_rx: building the receiver's receive path (BOARD=2)")
+                else:
+                    build_run(kind, cc, "test_sim_rx", [HERE / "test_sim.c", *LIB], [core] + INC,
+                              defines=("SIM_RX=1",), fw_objs=rx)
 
     if want("asan"):
         # the same tests under AddressSanitizer (the library's memory use; UBSan too with gcc / clang)
-        for step in ("unit", "vectors", "review", "cpp", "rmt"):
+        for step in ("unit", "vectors", "review", "cpp", "rmt", "equiv"):
             name, srcs, incs, args, defines, cpp = host[step]
             build_run(kind, cc, name, srcs, incs, args, defines, cpp=cpp, asan=True)
 

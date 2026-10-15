@@ -100,6 +100,8 @@ template<uint16_t Boards, uint16_t Items> class Line {
   }
   void resync(int64_t now_us) { ultra_sender_resync(&line_, now_us); }
   void power(bool on, int64_t now_us) { ultra_sender_power(&line_, on ? 1 : 0, now_us); }
+  int power_off() { return ultra_sender_power_off(&line_); }
+  int64_t power_off_at() const { return ultra_sender_power_off_at(&line_); }
   /// share starts with the other lines of g (g outlives the line, or the line leaves first)
   void join(ultra_sender_group_t &g) {
     if (begun_)

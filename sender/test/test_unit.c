@@ -452,6 +452,101 @@ static void test_clear_unused(void)
     CHECK(i < 20u, "light 2's LIGHT_DEF goes out");
 }
 
+/* 0.2.6, the planned power-off notice: every board's slot, 3 copies with one SEQ per board, >= 50 ms apart, before
+ * anything else and nothing after it until the wake; the cut 200 ms after the first copy (not before the last one's
+ * end); a retimed copy moves both; the wake: the short preamble, then everything again */
+static void notice_copies(int64_t gap_us, int64_t *first, int64_t *third_end, uint8_t seq[3], int *ok)
+{
+    uint32_t k, b;
+    for (k = 0; k < 3u; k++) {
+        const int64_t at = now;
+        const uint32_t n = ultra_sender_next_frame(&L, at, F);
+        *first = k == 0u ? at : *first;
+        for (b = 0; b < 3u; b++) {
+            const uint8_t *s = slot((uint16_t)b);
+            *ok &= n == ultra_frame_bytes(3) && s[0] == ULTRA_IDENTIFY && (s[1] >> 4) == ULTRA_LIGHT_BOARD &&
+                   s[ULTRA_PAYLOAD] == ULTRA_IDENT_POWER_OFF && s[ULTRA_PAYLOAD + 1] == 0u && ultra_slot_check(s) == 0 &&
+                   (k == 0u || s[2] == seq[b]);
+            seq[b] = s[2];
+        }
+        *ok &= k == 2u || (ultra_sender_next_frame(&L, at + 49999, F) == 0 && ultra_sender_due_us(&L) == at + 50000);
+        *third_end = ultra_sender_last_time_us(&L);
+        now = at + gap_us;
+    }
+}
+
+static void test_power_off(void)
+{
+    ultra_values_t v = val(20000);
+    ultra_rc_request_t rq;
+    int64_t first, third_end, cut;
+    uint8_t seq[3], seq2[3];
+    uint32_t i, b, dark = 0, sets = 0;
+    int ok = 1;
+    mk(3, 1, 0, NI);
+    pre();
+    for (b = 0; b < 3u; b++) {
+        def_mono((uint16_t)b, 0);
+    }
+    for (i = 0; i < 6u; i++) {
+        (void)fr();
+    }
+    (void)ultra_sender_identify(&L, ULTRA_SENDER_ALL, ULTRA_IDENT_ON, 0);   /* queued: gives way to the notice */
+    CHECK(ultra_sender_power_off_at(&L) == INT64_MIN && ultra_sender_identify(&L, 0, ULTRA_IDENT_POWER_OFF, 0) ==
+          ULTRA_ERR_ARG, "power-off: none yet (INT64_MIN); not through ultra_sender_identify");
+    CHECK(ultra_sender_power_off(&L) == ULTRA_OK && ultra_sender_power_off(&L) == ULTRA_ERR_ARG &&
+          ultra_sender_busy(&L) && ultra_sender_power_off_at(&L) == INT64_MAX,
+          "power-off: given once (again: refused), the line busy, the cut not known before the first copy");
+    notice_copies(50000, &first, &third_end, seq, &ok);
+    CHECK(ok, "power-off: 3 frames of IDENTIFY 7 in every slot, one SEQ per board, the queued IDENTIFY dropped, "
+          "nothing before 50 ms");
+    cut = ultra_sender_power_off_at(&L);
+    CHECK(cut == first + 200000 && third_end < cut, "power-off: the cut 200 ms after the first copy (%lld us), after "
+          "the last one's end (%lld us)", (long long)(cut - first), (long long)(third_end - first));
+    (void)ultra_sender_set(&L, 0, 0, &v, 500, 0, now);
+    ultra_rc_request_init(&rq, ULTRA_RW_RATE_1M);
+    (void)ultra_rc_request_add(&rq, 0, ULTRA_PAGE_STATUS, 0, 0);
+    CHECK(ultra_sender_next_frame(&L, now + 3000000, F) == 0 && !ultra_sender_busy(&L) &&
+          ultra_sender_due_us(&L) == INT64_MAX && ultra_sender_rc_frame(&L, &rq, now + 3000000, F) == 0 &&
+          ultra_sender_power_off_at(&L) == cut, "power-off: then nothing (a SET waits, no POLL), the cut as it was");
+    /* the wake: the short preamble, then the definitions and the SET given meanwhile */
+    now += 3000000;
+    ultra_sender_power(&L, 0, now);
+    now += 1500000;
+    ultra_sender_power(&L, 1, now);
+    CHECK(ultra_sender_power_off_at(&L) == INT64_MIN && ultra_sender_busy(&L), "wake: no notice, the line busy");
+    for (i = 0; i < 30u; i++) {
+        (void)fr();
+        dark += i < 10u && is_dark(slot(0));
+        sets += i >= 10u && slot(0)[0] == ULTRA_SET && ultra_get16(slot(0) + ULTRA_PAYLOAD) == 20000u;
+    }
+    CHECK(dark == 10u && sets >= 1u, "wake: the 10-frame preamble, then the SET given while the line was off (%u)", sets);
+    /* late copies: the cut waits for the last one's end; a retimed first copy moves the cut and the spacing */
+    CHECK(ultra_sender_power_off(&L) == ULTRA_OK, "power-off again after the wake");
+    ok = 1;
+    notice_copies(130000, &first, &third_end, seq2, &ok);
+    CHECK(ok && seq2[0] != seq[0] && ultra_sender_power_off_at(&L) == third_end && third_end > first + 200000,
+          "power-off, copies 130 ms apart: a new SEQ, the cut at the last copy's end (%lld us after the first)",
+          (long long)(third_end - first));
+    ultra_sender_power(&L, 1, now);
+    (void)ultra_sender_power_off(&L);
+    now += 1000000;
+    (void)ultra_sender_next_frame(&L, now, F);
+    (void)ultra_sender_retime(&L, now + 7000, F);
+    CHECK(ultra_sender_due_us(&L) == now + 57000 && ultra_sender_next_frame(&L, now + 56999, F) == 0,
+          "power-off: a retimed copy moves the next one's time");
+    for (i = 0; i < 2u; i++) {
+        (void)ultra_sender_next_frame(&L, now + 57000 + 50000 * (int64_t)i, F);
+    }
+    CHECK(ultra_sender_power_off_at(&L) == now + 207000, "power-off: ... and the cut (200 ms after the retimed first)");
+    /* before the preamble is out: the notice goes first */
+    mk(2, 1, 0, NI);
+    (void)ultra_sender_power_off(&L);
+    (void)fr();
+    CHECK(slot(0)[0] == ULTRA_IDENTIFY && slot(1)[ULTRA_PAYLOAD] == ULTRA_IDENT_POWER_OFF,
+          "power-off during the preamble: the notice first");
+}
+
 static void test_power_and_resync(void)
 {
     ultra_values_t v = val(30000);
@@ -742,6 +837,55 @@ static void answer(uint8_t *a, uint8_t page, uint8_t index, uint8_t seq, uint8_t
     ultra_put16(a + 30, ultra_crc16(a, 30));
 }
 
+/* 0.2.6 LIFE_SYNC: the POLL's arguments (built by hand from the header's ULTRA_LS_* offsets) in the slot the header's
+ * own ultra_slot_poll builds; the answer's accessors */
+static void test_life_sync(void)
+{
+    static const uint8_t life[16] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+    uint8_t args[23], want[32], a[32];
+    ultra_rc_request_t rq;
+    uint32_t i, n;
+    mk(2, 1, 0, NI);
+    pre();
+    for (i = 0; i < 1500u; i++) {
+        (void)fr();                              /* a second and a half of headers: the chain may poll */
+    }
+    ultra_rc_request_init(&rq, ULTRA_RW_RATE_500K);
+    CHECK(ultra_rc_request_life_sync(&rq, 1, 0xBEEF, NULL, 0, 0) == ULTRA_ERR_ARG && rq.count == 0u,
+          "life sync: no ledger bytes: refused");
+    CHECK(ultra_rc_request_life_sync(&rq, 1, 0xBEEF, life, 0x01020304u, 0x5A) == ULTRA_OK &&
+          ultra_rc_request_life_sync(&rq, 0, 0xBEEF, life, 0, 0) == ULTRA_ERR_ARG && rq.count == 1u,
+          "life sync: asked; boards in rising order");
+    (void)ultra_sender_preset_seq(&L, 1, ULTRA_LIGHT_BOARD, ULTRA_POLL, 0x70);
+    n = ultra_sender_rc_frame(&L, &rq, now, F);
+    args[0] = 0xBE;
+    args[1] = 0xEF;
+    memcpy(args + 2, life, 16);
+    args[18] = 1;
+    args[19] = 2;
+    args[20] = 3;
+    args[21] = 4;
+    args[22] = 0x5A;
+    ultra_slot_poll(want, 0x70, 0, 1, ULTRA_PAGE_LIFE_SYNC, ULTRA_RW_RATE_500K, args, sizeof args);
+    CHECK(n == ultra_frame_bytes(2) && memcmp(slot(1), want, 32) == 0 && ultra_poll_valid(slot(1)) == 0 &&
+          slot(0)[ULTRA_POLL_INDEX] == ULTRA_POLL_RELAY_ONLY,
+          "life sync: the POLL as the header builds it (page 0x0E, UID16, LIFETIME 0..15, Wh, RECORDS byte)");
+    memset(a, 0, sizeof a);
+    a[0] = ULTRA_RSP_SYNC;
+    a[1] = ULTRA_PAGE_LIFE_SYNC;
+    a[ULTRA_RSP_DATA + 16] = 0x00;
+    a[ULTRA_RSP_DATA + 17] = 0x01;
+    a[ULTRA_RSP_DATA + 18] = 0x86;
+    a[ULTRA_RSP_DATA + 19] = 0xA0;               /* 100,000 Wh */
+    a[ULTRA_RSP_DATA + 20] = ULTRA_LS_R_CAPPED;
+    a[ULTRA_RSP_DATA + 21] = ULTRA_LS_F_POWERED | ULTRA_LS_F_WH;
+    a[ULTRA_RSP_DATA + 22] = 0x12;
+    a[ULTRA_RSP_DATA + 23] = 0x34;
+    CHECK(ultra_rc_ls_total_wh(a) == 100000u && ultra_rc_ls_result(a) == ULTRA_LS_R_CAPPED &&
+          ultra_rc_ls_applied(a) == (ULTRA_LS_F_POWERED | ULTRA_LS_F_WH) && ultra_rc_ls_records(a) == 0x1234u,
+          "life sync answer: Wh (DATA 16, u32), result (20), applied (21), RECORDS (22, u16)");
+}
+
 static void test_rc_answer(void)
 {
     uint8_t a[32], rx[64], ferr[64], got[32];
@@ -781,9 +925,10 @@ static void test_rc_answer(void)
     /* the getters of 0.2.5: an IDENTITY answer's features, a STATUS answer's reason nibble (beside the limit bits) */
     memset(a, 0, sizeof a);
     a[1] = ULTRA_PAGE_IDENTITY;
-    a[ULTRA_RSP_DATA + ULTRA_ID_FEATURES + 1] = (uint8_t)(ULTRA_FEAT_RETRY >> 16);
+    a[ULTRA_RSP_DATA + ULTRA_ID_FEATURES + 1] = (uint8_t)((ULTRA_FEAT_RETRY | ULTRA_FEAT_STANDBY) >> 16);
     a[ULTRA_RSP_DATA + ULTRA_ID_FEATURES + 3] = (uint8_t)ULTRA_FEAT_SCENE;
-    CHECK(ultra_rc_features(a) == (ULTRA_FEAT_RETRY | ULTRA_FEAT_SCENE), "rc: IDENTITY features (big-endian u32)");
+    CHECK(ultra_rc_features(a) == (ULTRA_FEAT_RETRY | ULTRA_FEAT_STANDBY | ULTRA_FEAT_SCENE) &&
+          (ultra_rc_features(a) & ULTRA_FEAT_STANDBY) != 0u, "rc: IDENTITY features (big-endian u32), STANDBY (0.2.6)");
     a[1] = ULTRA_PAGE_STATUS;
     a[ULTRA_RSP_DATA + ULTRA_ST_STATE] = (uint8_t)((ULTRA_ST_WHY_RETRIES_OUT << ULTRA_ST_WHY_SHIFT) | ULTRA_ST_LIMITING);
     CHECK(ultra_rc_status_why(a) == ULTRA_ST_WHY_RETRIES_OUT, "rc: STATUS reason nibble (0.2.5)");
@@ -957,6 +1102,7 @@ int main(void)
     test_config();
     test_clear_unused();
     test_power_and_resync();
+    test_power_off();
     test_stream();
     test_strobe();
     test_dedupe_and_args();
@@ -966,6 +1112,7 @@ int main(void)
     test_order_wrap();
     test_stream_alias();
     test_rc_answer();
+    test_life_sync();
     test_independent_timing();
     test_effect_layouts();
     test_refusals();

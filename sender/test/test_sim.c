@@ -34,6 +34,8 @@
 #include "frame_rx.h"
 #include "ultra.h"
 #include "ultra_sender.h"
+/* an item's start (kept in two 32-bit halves) */
+#define ITEM_START(it) ((int64_t)(((uint64_t)(it).start_hi << 32) | (it).start_lo))
 
 static int failures, checks;
 #define CHECK(c, ...) \
@@ -72,7 +74,18 @@ typedef struct {
     gate_plan_t plan, plan_buf;                  /* the gate's plan for this frame; the one published for the next */
     double drift, phase;
     uint32_t frames, slots, ws_shown, ws_lit;
+    uint32_t notices;                            /* power-off notices applied (IDENTIFY 7, 0.2.6) */
+    uint32_t miss_from, miss_to;                 /* frame ids it misses (a flash stall); 0: none */
 } board_t;
+
+#ifndef SIM_RX
+#define SIM_RX 0                                 /* 1: the firmware built as the Diff-Power Ultra receiver (BOARD=2) */
+#endif
+#if SIM_RX
+#include "energy.h"                              /* (the receiver's lifetime record and its LIFE_SYNC merge) */
+#include "ultra_sender_rc.h"
+#include "rc.h"                                  /* (its answers) */
+#endif
 
 static uint32_t tick_of(const board_t *bd, double real_us)
 {
@@ -143,7 +156,7 @@ static void deliver(line_t *p, uint32_t len, double end_us)
         } else if (g.start_open && g.t1 != 0u) {
             CHECK(0, "a board locked to WS2915 (not modelled)");
         }
-        if (uni() >= p->loss) {
+        if (uni() >= p->loss && !(p->frame_id >= bd->miss_from && p->frame_id <= bd->miss_to)) {
             uint8_t cap[PROTO_BITS_BUF + 8];
             slot_t ws;
             frx_end_t e;
@@ -176,7 +189,8 @@ static void deliver(line_t *p, uint32_t len, double end_us)
                 ultra_on_header(&bd->u, tk, e.host_us);
                 bd->frames++;
                 if (e.ultra_slot) {
-                    ultra_apply_slot(&bd->u, bd->rx.slot, tk);
+                    const uint32_t ev = ultra_apply_slot(&bd->u, bd->rx.slot, tk);
+                    bd->notices += (ev & ULTRA_EV_IDENTIFY) != 0u && bd->u.identify == ULTRA_IDENT_POWER_OFF;
                     bd->slots++;
                 }
             }
@@ -1074,12 +1088,12 @@ static void on_time(void)
     drain(&C);
     run2(&A, &C, 3000);
     calls(cmd_ramp);
-    start = A.s.items[A.s.boards[0].first].start_us;
+    start = ITEM_START(A.s.items[A.s.boards[0].first]);
     {
         uint16_t k;
         for (k = A.s.boards[0].first; k != 0xFFFFu; k = A.s.items[k].next) {
             if (A.s.items[k].slot[0] == ULTRA_SET) {
-                start = A.s.items[k].start_us;
+                start = ITEM_START(A.s.items[k]);
             }
         }
     }
@@ -1094,10 +1108,194 @@ static void on_time(void)
            "command before the shared start\n", have_n);
 }
 
+/* 0.2.6, the planned power-off notice through the boards' receive path (12 boards, no loss). As a receiver
+ * (SIM_RX: BOARD=2) every board applies it exactly once, also the 4 with a flash stall over one or two of its 3 copies;
+ * a dig2analog-ultra ignores it. The copies 50 ms apart, nothing else, the cut 200 ms after the first. Then 1.5 s off,
+ * every board powers up dark, and the wake's first frames after its preamble give every board the host's state. */
+static void standby(void)
+{
+    static const uint16_t stall[4][3] = { { 3, 1, 1 }, { 5, 2, 2 }, { 7, 1, 2 }, { 9, 3, 3 } };   /* board, copies */
+    line_t *p = &A;
+    int64_t starts[3] = { 0, 0, 0 }, cut;
+    uint32_t i, nc = 0, f0, once = 0, none = 0, dark = 0, have = 0, wake_frames = 0;
+    uint16_t b;
+    double until;
+    line_init(p, 12, 1, 4242, 0.02);
+    def_lights(p, 1);
+    drain(p);
+    run(p, 500);
+    f0 = p->frame_id;
+    for (i = 0; i < 4u; i++) {
+        p->bd[stall[i][0]].miss_from = f0 + stall[i][1];
+        p->bd[stall[i][0]].miss_to = f0 + stall[i][2];
+    }
+    CHECK(ultra_sender_power_off(&p->s) == ULTRA_OK, "power_off");
+    until = p->now + 400000.0;
+    while (p->now < until) {
+        const uint32_t sent = p->sent;
+        step(p, until);
+        if (p->sent != sent) {
+            starts[nc < 3u ? nc : 2u] = p->s.last_start_us;
+            nc++;
+        }
+    }
+    cut = ultra_sender_power_off_at(&p->s);
+    for (b = 0; b < p->n; b++) {
+        once += p->bd[b].notices == 1u;
+        none += p->bd[b].notices == 0u;
+    }
+    CHECK(nc == 3u && starts[1] - starts[0] == 50000 && starts[2] - starts[1] == 50000 && cut == starts[0] + 200000,
+          "the notice: %u frames, %lld / %lld us apart, the cut %lld us after the first", nc,
+          (long long)(starts[1] - starts[0]), (long long)(starts[2] - starts[1]), (long long)(cut - starts[0]));
+    CHECK(SIM_RX ? once == p->n : none == p->n, "notice applied once on %u / %u boards (4 with a flash stall), "
+          "ignored on %u", once, (unsigned)p->n, none);
+    /* the cut, 1.5 s off: every board powers up (dark), then the wake */
+    ultra_sender_power(&p->s, 0, host(p));
+    p->now = (double)cut + p->host_off + 1500000.0;
+    for (b = 0; b < p->n; b++) {
+        uint16_t out[5];
+        board_boot(&p->bd[b], PROTO_ULTRA, 77u + b);
+        p->bd[b].miss_from = p->bd[b].miss_to = 0;
+        render(&p->bd[b], p->now, out);
+        dark += (out[0] | out[1] | out[2] | out[3] | out[4]) == 0u;
+    }
+    ultra_sender_power(&p->s, 1, host(p));
+    f0 = p->frame_id;
+    for (i = 0; i < 100u && have < p->n; i++) {
+        step(p, p->now + 1e9);
+        for (have = 0, b = 0; b < p->n; b++) {
+            const ultra_light_t *L = &p->bd[b].u.light[0];
+            have += L->defined && L->cur.to.m == 65535u;
+        }
+        wake_frames = p->frame_id - f0;
+    }
+    CHECK(dark == p->n && have == p->n && wake_frames <= 10u + 2u,     /* the preamble, LIGHT_DEF, SET */
+          "wake: %u / %u boards dark at power-up, %u with the host's state after %u frames", dark, (unsigned)p->n,
+          have, wake_frames);
+    printf("  power-off notice (%s), 12 boards: copies %lld / %lld ms apart, the cut %lld ms after the first; applied "
+           "once on %u (4 with a flash stall over 1-2 copies), ignored on %u; after 1.5 s off: %u dark at power-up, "
+           "%u with the host's state %u frames after the wake (preamble %u)\n",
+           SIM_RX ? "Diff-Power Ultra receivers" : "Dig2Analog-Ultra boards", (long long)(starts[1] - starts[0]) / 1000,
+           (long long)(starts[2] - starts[1]) / 1000, (long long)(cut - starts[0]) / 1000, once, none, dark, have,
+           wake_frames, 10u);
+}
+
+#if SIM_RX
+/* 0.2.6 LIFE_SYNC: the sender's POLL (ultra_rc_request_life_sync, in the line's RW frame) into the receiver's own merge
+ * (energy_sync, core/energy.c) and its answer (rc_pack / rc_answer, packed as its main loop does), read back with
+ * the sender's accessors: merged once per power-up; a wrong UID16 or RECORDS byte merges nothing; nothing lowered */
+#define LS_UID 0x4D2Au
+static void ls_board(energy_t *e)                /* as booted from a record (format 3): 7 writes */
+{
+    memset(e, 0, sizeof *e);
+    e->lt.on_s = 3600000u;                       /* 1000 h powered */
+    e->lt.lit_s = 1440000u;                      /* 400 h lit */
+    e->lt.ups = 500u;
+    e->lt.trips[0] = 3u;
+    e->lt.trips[1] = 1u;
+    e->lt.dips = 20u;
+    e->lt.wh = 9000u;
+    e->lt.writes = 7u;
+    e->lt.magic = LIFE_MAGIC;
+    energy_init(e, 1u, 0, 0, 0);                 /* (the power-up: 501) */
+}
+
+/* one LIFE_SYNC round: the sender's frame, the receiver's merge and answer, the sender's reading; returns the answer */
+static void ls_round(line_t *p, energy_t *e, uint16_t uid, const uint8_t life[16], uint32_t wh, uint8_t rec,
+                     uint8_t got[32])
+{
+    static const uint8_t fs[9] = { 3, 3, 3, 2, 2, 3, 4, 2, 2 };   /* (the receiver's main.c: LIFE_SYNC's fields) */
+    ultra_rc_request_t rq;
+    uint8_t ans[RC_ANSWER_BYTES], rx[1 + RC_ANSWER_BYTES];
+    uint32_t v[9], res;
+    const uint8_t *poll = p->f + ULTRA_SLOT_BYTES * 2u;
+    int ok;
+    ultra_rc_request_init(&rq, ULTRA_RW_RATE_1M);
+    ok = ultra_rc_request_life_sync(&rq, 2, uid, life, wh, rec) == ULTRA_OK &&
+         ultra_sender_rc_frame(&p->s, &rq, host(p), p->f) != 0u && poll[ULTRA_POLL_PAGE] == ULTRA_PAGE_LIFE_SYNC;
+    CHECK(ok, "life sync: the RW frame");
+    p->now += 20000.0;                           /* (the window) */
+    res = energy_sync(e, poll + ULTRA_POLL_ARG, LS_UID);
+    v[0] = e->lt.on_s / 360u;
+    v[1] = e->lt.lit_s / 360u;
+    v[2] = e->lt.ups;
+    v[3] = e->lt.trips[0];
+    v[4] = e->lt.trips[1];
+    v[5] = e->lt.dips;
+    v[6] = energy_total_wh(e);
+    v[7] = res;                                  /* (the result, then the applied fields) */
+    v[8] = e->lt.writes;
+    memset(ans, 0, sizeof ans);
+    rc_pack(ans + ULTRA_RSP_DATA, v, fs, 9u);
+    rc_answer(ans, poll, ULTRA_PAGE_LIFE_SYNC, 0, LS_UID);
+    rx[0] = 0xFF;                                /* (the lead byte) */
+    memcpy(rx + 1, ans, sizeof ans);
+    CHECK(ultra_rc_answer(rx, NULL, sizeof rx, got) == 0 && ultra_rc_page(got) == ULTRA_PAGE_LIFE_SYNC &&
+          ultra_rc_seq(got) == poll[2] && ultra_rc_uid16(got) == LS_UID, "life sync: the answer");
+}
+
+static void life_sync(void)
+{
+    line_t *p = &A;
+    static energy_t e;
+    uint8_t life[16], got[32];
+    uint32_t r_ok, r_once, r_uid, r_rec, r_low, applied, wh, on;
+    line_init(p, 3, 1, 5150, 0.0);
+    drain(p);
+    run(p, 1500);                                /* the chain may poll: a second of headers after the preamble */
+    ls_board(&e);
+    /* the hub's ledger: 2 h more powered, 1 h more lit, 3 power-ups, 1 dip, 50 Wh more */
+    memset(life, 0, sizeof life);
+    ultra_put24(life + ULTRA_LT_POWERED, 10000u + 20u);
+    ultra_put24(life + ULTRA_LT_LIT, 4000u + 10u);
+    ultra_put24(life + ULTRA_LT_POWER_UPS, 501u + 3u);
+    ultra_put16(life + ULTRA_LT_OVERLOAD_TRIPS, 3u);
+    ultra_put16(life + ULTRA_LT_SHORT_TRIPS, 1u);
+    ultra_put24(life + ULTRA_LT_DIPS, 21u);
+    ls_round(p, &e, LS_UID, life, 9050u, 7u, got);
+    r_ok = ultra_rc_ls_result(got);
+    applied = ultra_rc_ls_applied(got);
+    wh = ultra_rc_ls_total_wh(got);
+    on = ultra_get24(got + ULTRA_RSP_DATA + ULTRA_LT_POWERED);
+    run(p, 300);
+    ls_round(p, &e, LS_UID, life, 9100u, 7u, got);       /* again this power-up */
+    r_once = ultra_rc_ls_result(got);
+    ls_board(&e);                                         /* a fresh power-up for each refusal */
+    run(p, 300);
+    ls_round(p, &e, (uint16_t)(LS_UID ^ 1u), life, 9050u, 7u, got);
+    r_uid = ultra_rc_ls_result(got);
+    run(p, 300);
+    ls_round(p, &e, LS_UID, life, 9050u, 8u, got);
+    r_rec = ultra_rc_ls_result(got);
+    memset(life, 0, sizeof life);                         /* a ledger behind the board: nothing lowered */
+    run(p, 300);
+    ls_round(p, &e, LS_UID, life, 10u, 7u, got);
+    r_low = ultra_rc_ls_result(got);
+    CHECK(r_ok == ULTRA_LS_R_APPLIED && applied == (ULTRA_LS_F_POWERED | ULTRA_LS_F_LIT | ULTRA_LS_F_UPS |
+          ULTRA_LS_F_DIPS | ULTRA_LS_F_WH) && wh == 9050u && on == 10020u && r_once == ULTRA_LS_R_ONCE &&
+          r_uid == ULTRA_LS_R_UID && r_rec == ULTRA_LS_R_RECORDS && r_low == ULTRA_LS_R_NOOP &&
+          ultra_rc_ls_total_wh(got) == 9000u && ultra_get24(got + ULTRA_RSP_DATA + ULTRA_LT_POWERED) == 10000u,
+          "life sync results: %u (applied 0x%02X, %u Wh, %u x 0.1 h), again %u, wrong UID16 %u, wrong RECORDS %u, "
+          "behind %u", r_ok, applied, wh, on, r_once, r_uid, r_rec, r_low);
+    printf("  LIFE_SYNC through the line's RW frame into the receiver's merge (energy_sync) and answer: merged "
+           "(applied 0x%02X: powered, lit, power-ups, dips, Wh; 9000 -> %u Wh), again the same power-up: result %u "
+           "(ONCE), wrong UID16 / RECORDS: %u / %u, a ledger behind: %u (nothing lowered)\n", applied, wh, r_once,
+           r_uid, r_rec, r_low);
+}
+#endif
+
 int main(void)
 {
     static const uint16_t sizes[] = { 1, 2, 3, 5, 8, 16, 25, 50, 64 };
     uint32_t i;
+#if SIM_RX
+    (void)sizes;
+    (void)i;
+    printf("8. the planned power-off notice (0.2.6) on Diff-Power Ultra receivers (BOARD=2)\n");
+    standby();
+    printf("9. LIFE_SYNC (0.2.6): the hub's lifetime counters into the receiver's own merge\n");
+    life_sync();
+#else
     printf("1. every command type through the boards' receive path\n");
     for (i = 0; i < sizeof sizes / sizeof sizes[0]; i++) {
         every_command(sizes[i], 0.2, 0.05);
@@ -1119,6 +1317,9 @@ int main(void)
     all_effects();
     on_time();
     config_025();
+    printf("8. the planned power-off notice (0.2.6) on Dig2Analog-Ultra boards\n");
+    standby();
+#endif
     printf("%s: %d checks, %d failures\n", failures ? "FAILED" : "ALL SIMULATION TESTS PASSED", checks, failures);
     return failures ? 1 : 0;
 }

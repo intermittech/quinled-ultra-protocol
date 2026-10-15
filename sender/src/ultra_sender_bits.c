@@ -4,6 +4,35 @@
  * QuinLED Ultra sender: bit timing and output encoders (ultra_sender_bits.h).
  */
 #include "ultra_sender_bits.h"
+#include "ultra_sender_internal.h"
+
+uint64_t ultra_udiv64_(uint64_t x, uint64_t d)
+{
+    uint64_t q = 0, r = 0;
+    uint32_t i;
+    if ((x >> 32) == 0u && (d >> 32) == 0u) {
+        return (uint32_t)x / (uint32_t)d;
+    }
+    if (d <= 0xFFFFu) {                                  /* 16 bits at a time: each step's dividend fits 32 */
+        const uint32_t dd = (uint32_t)d, hi = (uint32_t)(x >> 32), lo = (uint32_t)x;
+        uint32_t a = ((hi % dd) << 16) | (lo >> 16), q1, q0;
+        q1 = a / dd;
+        a = ((a - q1 * dd) << 16) | (lo & 0xFFFFu);
+        q0 = a / dd;
+        return ((uint64_t)(hi / dd) << 32) | ((uint64_t)q1 << 16) | q0;
+    }
+    for (i = 0; i < 64u; i++) {                          /* (constant shifts only: no libgcc on 32-bit targets) */
+        const uint64_t carry = r >> 63;
+        r = (r << 1) | (x >> 63);
+        x <<= 1;
+        q <<= 1;
+        if (carry != 0u || r >= d) {
+            r -= d;
+            q |= 1u;
+        }
+    }
+    return q;
+}
 
 int ultra_timing_check(const ultra_timing_t *t)
 {
@@ -37,7 +66,7 @@ uint32_t ultra_frame_max_us(const ultra_timing_t *t, uint32_t bytes)
 {
     const uint32_t p0 = (uint32_t)t->t0h_ns + t->t0l_ns, p1 = (uint32_t)t->t1h_ns + t->t1l_ns;
     const uint32_t worst = p0 > p1 ? p0 : p1;
-    return (uint32_t)((uint64_t)bytes * 8u * worst / 1000u) + t->reset_ns / 1000u;
+    return (uint32_t)ultra_udiv64_((uint64_t)bytes * 8u * worst, 1000u) + t->reset_ns / 1000u;
 }
 
 uint32_t ultra_encode_pulses(const ultra_timing_t *t, const uint8_t *bytes, uint32_t nbytes, uint32_t *pos,
@@ -62,13 +91,13 @@ uint32_t ultra_encode_pulses(const ultra_timing_t *t, const uint8_t *bytes, uint
 /* ns -> ticks at hz, rounded */
 static uint32_t ticks(uint32_t ns, uint32_t hz)
 {
-    return (uint32_t)(((uint64_t)ns * hz + 500000000u) / 1000000000u);
+    return (uint32_t)ultra_udiv64_((uint64_t)ns * hz + 500000000u, 1000000000u);
 }
 
 /* ticks at hz -> ns, rounded */
 static uint64_t tick_ns(uint32_t n, uint32_t hz)
 {
-    return ((uint64_t)n * 1000000000u + hz / 2u) / hz;
+    return ultra_udiv64_((uint64_t)n * 1000000000u + hz / 2u, hz);
 }
 
 /* whole ticks at hz -> a timing (*t only when every duration fits its field: else -1, far outside the spec anyway;
@@ -152,13 +181,17 @@ uint32_t ultra_spi_encode(const uint8_t *bytes, uint32_t nbytes, uint8_t *out)
 {
     uint32_t i, b;
     for (i = 0; i < nbytes; i++) {
-        uint64_t w = 0;                                  /* 8 bits x 5 SPI bits = 40 bits */
+        uint32_t hi = 0, lo = 0;                         /* 8 bits x 5 SPI bits = 40 bits: hi = bits 39..32 */
+        uint8_t *o = out + 5u * i;
         for (b = 0; b < 8u; b++) {
-            w = (w << 5) | (((bytes[i] >> (7u - b)) & 1u) ? 0x1Cu : 0x10u);   /* 11100 / 10000 */
+            hi = (hi << 5) | (lo >> 27);
+            lo = (lo << 5) | (((bytes[i] >> (7u - b)) & 1u) ? 0x1Cu : 0x10u);   /* 11100 / 10000 */
         }
-        for (b = 0; b < 5u; b++) {
-            out[5u * i + b] = (uint8_t)(w >> (32u - 8u * b));
-        }
+        o[0] = (uint8_t)hi;
+        o[1] = (uint8_t)(lo >> 24);
+        o[2] = (uint8_t)(lo >> 16);
+        o[3] = (uint8_t)(lo >> 8);
+        o[4] = (uint8_t)lo;
     }
     return nbytes * 5u;
 }

@@ -54,17 +54,17 @@
 #include "ultra_protocol.h"
 #include "ultra_sender_bits.h"
 
-/* A 32-bit (or wider) int: the protocol header 0.2.5 shifts 1u by CONFIG ids up to 24 (ultra_config_crc), undefined
- * with a 16-bit int. The library itself shifts 32-bit values only. */
+/* A 32-bit (or wider) int. The protocol header is 16-bit-int safe since 0.2.6, but this library has never been
+ * built or tested where int has 16 bits (its uint16_t arithmetic would promote to a 16-bit int there). */
 #if UINT_MAX < 0xFFFFFFFFu
-#error "QuinLED Ultra sender: needs an unsigned int of at least 32 bits (ultra_protocol.h 0.2.5 shifts 1u by CONFIG ids up to 24); 16-bit-int targets (AVR, MSP430) aren't supported"
+#error "QuinLED Ultra sender: needs an unsigned int of at least 32 bits; 16-bit-int targets (AVR, MSP430) are not supported"
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define ULTRA_SENDER_VERSION_STR "0.2.5"   /* this library: the protocol release it targets (its ultra_protocol.h) */
+#define ULTRA_SENDER_VERSION_STR "0.2.6"   /* this library: the protocol release it targets (its ultra_protocol.h) */
 
 #ifndef ULTRA_SENDER_MAX_BOARDS
 #define ULTRA_SENDER_MAX_BOARDS 64u        /* per line (the protocol has no fixed maximum; QuinLED supports 50) */
@@ -141,31 +141,31 @@ typedef struct {
 typedef struct {
     uint32_t order;                    /* queue order (oldest first) */
     uint8_t  sends, copies;            /* copies sent, copies to send (0 = not queued) */
-    uint8_t  behind, spare;            /* behind: it replaced a command none of whose copies went out */
+    uint8_t  behind;                   /* it replaced a command none of whose copies went out */
+    uint8_t  flags;                    /* an item's (IT_*: the item's own byte; unused on a board's queues) */
 } ultra_sender_q_t;
 
-/* one piece of a light's state (opaque) */
+/* one piece of a light's state (opaque; 60 bytes: 32-bit fields only, so no 8-byte alignment) */
 typedef struct {
-    int64_t  start_us;                 /* SET / EFFECT: the absolute start on the host clock */
-    ultra_sender_q_t q;
+    uint32_t start_lo, start_hi;       /* SET / EFFECT: the absolute start on the host clock (int64_t, in halves) */
+    ultra_sender_q_t q;                /* (q.flags: the item's IT_*) */
     uint32_t aux;                      /* EFFECT: its period, ms; streamed SET: the glide asked for, ms */
     uint32_t last_us;                  /* streamed SET: when the light's last one went out (low 32 bits) */
     uint16_t next, key;                /* the board's next item (pool index); light << 8 | rank << 4 | sub */
-    uint8_t  flags, spare[3];
     uint8_t  slot[ULTRA_SLOT_BYTES];   /* the slot as sent, its SEQ in byte 2 */
 } ultra_sender_item_t;
 
-/* one board (opaque) */
+/* one board (opaque; the fields in an order without padding) */
 typedef struct {
     uint16_t cfg[ULTRA_CFG_COUNT];
-    uint32_t cfg_have[ULTRA_SENDER_CFG_WORDS];
-    ultra_sender_q_t cfg_q[ULTRA_SENDER_CFG_PAGES];
-    ultra_sender_q_t id_q, clr_q;
-    int64_t  f_start;                  /* the frame being built: this slot's absolute start */
-    uint32_t f_dur;                    /* ... a SET's duration */
     uint16_t first;                    /* first item (sorted by key) */
     uint16_t rr;                       /* refresh position */
     uint16_t unsent;                   /* queued commands none of whose copies went out yet */
+    uint32_t cfg_have[ULTRA_SENDER_CFG_WORDS];
+    ultra_sender_q_t cfg_q[ULTRA_SENDER_CFG_PAGES];
+    ultra_sender_q_t id_q, clr_q;
+    uint32_t f_dur;                    /* the frame being built: a SET's duration */
+    int64_t  f_start;                  /* ... this slot's absolute start */
     uint8_t  cfg_pseq[ULTRA_SENDER_CFG_PAGES];
     uint8_t  cfg_seq, cfg_dirty;
     uint8_t  id_seq, id_val, id_arg;
@@ -191,18 +191,23 @@ typedef struct ultra_sender {
     uint32_t refresh_us, frame_us, switch_us;
     int32_t  start_delay_us;
     uint32_t order, rng, queued, frames;
+    ultra_sender_group_t *group;       /* (here: no padding before the 64-bit times) */
     int64_t  last_start_us, last_time_us;
     int64_t  hold_us;                  /* no frame before (a response window) */
     int64_t  ready_us;                 /* the end of the last preamble */
-    uint16_t ready_frames;             /* frames since then (saturating) */
-    ultra_sender_group_t own_group, *group;
+    int64_t  off_cut_us;               /* the power-off notice: the cut (its first copy + 200 ms) */
+    ultra_sender_group_t own_group;
     struct ultra_sender *group_next;
     uint8_t  repeats, group_commands, max_lights, clear_unused;
     uint8_t  preamble_full, synced_once, powered, has_sent;
     uint8_t  switch_frame, kind, hdr_flags;
     uint8_t  gc_auto;                  /* group_commands follows the most lights on a board */
     uint8_t  last_ends_preamble;       /* the last frame built is the preamble's last (retime moves ready_us) */
+    uint8_t  off;                      /* the power-off notice: 0 none, 1 its copies out (quiet until the wake),
+                                          2-4 copies still to send + 1 */
+    uint8_t  last_notice;              /* the last frame built is one of them (retime moves their times) */
     uint16_t last_bytes;
+    uint16_t ready_frames;             /* frames since the last preamble (saturating) */
 } ultra_sender_t;
 
 /* ------------------------------------------------------------------------------------------------ set-up */
@@ -264,6 +269,17 @@ void ultra_sender_resync(ultra_sender_t *l, int64_t now_us);
  * a short preamble (10 frames) when a full one reached the powered boards before, else the full one, then
  * everything again (fades that ran in the dark are replayed). */
 void ultra_sender_power(ultra_sender_t *l, int on, int64_t now_us);
+/* The planned power-off notice (protocol 0.2.6, IDENTIFY 7; wiki: Host behaviour, "A planned power-off"), for a host
+ * that switches the line's power: from the next frame on the line sends only the notice, in every board's slot, 3
+ * copies with one SEQ at least 50 ms apart (0, 50, 100 ms), then nothing until ultra_sender_power(l, 1, ...) wakes it
+ * (a preamble and every state again: commands given meanwhile go out then). No take-back: once given, cut the power.
+ * Boards with ULTRA_FEAT_STANDBY (a Diff-Power ultra receiver from firmware 0.6.10) fade to dark and take the cut as
+ * planned (no supply dip, no flash write for it); every other board ignores the notice. ULTRA_ERR_ARG: a notice is
+ * already under way. */
+int  ultra_sender_power_off(ultra_sender_t *l);
+/* When the power may be cut: 200 ms after the notice's first copy went out, and not before its last copy's end.
+ * INT64_MAX while copies are still to go out; INT64_MIN: no notice (none given, or the line woken since). */
+int64_t ultra_sender_power_off_at(const ultra_sender_t *l);
 /* Boards forced to WS2805 / WS2915 (they ignore Ultra frames): the WS config-frame sequence (ultra_switch_frame,
  * 10 frames), then the full preamble and everything again. boot_protocol: CONFIG 22 for every board afterwards
  * (0 auto, 3 Ultra), 0xFF = leave it; another value: ULTRA_ERR_ARG, nothing happens. Send it only on request. */
@@ -358,7 +374,7 @@ int ultra_sender_pwm_hz(ultra_sender_t *l, uint16_t board, uint32_t hz);
 void ultra_pwm_for_hz(uint32_t hz, uint16_t *preset, uint16_t *period);
 /* IDENTIFY (sent 3 times, not refreshed): ULTRA_IDENT_STOP / _ON (blink 30 s) / _VERSION (blink the firmware
  * version) / _RELEASE with arg 0; _CAL (current calibration: arg 0 = the standard test, 5..100 = one duty %) and
- * _DARK (hold dark: arg = seconds, 0 = 60). One board or ULTRA_SENDER_ALL. */
+ * _DARK (hold dark: arg = seconds, 0 = 60). One board or ULTRA_SENDER_ALL. (_POWER_OFF: ultra_sender_power_off) */
 int ultra_sender_identify(ultra_sender_t *l, uint16_t board, uint8_t value, uint8_t arg);
 /* the board's last IDENTIFY still has copies to send (a calibration run waits for it) */
 int ultra_sender_identify_pending(const ultra_sender_t *l, uint16_t board);

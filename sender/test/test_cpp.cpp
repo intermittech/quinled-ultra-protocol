@@ -35,7 +35,9 @@ uint32_t ultra_cpp_wrapper_smoke(int64_t now_us) {
   line.effect(1, 0, ULTRA_FX_BREATHE, p, ultra_fx_breathe(p, 4000, 0, 65535), now_us);
   line.config(ULTRA_SENDER_ALL, ULTRA_CFG_PWM_PRESET, 8);
   line.identify(2, ULTRA_IDENT_VERSION);
-  return line.next_frame(now_us) + (line.busy() ? 1u : 0u) + line.frame()[0];
+  const uint32_t n = line.next_frame(now_us) + (line.busy() ? 1u : 0u) + line.frame()[0];
+  line.power_off();
+  return n + (line.power_off_at() == INT64_MAX ? 1u : 0u);
 }
 
 #ifndef ULTRA_CPP_COMPILE_ONLY
@@ -172,6 +174,18 @@ int main() {
               std::memcmp(&raw, &before, sizeof raw) == 0 && ultra_sender_config_check(&ok) == ULTRA_OK &&
               ultra_sender_config_check(&bad[0].c) == ULTRA_ERR_ARG,
           "N3: ultra_sender_init() refusing a configuration changes nothing; ultra_sender_config_check() agrees");
+    line.end();
+  }
+  // 0.2.6: the power-off notice through the wrapper
+  {
+    static Four line;
+    line.begin(1, 5);
+    CHECK(line.power_off_at() == INT64_MIN && line.power_off() == ULTRA_OK && line.power_off_at() == INT64_MAX &&
+              line.power_off() == ULTRA_ERR_ARG,
+          "power_off(): given once, the cut not known before its first copy");
+    const uint32_t n = line.next_frame(1000000);
+    CHECK(n == ultra_frame_bytes(4) && line.frame()[0] == ULTRA_IDENTIFY && line.frame()[ULTRA_PAYLOAD] ==
+              ULTRA_IDENT_POWER_OFF, "power_off(): the next frame is the notice");
     line.end();
   }
   // the line's pointers stay inside the object

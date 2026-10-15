@@ -19,7 +19,7 @@
  * interrupts that aren't IRAM-safe (unless CONFIG_RMT_ISR_IRAM_SAFE): a frame sent meanwhile can break; the boards drop
  * it, and the copies and the refresh make up for it. On an ESP32-S3 / P4, ULTRA_RMT_DMA 1 sends from DMA instead.
  * Not for return-channel RW frames: the hub must release the line within 150 us, this appends 300 us of reset.
- * Level: the dig2analog-ultra wants 5 V data (a 74AHCT125-type buffer).
+ * Level: the Dig2Analog-Ultra-5ch wants 5 V data (a 74AHCT125-type buffer).
  */
 #ifndef ULTRA_ESP32_RMT_H
 #define ULTRA_ESP32_RMT_H

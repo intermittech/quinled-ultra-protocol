@@ -80,6 +80,19 @@ static void slot_vector(const char *name, const char *title, const char *desc, c
     js_vector(name, "slot", desc, s, ULTRA_SLOT_BYTES);
 }
 
+/* one answer (32 bytes after the lead byte: the return channel's response slot) */
+static void answer_vector(const char *name, const char *title, const char *desc, const uint8_t *a)
+{
+    check(ultra_answer_check(a) == 0, name);
+    fprintf(md, "### `%s`: %s\n\n%s\n\n", name, title, desc);
+    fprintf(md, "SYNC `0x%02X`, PAGE `0x%02X`, INDEX %u, RFLAGS `0x%X`, SEQ `0x%02X`, UID16 `0x%04X`, CRC-16 `0x%04X` "
+                "over bytes 0-29. On the wire: a `0xFF` lead byte, then these 32 bytes, UART 8N1 at the POLL's "
+                "rate.\n\n", a[0], a[1], a[2] >> 4, a[2] & 0x0Fu, a[3], (unsigned)ultra_get16(a + 4),
+            (unsigned)ultra_get16(a + 30));
+    md_hex(a, 32, 16);
+    js_vector(name, "answer", desc, a, 32);
+}
+
 /* one frame: n slots + header */
 static void frame_vector(const char *name, const char *title, const char *desc, const uint8_t *f, uint32_t nslots,
                          int dark)
@@ -184,7 +197,7 @@ int main(int argc, char **argv)
                   "until a hint is defined.", h, 1);
     ultra_build_header_flags(h, 0x00ABCDEFu, ULTRA_HDR_RW);
     header_vector("hdr_flag_rw", "FLAGS 0x01 (RW, the return channel)",
-                  "A valid header: a response window follows the frame (0.2.4, Diff-Power ultra receivers). A board "
+                  "A valid header: a response window follows the frame (0.2.4, Diff-Power Ultra-Analog receivers). A board "
                   "without a return channel takes the clock sync, ignores every slot and keeps its lock; a receiver "
                   "answers its POLL (frame_rw_poll).", h, 1);
     ultra_build_header(h, 0x00ABCDEFu);
@@ -306,6 +319,46 @@ int main(int argc, char **argv)
     slot_vector("slot_poll_diag_faults", "POLL DIAG part 1 (0.2.5)",
                 "Index 0, R = 1, page 0x0D DIAG, rate 1. Argument 0 (slot byte 7) = 1: the fault memory and the "
                 "calibration trend (0: the running board; 2-255: UNSUPPORTED). SEQ 0x64.", s, 1);
+    {
+        /* (0.2.6) LIFE_SYNC: the hub's ledger in a POLL (its answer: answer_life_sync_applied, section 6) */
+        uint8_t ls[23];
+        memset(ls, 0, sizeof ls);
+        ultra_put16(ls + ULTRA_LS_UID16, 0x1234u);
+        ultra_put24(ls + ULTRA_LS_LIFETIME + ULTRA_LT_POWERED, 10020u);
+        ultra_put24(ls + ULTRA_LS_LIFETIME + ULTRA_LT_LIT, 4010u);
+        ultra_put24(ls + ULTRA_LS_LIFETIME + ULTRA_LT_POWER_UPS, 531u);
+        ultra_put16(ls + ULTRA_LS_LIFETIME + ULTRA_LT_OVERLOAD_TRIPS, 5u);
+        ultra_put16(ls + ULTRA_LS_LIFETIME + ULTRA_LT_SHORT_TRIPS, 1u);
+        ultra_put24(ls + ULTRA_LS_LIFETIME + ULTRA_LT_DIPS, 22u);
+        ultra_put32(ls + ULTRA_LS_TOTAL_WH, 9050u);
+        ls[ULTRA_LS_RECORDS] = 7u;
+        ultra_slot_poll(s, 0x65, 0, 1, ULTRA_PAGE_LIFE_SYNC, ULTRA_RW_RATE_500K, ls, sizeof ls);
+        check(ultra_poll_valid(s) == 0, "slot_poll_life_sync");
+        slot_vector("slot_poll_life_sync", "POLL LIFE_SYNC (0.2.6)",
+                    "Index 0, R = 1, page 0x0E LIFE_SYNC, rate 1. Arguments from slot byte 7 (ULTRA_LS_*): UID16 0x1234; "
+                    "LIFETIME bytes 0-15 as the hub's ledger has them: powered 10020 x 0.1 h, lit 4010 x 0.1 h, 531 "
+                    "power-ups, overload trips 5, short trips 1, 22 supply dips; the lifetime energy 9050 Wh; RECORDS' "
+                    "low byte 7. A board from before 0.2.6 answers UNSUPPORTED (0xFF). SEQ 0x65.", s, 1);
+    }
+    ultra_slot_power_off(s, 0x59);
+    slot_vector("slot_identify_power_off", "IDENTIFY planned power-off (0.2.6)",
+                "Value 7, argument 0 (ultra_slot_power_off): 3 copies with the same SEQ (applied once) at 0, 50 and "
+                "100 ms, the line's power cut at 200 ms. A Diff-Power Ultra-Analog receiver (ULTRA_FEAT_STANDBY) fades to "
+                "dark and takes the cut as planned (no supply dip); other boards and firmware from before 0.2.6 "
+                "ignore it. SEQ 0x59.", s, 1);
+    {
+        /* (0.2.6) ultra_config_crc over ids >= 16 (a 32-bit mask on 16-bit int hosts too) */
+        uint16_t cv[ULTRA_CFG_COUNT] = { 0 };
+        uint8_t cb[6];
+        cv[ULTRA_CFG_SOFT_START] = 0;
+        cv[ULTRA_CFG_RETRY] = 0x0302u;
+        cb[0] = ULTRA_CFG_SOFT_START;
+        ultra_put16(cb + 1, 0);
+        cb[3] = ULTRA_CFG_RETRY;
+        ultra_put16(cb + 4, 0x0302u);
+        check(ultra_config_crc((uint32_t)1u << ULTRA_CFG_SOFT_START | (uint32_t)1u << ULTRA_CFG_RETRY, cv) ==
+              ultra_crc16(cb, sizeof cb), "config crc ids 23, 24");
+    }
 
     /* ----------------------------------------------------------------------------------------------- frames */
     fprintf(md, "## 4. Frames\n\nN slots (board 0 first) + the header as a trailer. Every board takes the first slot "
@@ -363,6 +416,14 @@ int main(int argc, char **argv)
                  "1000 + 2 x 460 = 1920 us (ultra_rw_window_us) after the frame's last falling edge; the host's next "
                  "frame comes >= W + 200 us after it. Board 1 answers at 1000 us, board 2 at 1460 us; each burst is "
                  "a 0xFF lead byte and the 32-byte answer.", f, 3, 0);
+    for (i = 0; i < 3u; i++) {
+        ultra_slot_power_off(f + 32u * i, 0x59);
+    }
+    ultra_build_header(f + ultra_header_offset(3), 0x00ABCDEFu);
+    frame_vector("frame_power_off", "3 receivers, the planned power-off notice (0.2.6)",
+                 "Every board's slot: slot_identify_power_off (SEQ 0x59). The hub sends this frame at 0, 50 and "
+                 "100 ms (the same SEQ: each board applies it once; the time differs) and cuts the line's power at "
+                 "200 ms.", f, 3, 0);
 
     /* ----------------------------------------------------------------------- WS config-frame switch sequence */
     fprintf(md, "## 5. Switching boards forced to WS2805 / WS2915: the WS config-frame sequence for 2 boards\n\n");
@@ -388,6 +449,40 @@ int main(int argc, char **argv)
     t = ultra_crc8((const uint8_t *)"\xD2\xA5\x01\x03", 4);
     fprintf(md, "\nThe message: MAGIC `D2 A5`, CMD `01` (protocol), ARG `03` (Ultra), CRC-8/SMBus over those 4 bytes = "
                 "`%02X`.\n", (unsigned)t);
+
+    /* ----------------------------------------------------------------------------- answers (return channel) */
+    fprintf(md, "\n## 6. Answers (the return channel)\n\nA board's response slot: SYNC `A5` | PAGE | INDEX << 4 | "
+                "RFLAGS | SEQ | UID16 (2) | DATA (24) | CRC-16 (2) over the first 30 bytes, big-endian fields.\n\n");
+    {
+        /* (0.2.6) a LIFE_SYNC answer: the board took slot_poll_life_sync's ledger (it was behind in every field, each
+         * within its step: powered +20 x 0.1 h, lit +10, power-ups +30, overload trips +2, dips +2, energy +50 Wh) */
+        uint8_t a[32];
+        memset(a, 0, sizeof a);
+        a[0] = ULTRA_RSP_SYNC;
+        a[1] = ULTRA_PAGE_LIFE_SYNC;
+        a[2] = 0u << 4 | 0u;
+        a[3] = 0x65u;
+        ultra_put16(a + 4, 0x1234u);
+        ultra_put24(a + ULTRA_RSP_DATA + ULTRA_LT_POWERED, 10020u);
+        ultra_put24(a + ULTRA_RSP_DATA + ULTRA_LT_LIT, 4010u);
+        ultra_put24(a + ULTRA_RSP_DATA + ULTRA_LT_POWER_UPS, 531u);
+        ultra_put16(a + ULTRA_RSP_DATA + ULTRA_LT_OVERLOAD_TRIPS, 5u);
+        ultra_put16(a + ULTRA_RSP_DATA + ULTRA_LT_SHORT_TRIPS, 1u);
+        ultra_put24(a + ULTRA_RSP_DATA + ULTRA_LT_DIPS, 22u);
+        ultra_put32(a + ULTRA_RSP_DATA + ULTRA_LS_A_TOTAL_WH, 9050u);
+        a[ULTRA_RSP_DATA + ULTRA_LS_A_RESULT] = ULTRA_LS_R_APPLIED;
+        a[ULTRA_RSP_DATA + ULTRA_LS_A_APPLIED] = ULTRA_LS_F_POWERED | ULTRA_LS_F_LIT | ULTRA_LS_F_UPS |
+                                                 ULTRA_LS_F_TRIPS | ULTRA_LS_F_DIPS | ULTRA_LS_F_WH;
+        ultra_put16(a + ULTRA_RSP_DATA + ULTRA_LS_A_RECORDS, 7u);
+        ultra_put16(a + 30, ultra_crc16(a, 30));
+        answer_vector("answer_life_sync_applied", "LIFE_SYNC answer, APPLIED (0.2.6)",
+                      "The answer to slot_poll_life_sync from a board that was behind in every field by less than its "
+                      "step (before: powered 10000 x 0.1 h, lit 4000 x 0.1 h, 501 power-ups, trips 3 / 1, 20 dips, "
+                      "9000 Wh; RECORDS 7): DATA 0-15 the LIFETIME counters after the merge (the ledger's), 16-19 the "
+                      "lifetime energy 9050 Wh, 20 the result 0 APPLIED, 21 the counters raised 0x3F (powered, lit, "
+                      "power-ups, trips, dips, energy), 22-23 RECORDS 7. Index 0, RFLAGS 0, SEQ 0x65, UID16 0x1234.",
+                      a);
+    }
 
     fprintf(js, "\n  ]\n}\n");
     fclose(md);

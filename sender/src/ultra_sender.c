@@ -1239,6 +1239,22 @@ int ultra_sender_light_opt(ultra_sender_t *l, uint16_t board, uint8_t light, con
     return ULTRA_OK;
 }
 
+/* A SET slot as ultra_slot_set() builds it (start offset 0), without its CRC: every SET has a start, so finish_
+ * stamps and seals it in each frame that carries it (the first pass seals every stamped slot). One CRC less per
+ * set() / stream() (review round 10, O3 #6). */
+static void set_fill(uint8_t *s, uint8_t light, uint8_t seq, uint8_t flags, const ultra_values_t *v, uint32_t dur_ms)
+{
+    uint8_t *p = s + ULTRA_PAYLOAD;
+    uint32_t i;
+    ultra_slot_begin(s, ULTRA_SET, light, (uint8_t)(flags & ULTRA_SET_FLAGS), seq);
+    ultra_put16(p, v->m);
+    for (i = 0; i < 5u; i++) {
+        ultra_put16(p + 2 + 2 * i, v->a[i]);
+        ultra_put16(p + 12 + 2 * i, v->b[i]);
+    }
+    ultra_put24(p + 22, dur_ms > 0xFFFFFFu ? 0xFFFFFFu : dur_ms);
+}
+
 /* SET with an absolute start, or (autostart) the group start for now_us, taken once the command is accepted */
 static int set_impl(ultra_sender_t *l, uint16_t board, uint8_t light, const ultra_values_t *v, uint32_t transition_ms,
                     uint8_t flags, int64_t t_us, int autostart)
@@ -1254,7 +1270,7 @@ static int set_impl(ultra_sender_t *l, uint16_t board, uint8_t light, const ultr
     if (it == 0) {
         return ULTRA_ERR_FULL;
     }
-    ultra_slot_set(it->slot, light, next_seq(b, it), flags, v->m, v->a, v->b, transition_ms, 0);
+    set_fill(it->slot, light, next_seq(b, it), flags, v, transition_ms);
     it->q.flags = IT_VALID;
     it_set_start(it, autostart ? ultra_sender_start_time(l, board, t_us) : t_us);
     q_put(l, b, &it->q, 0, 1);
@@ -1286,7 +1302,7 @@ int ultra_sender_stream(ultra_sender_t *l, uint16_t board, uint8_t light, const 
     if (it == 0) {
         return ULTRA_ERR_FULL;
     }
-    ultra_slot_set(it->slot, light, next_seq(b, it), 0, v->m, v->a, v->b, glide_ms, 0);
+    set_fill(it->slot, light, next_seq(b, it), 0, v, glide_ms);
     it->q.flags = IT_VALID | IT_STREAM;
     it_set_start(it, now_us + stream_lead(l));
     it->aux = glide_ms;

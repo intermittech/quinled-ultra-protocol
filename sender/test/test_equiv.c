@@ -8,6 +8,8 @@
  *    division helper) on random frames, timings, starts and hints: the same slots, header and TIME;
  *  - recent_start / phase_start (a period's whole multiples), pwm_for_hz, the RMT tick conversions, frame_max_us and
  *    the SPI encoder.
+ * Round 11 (CPU, no behaviour change): finish_ counting the 1 bits once and skipping unchanged SETs (the pipeline test
+ * above), set_fill (a SET without its CRC at queue time) + the seal = the header's ultra_slot_set.
  * The library's sources are compiled into this file (their static functions). Usage: test_equiv [rounds]
  */
 #include <stdio.h>
@@ -376,6 +378,30 @@ static void test_bits(uint32_t rounds)
           "%u different", rounds * 40u, bad);
 }
 
+/* round 11: set_fill + ultra_slot_seal = ultra_slot_set (finish_ seals every SET it sends) */
+static void test_set_fill(uint32_t rounds)
+{
+    uint32_t i, j, bad = 0;
+    for (i = 0; i < rounds * 20u; i++) {
+        ultra_values_t v;
+        uint8_t a[ULTRA_SLOT_BYTES], b[ULTRA_SLOT_BYTES];
+        const uint8_t light = (uint8_t)(r32() % 16u), seq = (uint8_t)r32(), flags = (uint8_t)r32();
+        const uint32_t dur = (r32() & 1u) ? r32() : r32() % 0x1000000u;
+        v.m = (uint16_t)r32();
+        for (j = 0; j < 5u; j++) {
+            v.a[j] = (uint16_t)r32();
+            v.b[j] = (uint16_t)r32();
+        }
+        memset(a, 0xA5, sizeof a);
+        set_fill(a, light, seq, flags, &v, dur);
+        ultra_slot_seal(a);
+        ultra_slot_set(b, light, seq, flags, v.m, v.a, v.b, dur, 0);
+        bad += memcmp(a, b, sizeof a) != 0;
+    }
+    CHECK(bad == 0u, "set_fill + the seal = ultra_slot_set: %u random SETs (values, flags, durations over 24 bits), %u "
+          "different", rounds * 20u, bad);
+}
+
 int main(int argc, char **argv)
 {
     const uint32_t rounds = argc > 1 ? (uint32_t)atoi(argv[1]) : 20000u;
@@ -383,6 +409,7 @@ int main(int argc, char **argv)
     test_finish(rounds / 4u);
     test_periods(rounds);
     test_bits(rounds);
+    test_set_fill(rounds);
     printf("%s: %d checks, %d failures\n", failures ? "FAILED" : "ALL EQUIVALENCE TESTS PASSED", checks, failures);
     return failures ? 1 : 0;
 }

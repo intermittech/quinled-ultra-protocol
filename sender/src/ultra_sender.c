@@ -681,7 +681,7 @@ static int64_t solve_header(ultra_sender_t *l, int64_t start_us, uint8_t *out, i
     for (; r <= hi; r++) {
         uint32_t k, m, err, d;
         ultra_build_header_flags(h, s32 + r, l->hdr_flags);
-        k = ones_in(h + 3, 5);
+        k = p0 == p1 ? 0u : ones_in(h + 3, 5);   /* (equal periods, e.g. SPI: the 1 bits don't change the time) */
         m = (fixed + k * p1 + (40u - k) * p0 - ((h[7] & 1u) ? tm->t1l_ns : tm->t0l_ns) + 500u) / 1000u;
         err = m > r ? m - r : r - m;
         d = r > rh ? r - rh : rh - r;
@@ -739,6 +739,7 @@ int64_t ultra_sender_finish_(ultra_sender_t *l, int64_t start_us, uint8_t *out)
     const uint32_t bytes = ultra_frame_bytes(l->n);
     const ultra_timing_t *tm = &l->timing;
     const uint32_t avg = ((uint32_t)tm->t0h_ns + tm->t0l_ns + tm->t1h_ns + tm->t1l_ns) / 2u;
+    const int equal = (uint32_t)tm->t0h_ns + tm->t0l_ns == (uint32_t)tm->t1h_ns + tm->t1l_ns;
     int64_t t = start_us + (int64_t)(bytes * 8u * avg / 1000u), sol = t, best_t = t, best_err = INT64_MAX;
     uint32_t pass, ones = 0;
     for (pass = 0; pass < STAMP_PASSES; pass++) {
@@ -746,7 +747,7 @@ int64_t ultra_sender_finish_(ultra_sender_t *l, int64_t start_us, uint8_t *out)
         if (pass == 0) {
             stamp_slots(l, t, out, 1);
             ultra_build_header_flags(out + ULTRA_SLOT_BYTES * l->n, 0, l->hdr_flags);   /* (the fixed bytes) */
-            ones = ones_in(out, ULTRA_SLOT_BYTES * l->n + 3u);
+            ones = equal ? 0u : ones_in(out, ULTRA_SLOT_BYTES * l->n + 3u);   /* (equal periods: not needed) */
         } else {
             ones = (uint32_t)((int32_t)ones + stamp_slots(l, t, out, 0));
         }

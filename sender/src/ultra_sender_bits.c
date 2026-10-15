@@ -51,6 +51,9 @@ uint64_t ultra_wire_ns(const ultra_timing_t *t, const uint8_t *bytes, uint32_t n
     if (n == 0u) {
         return 0;
     }
+    if ((uint32_t)t->t0h_ns + t->t0l_ns == (uint32_t)t->t1h_ns + t->t1l_ns) {   /* equal periods (SPI): no counting */
+        return (uint64_t)n * 8u * ((uint32_t)t->t0h_ns + t->t0l_ns) - ((bytes[n - 1u] & 1u) ? t->t1l_ns : t->t0l_ns);
+    }
     for (i = 0; i < n; i++) {
         uint32_t v;
         for (v = bytes[i]; v != 0u; v &= v - 1u) {
@@ -179,17 +182,17 @@ int ultra_spi_timing(uint32_t spi_hz, ultra_timing_t *t)
 
 uint32_t ultra_spi_encode(const uint8_t *bytes, uint32_t nbytes, uint8_t *out)
 {
-    uint32_t i, b;
+    /* a nibble's 4 bits as 4 x 5 SPI bits ('1' 11100, '0' 10000), MSB first */
+    static const uint32_t nib[16] = { 0x84210u, 0x8421Cu, 0x84390u, 0x8439Cu, 0x87210u, 0x8721Cu, 0x87390u,
+                                      0x8739Cu, 0xE4210u, 0xE421Cu, 0xE4390u, 0xE439Cu, 0xE7210u, 0xE721Cu,
+                                      0xE7390u, 0xE739Cu };
+    uint32_t i;
     for (i = 0; i < nbytes; i++) {
-        uint32_t hi = 0, lo = 0;                         /* 8 bits x 5 SPI bits = 40 bits: hi = bits 39..32 */
+        const uint32_t hi = nib[bytes[i] >> 4], lo = nib[bytes[i] & 15u];   /* 20 SPI bits each */
         uint8_t *o = out + 5u * i;
-        for (b = 0; b < 8u; b++) {
-            hi = (hi << 5) | (lo >> 27);
-            lo = (lo << 5) | (((bytes[i] >> (7u - b)) & 1u) ? 0x1Cu : 0x10u);   /* 11100 / 10000 */
-        }
-        o[0] = (uint8_t)hi;
-        o[1] = (uint8_t)(lo >> 24);
-        o[2] = (uint8_t)(lo >> 16);
+        o[0] = (uint8_t)(hi >> 12);
+        o[1] = (uint8_t)(hi >> 4);
+        o[2] = (uint8_t)((hi << 4) | (lo >> 16));
         o[3] = (uint8_t)(lo >> 8);
         o[4] = (uint8_t)lo;
     }

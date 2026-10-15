@@ -9,7 +9,9 @@
  *  - recent_start / phase_start (a period's whole multiples), pwm_for_hz, the RMT tick conversions, frame_max_us and
  *    the SPI encoder.
  * Round 11 (CPU, no behaviour change): finish_ counting the 1 bits once and skipping unchanged SETs (the pipeline test
- * above), set_fill (a SET without its CRC at queue time) + the seal = the header's ultra_slot_set.
+ * above), set_fill (a SET without its CRC at queue time) + the seal = the header's ultra_slot_set; the SPI encoder's
+ * nibble table (above) and the equal-period shortcut (no 1-bit count when '0' and '1' take as long: finish_ with
+ * equal-period timings above, ultra_wire_ns against its old code).
  * The library's sources are compiled into this file (their static functions). Usage: test_equiv [rounds]
  */
 #include <stdio.h>
@@ -232,6 +234,24 @@ static uint32_t old_frame_max_us(const ultra_timing_t *t, uint32_t bytes)
     return (uint32_t)((uint64_t)bytes * 8u * worst / 1000u) + t->reset_ns / 1000u;
 }
 
+static uint64_t old_wire_ns(const ultra_timing_t *t, const uint8_t *bytes, uint32_t n)
+{
+    uint32_t i, ones = 0;
+    uint64_t bits, all;
+    if (n == 0u) {
+        return 0;
+    }
+    for (i = 0; i < n; i++) {
+        uint32_t v;
+        for (v = bytes[i]; v != 0u; v &= v - 1u) {
+            ones++;
+        }
+    }
+    bits = (uint64_t)n * 8u;
+    all = (uint64_t)ones * ((uint32_t)t->t1h_ns + t->t1l_ns) + (bits - ones) * ((uint32_t)t->t0h_ns + t->t0l_ns);
+    return all - ((bytes[n - 1u] & 1u) ? t->t1l_ns : t->t0l_ns);   /* the last bit ends with its falling edge */
+}
+
 static uint32_t old_spi_encode(const uint8_t *bytes, uint32_t nbytes, uint8_t *out)
 {
     uint32_t i, b;
@@ -284,7 +304,14 @@ static void test_finish(uint32_t rounds)
         const int64_t start = (int64_t)(r64() >> pick(2, 40)) - (int64_t)((r32() & 1u) ? 0u : r32());
         int64_t to, tn;
         ultra_sender_config_init(&c, n, 1);
-        if (r32() & 1u) {
+        if (r32() % 3u == 0u) {                  /* equal periods (SPI, a constant bit period) */
+            do {
+                c.timing.t0h_ns = (uint16_t)pick(220, 380);
+                c.timing.t0l_ns = (uint16_t)pick(450, (r32() & 1u) ? 1500u : 9000u);
+                c.timing.t1h_ns = (uint16_t)pick(580, 2000);
+                c.timing.t1l_ns = (uint16_t)((uint32_t)c.timing.t0h_ns + c.timing.t0l_ns - c.timing.t1h_ns);
+            } while (ultra_timing_check(&c.timing) != 0);
+        } else if (r32() & 1u) {
             c.timing.t0h_ns = (uint16_t)pick(220, 380);
             c.timing.t0l_ns = (uint16_t)pick(450, (r32() & 1u) ? 1500u : 10000u);
             c.timing.t1h_ns = (uint16_t)pick(580, 2000);
@@ -402,6 +429,32 @@ static void test_set_fill(uint32_t rounds)
           "different", rounds * 20u, bad);
 }
 
+/* round 11: ultra_wire_ns with its equal-period shortcut against the old count (random bytes, lengths, timings) */
+static void test_wire(uint32_t rounds)
+{
+    static uint8_t buf[2056];
+    uint32_t i, j, bad = 0, equal = 0;
+    for (i = 0; i < rounds; i++) {
+        ultra_timing_t t;
+        const uint32_t n = pick(0, sizeof buf);
+        t.t0h_ns = (uint16_t)r32();
+        t.t0l_ns = (uint16_t)r32();
+        t.t1h_ns = (uint16_t)r32();
+        t.t1l_ns = (uint16_t)r32();
+        t.reset_ns = r32();
+        if (r32() & 1u) {                        /* equal periods (with 16-bit wrap: the fields' own) */
+            t.t1l_ns = (uint16_t)((uint32_t)t.t0h_ns + t.t0l_ns - t.t1h_ns);
+        }
+        equal += (uint32_t)t.t0h_ns + t.t0l_ns == (uint32_t)t.t1h_ns + t.t1l_ns;
+        for (j = 0; j < n; j++) {
+            buf[j] = (uint8_t)r32();
+        }
+        bad += ultra_wire_ns(&t, buf, n) != old_wire_ns(&t, buf, n);
+    }
+    CHECK(bad == 0u, "ultra_wire_ns (equal-period shortcut) = the old count: %u frames (%u with equal periods), %u "
+          "different", rounds, equal, bad);
+}
+
 int main(int argc, char **argv)
 {
     const uint32_t rounds = argc > 1 ? (uint32_t)atoi(argv[1]) : 20000u;
@@ -410,6 +463,7 @@ int main(int argc, char **argv)
     test_periods(rounds);
     test_bits(rounds);
     test_set_fill(rounds);
+    test_wire(rounds / 4u);
     printf("%s: %d checks, %d failures\n", failures ? "FAILED" : "ALL EQUIVALENCE TESTS PASSED", checks, failures);
     return failures ? 1 : 0;
 }

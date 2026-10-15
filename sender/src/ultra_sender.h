@@ -171,6 +171,7 @@ typedef struct {
     uint8_t  id_seq, id_val, id_arg;
     uint8_t  lights, clr_seq, clr_pos, clr_mask;
     uint8_t  urgent_run, f_floor, poll_seq;
+    uint8_t  clr_round;                /* refresh rounds since init / resync / set_lights: 0..6, then 3..6 again */
 } ultra_sender_board_t;
 
 struct ultra_sender;

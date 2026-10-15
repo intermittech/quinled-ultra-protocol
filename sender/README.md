@@ -113,7 +113,7 @@ item pool is full; nothing changed, the group's start neither).
 | `ultra_sender_config_init(&cfg, boards, lights)` | Defaults: 3 copies, refresh 200 ms, start delay auto, recommended timing, unused light indices cleared. |
 | `ultra_sender_init(&line, &cfg, boards[], items[], n_items)` | 1-64 boards. Starts with the preamble; queue the lights' state right away (automatic starts count the preamble in). |
 | `ultra_sender_deinit(&line)` | Leaves its group, takes no more commands or frames; before initializing it again or dropping it. |
-| `ultra_sender_set_lights(&line, board, n)` | Lights in use on one board (0-5); the others are cleared (empty LIGHT_DEF, SCENE 0, no power-on effect). |
+| `ultra_sender_set_lights(&line, board, n)` | Lights in use on one board (0-5); the others are cleared (empty LIGHT_DEF, SCENE 0, no power-on effect): 3 copies, then in the refresh's first 3 rounds after init, a resync or a change of `n`, then in every 4th round (a 1-light board's SET every ~1.2 s at rest, not ~3 s). |
 | `ultra_sender_next_frame(&line, now_us, buf)` | The next frame if one is due, else 0. Back to back while commands wait, every `refresh_ms` at rest. |
 | `ultra_sender_retime(&line, now_us, buf)` | The last frame couldn't be sent: the same slots with a new TIME (don't build another: `next_frame()` took its copies from the queues). |
 | `ultra_sender_busy()`, `ultra_sender_due_us()` | When to call again. |
@@ -337,7 +337,12 @@ python sender/test/run_tests.py
 - **`test_cpp`:** the C++ wrapper at run time: capacity, no copy / move, begin again, group teardown.
 - **`test_equiv`:** the arithmetic the size pass changed (round 9) against its old code, kept verbatim in the test:
   the division helper against 64-bit division, the whole TIME / start-offset pipeline on random frames, the effects'
-  phase, the PWM presets, the RMT ticks, the frame time and the SPI encoder: identical results.
+  phase, the PWM presets, the RMT ticks, the frame time and the SPI encoder: identical results. Round 11's CPU pass
+  too: the 1 bits counted once per frame and unchanged SETs not sealed again, no CRC at queue time, the SPI nibble
+  table and the equal-period shortcut (SPI timing): the same frames.
+- **`test_rotation`:** the refresh rotation round by round (the clearing slots in rounds 0, 1, 2, 6, 10, ... after
+  init, a light-count change and a resync, each reset mid-round), against `test/rotation_trace.txt`: the golden that
+  ESPHome's scheduler matches line for line.
 - **`test_rmt`:** `ultra_esp32_rmt.h` against a mocked ESP-IDF RMT driver (refusing what ESP-IDF refuses): the IRAM
   encoder's symbols, unwinding a failed set-up, OK / not sent / aborted after a stall / stuck, and `end()` keeping
   everything while the channel can't be stopped or a transaction is still in flight.
@@ -349,9 +354,9 @@ python sender/test/run_tests.py
   set to the vector's TIME, byte for byte; the receiver-only vectors with the header's parser; a CONFIG vector whose
   pairs aren't in id order (`slot_config_retry_loss`) as the same pairs (the library packs them in id order).
 - **`test_unit`:** the host rules frame by frame (preamble, copies, order, refresh, NOP, TIME, start offsets, group
-  starts, CONFIG, clearing, power-on, resync, streams, strobe, the pool, the encoders), the wraps of the queue order
-  and the stream history, `ultra_rc_answer()` (valid, junk, A5 in DATA, truncated, corrupt, framing errors), the
-  pulse / RMT / SPI output decoded on its own against TIME, every effect's parameter layout.
+  starts, CONFIG, clearing and its rotation, power-on, resync, streams, strobe, the pool, the encoders), the wraps of
+  the queue order and the stream history, `ultra_rc_answer()` (valid, junk, A5 in DATA, truncated, corrupt, framing
+  errors), the pulse / RMT / SPI output decoded on its own against TIME, every effect's parameter layout.
 - **`test_sim_rx`:** the same firmware built as the Diff-Power Ultra-Analog receiver (`BOARD=2`). LIFE_SYNC: the library's POLL
   through the line's RW frame into the receiver's own merge (`energy_sync`) and answer, read back with the accessors:
   merged once per power-up, a wrong UID16 or RECORDS byte merges nothing, a ledger behind lowers nothing. The power-off

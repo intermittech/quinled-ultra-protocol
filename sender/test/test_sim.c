@@ -595,6 +595,7 @@ static uint32_t spread(double t, uint8_t la, uint8_t lc, uint16_t *lo_out)
 static int has_breathe(const ultra_light_t *L) { return L->fx == ULTRA_FX_BREATHE || (L->pend && L->pend_fx == ULTRA_FX_BREATHE); }
 static int has_strobe(const ultra_light_t *L) { return L->fx == ULTRA_FX_STROBE && L->step_have == 0x07u; }
 static int has_ramp(const ultra_light_t *L) { return L->cur.to.m == 0u; }
+static int has_stop(const ultra_light_t *L) { return L->fx == ULTRA_FX_NONE && !L->pend; }
 
 /* both lines run on; every `every_ms` the spread of all lights at that moment: the worst, and how often 0 */
 static uint32_t have_min;                        /* the fewest lights that had the command at a sample */
@@ -704,7 +705,7 @@ static int cmd_ramp(line_t *p, uint16_t b, uint8_t l)
 static void in_step(void)
 {
     ultra_sender_group_t g;
-    double worst = 0, t0;
+    double worst = 0, t0, t1;
     uint32_t k, equal = 0, samples = 0;
     uint16_t b, lo;
     line_init(&A, 50, 5, 5, 0.02);
@@ -746,9 +747,14 @@ static void in_step(void)
           "%u lights with all steps)", equal, samples, have_n);
     printf("  strobe (3 steps, 450 ms), same lines: all 260 lights have every step %.1f s after the calls, then on the "
            "same step in %u of %u samples (1 ms apart)\n", t0 / 1000.0, equal, samples);
-    /* a 2 s ramp to off, after the effect stops: every light starts it at the same moment */
+    /* a 2 s ramp to off, after the effect stops: every light starts it at the same moment. A light that lost every copy
+     * of the stop (10 % loss: ~1 in 1000 per light and call) gets it from the refresh first: the ramp under a strobe
+     * that still runs isn't the ramp being measured */
     calls(cmd_stop);
     run2(&A, &C, 3000);
+    has_cmd = has_stop;
+    t1 = until_all(60000.0);
+    CHECK(have_n == 260u, "the stop: all 260 lights (%u), %.1f s after the first 3 s", have_n, t1 / 1000.0);
     calls(cmd_ramp);
     has_cmd = has_ramp;
     t0 = A.now;
@@ -757,9 +763,9 @@ static void in_step(void)
     (void)spread((A.now > C.now ? A.now : C.now), 5, 1, &lo);
     /* 2 s from 65535 to 0: ~33 counts per ms */
     CHECK(worst <= 33.0 * 2.0 + 10.0 && lo == 0u, "SET ramp: spread %.0f counts during the ramp, end %u", worst, lo);
-    printf("  SET ramp (2 s to off) after the effect stops, same lines: the lights that have it (late copies "
-           "included) within %.0f counts (~%.1f ms); %.0f ms after the calls all 260 at 0\n", worst, worst / 33.0,
-           (A.now - t0) / 1000.0);
+    printf("  SET ramp (2 s to off) after the effect stops (on every light %.1f s after the first 3 s), same lines: the "
+           "lights that have it (late copies included) within %.0f counts (~%.1f ms); %.0f ms after the calls all 260 "
+           "at 0\n", t1 / 1000.0, worst, worst / 33.0, (A.now - t0) / 1000.0);
 
     /* 4. power cycles: 5 boards of line A restart (they ran Ultra: sticky); the refresh brings back their breathe */
     calls(cmd_on);

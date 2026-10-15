@@ -3,10 +3,10 @@
  *
  * The sender library's host rules, frame by frame (wiki: Host behaviour, Timing and clock): the preamble, 3 copies,
  * first copies first, a newer command replacing a queued one, the refresh at rest, NOP, every 16th slot a refresh,
- * TIME from the frame's bits, start offsets, group starts, CONFIG slots, clearing unused lights, power-on, resync,
- * streams, long-running starts, the pool, argument checks and the bit encoders; and what review round 7 asked for:
- * the queue order's and the stream history's wrap, the return channel's answer decoding, the encoders' output
- * decoded on its own against TIME, every effect's parameter layout, the refusals.
+ * TIME from the frame's bits, start offsets, group starts, CONFIG slots, clearing unused lights (and their refresh
+ * rotation, round 11), power-on, resync, streams, long-running starts, the pool, argument checks and the bit encoders;
+ * and what review round 7 asked for: the queue order's and the stream history's wrap, the return channel's answer
+ * decoding, the encoders' output decoded on its own against TIME, every effect's parameter layout, the refusals.
  */
 #include <stdio.h>
 #include <string.h>
@@ -450,6 +450,37 @@ static void test_clear_unused(void)
         }
     }
     CHECK(i < 20u, "light 2's LIGHT_DEF goes out");
+}
+
+/* round 11, the refresh rotation: a 1-light board's clearing slots (4 unused lights x 3) in the first 3 refresh rounds,
+ * then in every 4th: at rest its SET every 5 refresh frames (a round without them: LIGHT_DEF + SET; 4 rounds + 12
+ * clearing slots = 20 frames), not every 14 (test_rotation: round by round) */
+static void test_refresh_rotation(void)
+{
+    uint32_t i, sets = 0, clears = 0, late_sets = 0, late_clears = 0, run = 0, longest = 0;
+    ultra_values_t v = val(5000);
+    mk(1, 1, 1, NI);
+    pre();
+    def_mono(0, 0);
+    ultra_sender_set(&L, 0, 0, &v, 0, 0, now);
+    drain();
+    for (i = 0; i < 400u; i++) {
+        const uint8_t *s = slot(0);
+        int clr;
+        now = ultra_sender_due_us(&L);
+        CHECK(fr() != 0u, "a refresh frame");
+        clr = (s[1] >> 4) >= 1u && (s[1] >> 4) < ULTRA_LIGHTS;
+        sets += s[0] == ULTRA_SET;
+        clears += clr;
+        late_sets += i >= 200u && s[0] == ULTRA_SET;
+        late_clears += i >= 200u && clr;
+        run = clr ? run + 1u : 0u;
+        longest = run > longest ? run : longest;
+    }
+    CHECK(late_sets == 40u && late_clears == 120u, "at rest: 40 SETs and 120 clearing slots in 200 refresh frames (%u, "
+          "%u)", late_sets, late_clears);
+    CHECK(sets >= 75u && clears >= 230u && longest == 12u, "from the start: %u SETs in 400 frames, %u clearing slots, "
+          "12 in a row (%u)", sets, clears, longest);
 }
 
 /* 0.2.6, the planned power-off notice: every board's slot, 3 copies with one SEQ per board, >= 50 ms apart, before
@@ -1101,6 +1132,7 @@ int main(void)
     test_group();
     test_config();
     test_clear_unused();
+    test_refresh_rotation();
     test_power_and_resync();
     test_power_off();
     test_stream();

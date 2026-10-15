@@ -305,6 +305,8 @@ static void build_clear(const ultra_sender_board_t *b, uint32_t j, uint8_t *s)
 /* (re)queue the clearing slots: one round per copy */
 static void clear_put(ultra_sender_t *l, ultra_sender_board_t *b)
 {
+    b->clr_round = 0;                            /* (the refresh: 3 complete rounds with them from here) */
+    b->rr = 0;
     if (clear_slots(l, b) == 0u) {
         q_drop(l, b, &b->clr_q, 0);
         return;
@@ -853,23 +855,37 @@ static int take_urgent(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t *s, i
     }
 }
 
-/* The next item of the board's refresh list: its CONFIG slots, the clearing slots of its unused lights, then its
- * lights' items in order (LIGHT_DEF, LIGHT_OPT, SET, EFFECT, SCENE, SCENE_EFFECT, STEPs). */
+/* The refresh rotation (shared with ESPHome's scheduler, round 11): the clearing slots of a board's unused lights are
+ * part of its first 3 refresh rounds after init, a resync or a change of its light count, then of every 4th round:
+ * rounds 0, 1, 2, 6, 10, 14, ... (clr_round runs 0..6, then 3..6 again). A board with 1 light refreshes its SET
+ * every ~1.2 s instead of ~3 s. */
+#define CLR_ROUND(r) ((r) < 3u || (r) == 6u)
+
+/* The next item of the board's refresh list: its CONFIG slots, the clearing slots of its unused lights (in the
+ * rounds above), then its lights' items in order (LIGHT_DEF, LIGHT_OPT, SET, EFFECT, SCENE, SCENE_EFFECT, STEPs). A
+ * round ends when the position wraps to the start. */
 static int take_refresh(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t *s, int64_t now_us)
 {
-    const uint32_t pages = cfg_pages(b), clears = clear_slots(l, b);
-    uint32_t items = 0, total, tries;
+    const uint32_t pages = cfg_pages(b);
+    uint32_t items = 0, total, tries, clears;
     uint16_t i;
     for (i = b->first; i != END; i = l->items[i].next) {
         items++;
     }
-    total = pages + clears + items;
-    for (tries = 0; tries < total; tries++) {
+    for (tries = 0; tries < pages + clear_slots(l, b) + items; tries++) {
         uint32_t pos = b->rr;
+        clears = CLR_ROUND(b->clr_round) ? clear_slots(l, b) : 0u;
+        total = pages + clears + items;
         b->rr = (uint16_t)(pos + 1u >= total ? 0u : pos + 1u);
         if (pos >= total) {
             pos = 0;
             b->rr = total > 1u ? 1u : 0u;
+        }
+        if (b->rr == 0u) {                       /* this round's last position: the next one starts */
+            b->clr_round = (uint8_t)(b->clr_round >= 6u ? 3u : b->clr_round + 1u);
+        }
+        if (total == 0u) {                       /* (only clearing slots, outside their rounds) */
+            continue;
         }
         if (pos < pages) {
             build_config(b, pos, s);

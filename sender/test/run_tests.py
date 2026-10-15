@@ -15,6 +15,8 @@
    - test_cpp: the C++ wrapper at run time;
    - test_rmt: the ESP32 RMT helper (ultra_esp32_rmt.h) against a mocked ESP-IDF RMT driver;
    - test_equiv: the arithmetic of the size pass (round 9) against its old code, kept verbatim in the test;
+   - test_rotation: the refresh rotation (round 11: clearing slots in rounds 0, 1, 2, then every 4th) round by round,
+     against the golden trace test/rotation_trace.txt that ESPHome's host test writes the same way;
    - test_sim: the library's frames through the board firmware's own receive path and light engine (frame_rx.c,
      proto.c, ultra.c), 1-64 boards, frame loss, power cycles, group starts. Needs the firmware sources: --firmware,
      ULTRA_FIRMWARE, or a checkout next to this repository; skipped (with a note) when there is none, a failure with
@@ -23,8 +25,8 @@
      test_sim_rx: the same firmware built as the Diff-Power Ultra receiver (BOARD=2): the power-off notice, and
      LIFE_SYNC into the receiver's own merge (energy.c and what it needs);
    - examples/host_minimal.c builds and runs;
-   - asan: test_unit, test_vectors, test_review, test_cpp and test_rmt again under AddressSanitizer (MSVC
-     /fsanitize=address; gcc / clang: -fsanitize=address,undefined).
+   - asan: test_unit, test_vectors, test_review, test_cpp, test_rmt, test_equiv and test_rotation again under
+     AddressSanitizer (MSVC /fsanitize=address; gcc / clang: -fsanitize=address,undefined).
 3. Code size (cross compilers found): the library's .text at -Os for ESP32 (Xtensa) and RV32IMC.
 4. The package (`--only manifests`, CI-friendly): library.json, library.properties, idf_component.yml and CMakeLists.txt
    list exactly the sources and headers in src/, every version is the protocol release of src/ultra_protocol.h, that
@@ -422,7 +424,7 @@ def main():
     ap.add_argument("--firmware", help="the board firmware (its src/core): frame_rx.c, proto.c, ultra.c")
     ap.add_argument("--skip-cross", action="store_true", help="no cross-compiler warnings / size check")
     ap.add_argument("--only", help="comma list of steps: manifests, warnings, cross, vectors, unit, review, cpp, rmt, "
-                                   "equiv, minimal, sim, asan")
+                                   "equiv, rotation, minimal, sim, asan")
     ap.add_argument("--release", action="store_true",
                     help="a release check: a step that can't run (no firmware for sim) is a failure, not a note")
     ap.add_argument("--sync-header", action="store_true", help="copy include/ultra_protocol.h into src/ and stop")
@@ -460,6 +462,9 @@ def main():
                 False),
         # round 9: the changed arithmetic against its old code, verbatim (the library's sources compiled in)
         "equiv": ("test_equiv", [HERE / "test_equiv.c"], lib_incs, [], (), False),
+        # round 11: the refresh rotation, round by round, against the golden trace ESPHome's host test shares
+        "rotation": ("test_rotation", [HERE / "test_rotation.c"], lib_incs, [str(HERE / "rotation_trace.txt")], (),
+                     False),
     }
     for step, (name, srcs, incs, args, defines, cpp) in host.items():
         if want(step):
@@ -503,7 +508,7 @@ def main():
 
     if want("asan"):
         # the same tests under AddressSanitizer (the library's memory use; UBSan too with gcc / clang)
-        for step in ("unit", "vectors", "review", "cpp", "rmt", "equiv"):
+        for step in ("unit", "vectors", "review", "cpp", "rmt", "equiv", "rotation"):
             name, srcs, incs, args, defines, cpp = host[step]
             build_run(kind, cc, name, srcs, incs, args, defines, cpp=cpp, asan=True)
 

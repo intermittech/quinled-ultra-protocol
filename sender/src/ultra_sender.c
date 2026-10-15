@@ -590,11 +590,32 @@ int ultra_sender_set_lights(ultra_sender_t *l, uint16_t board, uint8_t lights)
  * TIME (a streamed SET starts when it arrives, at the latest). A SET that started more than 32.8 s ago (a long
  * transition refreshed to a board that missed it) starts at that limit with its duration shortened by the rest: it
  * still ends on time. */
-static void stamp(uint8_t *s, int64_t start_us, int64_t hdr_us, int floor, uint32_t duration)
+static uint32_t ones_in(const uint8_t *d, uint32_t n)
+{
+    static const uint8_t t[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
+    uint32_t i, k = 0;
+    for (i = 0; i < n; i++) {
+        k += (uint32_t)t[d[i] & 15u] + t[d[i] >> 4];
+    }
+    return k;
+}
+
+/* the 1 bits of a slot's bytes that stamp and its seal can change: an EFFECT's offset (4..7), a SET's duration,
+ * offset (25..29) and the CRC (30, 31) */
+static uint32_t stamp_ones(const uint8_t *s)
+{
+    return ones_in(s + 4, 4) + ones_in(s + 25, 7);
+}
+
+/* Returns the change of the slot's 1 bits (finish_ keeps the frame's count up to date). force: seal, and count
+ * nothing (the first pass: a copied slot's CRC may be stale, e.g. a stream's patched glide; the caller counts the
+ * whole frame). Later passes leave a SET whose bytes don't change as it is: its CRC holds. */
+static int32_t stamp(uint8_t *s, int64_t start_us, int64_t hdr_us, int floor, uint32_t duration, int force)
 {
     int64_t d, ms;
+    uint32_t before = 0;
     if (start_us == ULTRA_NO_START) {
-        return;
+        return 0;
     }
     d = (floor && start_us < hdr_us) ? 0 : start_us - hdr_us;
     ms = d >= 0 ? (int64_t)ultra_udiv64_((uint64_t)d + 500u, 1000u)
@@ -604,35 +625,38 @@ static void stamp(uint8_t *s, int64_t start_us, int64_t hdr_us, int floor, uint3
             const uint64_t lost = (uint64_t)(-32768 - ms);
             duration = lost >= duration ? 0u : duration - (uint32_t)lost;
         }
-        ultra_put24(s + ULTRA_PAYLOAD + 22, duration);
         ms = ms < -32768 ? -32768 : ms > 32767 ? 32767 : ms;
+        if (!force && ultra_get24(s + ULTRA_PAYLOAD + 22) == duration &&
+            ultra_get16(s + ULTRA_PAYLOAD + 25) == (uint16_t)(int16_t)ms) {
+            return 0;
+        }
+        before = force ? 0u : stamp_ones(s);
+        ultra_put24(s + ULTRA_PAYLOAD + 22, duration);
         ultra_put16(s + ULTRA_PAYLOAD + 25, (uint32_t)(uint16_t)(int16_t)ms);
-    } else if (s[0] == ULTRA_EFFECT) {
-        ms = ms < INT32_MIN ? INT32_MIN : ms > INT32_MAX ? INT32_MAX : ms;
-        ultra_put32(s + ULTRA_PAYLOAD + 1, (uint32_t)(int32_t)ms);
+    } else {
+        if (!force && s[0] != ULTRA_EFFECT) {
+            return 0;                            /* (no offset: sealed in the first pass) */
+        }
+        before = force ? 0u : stamp_ones(s);
+        if (s[0] == ULTRA_EFFECT) {
+            ms = ms < INT32_MIN ? INT32_MIN : ms > INT32_MAX ? INT32_MAX : ms;
+            ultra_put32(s + ULTRA_PAYLOAD + 1, (uint32_t)(int32_t)ms);
+        }
     }
     ultra_slot_seal(s);
+    return force ? 0 : (int32_t)stamp_ones(s) - (int32_t)before;
 }
 
 /* the slots' start offsets against TIME t */
-static void stamp_slots(ultra_sender_t *l, int64_t t, uint8_t *out)
+static int32_t stamp_slots(ultra_sender_t *l, int64_t t, uint8_t *out, int force)
 {
     uint32_t i;
+    int32_t delta = 0;
     for (i = 0; i < l->n; i++) {
         const ultra_sender_board_t *b = &l->boards[i];
-        stamp(out + ULTRA_SLOT_BYTES * i, b->f_start, t, b->f_floor, b->f_dur);
+        delta += stamp(out + ULTRA_SLOT_BYTES * i, b->f_start, t, b->f_floor, b->f_dur, force);
     }
-}
-
-static uint32_t ones_in(const uint8_t *d, uint32_t n)
-{
-    uint32_t i, k = 0, v;
-    for (i = 0; i < n; i++) {
-        for (v = d[i]; v != 0u; v &= v - 1u) {
-            k++;
-        }
-    }
-    return k;
+    return delta;
 }
 
 /* The header for the slots as they are: the TIME at which a frame carrying that header ends. Its TIME and CRC bits
@@ -640,7 +664,7 @@ static uint32_t ones_in(const uint8_t *d, uint32_t n)
  * recommended timing, ~450 where '0' and '1' differ most), and the one whose frame measures exactly its own TIME is
  * taken, the earliest if several do (none: the one measuring closest, nearest `hint`). The header is written. The
  * search runs in us after start_us (32-bit: a frame lasts < 2^32 ns; hint is one of finish's TIMEs, >= start_us). */
-static int64_t solve_header(ultra_sender_t *l, int64_t start_us, uint8_t *out, int64_t hint)
+static int64_t solve_header(ultra_sender_t *l, int64_t start_us, uint8_t *out, int64_t hint, uint32_t ones)
 {
     const ultra_timing_t *tm = &l->timing;
     const uint32_t lead = ULTRA_SLOT_BYTES * l->n + 3u;          /* the slots and the header's fixed bytes */
@@ -650,9 +674,7 @@ static int64_t solve_header(ultra_sender_t *l, int64_t start_us, uint8_t *out, i
     const uint32_t lmax = tm->t0l_ns < tm->t1l_ns ? tm->t1l_ns : tm->t0l_ns;
     const uint32_t s32 = (uint32_t)start_us, rh = (uint32_t)(hint - start_us);
     uint8_t *h = out + ULTRA_SLOT_BYTES * l->n;
-    uint32_t ones, fixed, r, hi, best = rh, best_err = UINT32_MAX, best_d = UINT32_MAX;   /* (ns, us: < 2^32) */
-    ultra_build_header_flags(h, 0, l->hdr_flags);                /* (MAGIC, VERSION / FLAGS: fixed) */
-    ones = ones_in(out, lead);
+    uint32_t fixed, r, hi, best = rh, best_err = UINT32_MAX, best_d = UINT32_MAX;   /* (ns, us: < 2^32) */
     fixed = ones * p1 + (lead * 8u - ones) * p0;
     r = (fixed + 40u * pmin - lmax) / 1000u - 1u;
     hi = (fixed + 40u * pmax - lmin + 999u) / 1000u + 1u;
@@ -718,11 +740,17 @@ int64_t ultra_sender_finish_(ultra_sender_t *l, int64_t start_us, uint8_t *out)
     const ultra_timing_t *tm = &l->timing;
     const uint32_t avg = ((uint32_t)tm->t0h_ns + tm->t0l_ns + tm->t1h_ns + tm->t1l_ns) / 2u;
     int64_t t = start_us + (int64_t)(bytes * 8u * avg / 1000u), sol = t, best_t = t, best_err = INT64_MAX;
-    uint32_t pass;
+    uint32_t pass, ones = 0;
     for (pass = 0; pass < STAMP_PASSES; pass++) {
         int64_t err;
-        stamp_slots(l, t, out);
-        sol = solve_header(l, start_us, out, t);
+        if (pass == 0) {
+            stamp_slots(l, t, out, 1);
+            ultra_build_header_flags(out + ULTRA_SLOT_BYTES * l->n, 0, l->hdr_flags);   /* (the fixed bytes) */
+            ones = ones_in(out, ULTRA_SLOT_BYTES * l->n + 3u);
+        } else {
+            ones = (uint32_t)((int32_t)ones + stamp_slots(l, t, out, 0));
+        }
+        sol = solve_header(l, start_us, out, t, ones);
         if (sol == t) {
             best_t = t;                          /* the offsets are against the TIME the frame measures */
             best_err = -1;
@@ -736,8 +764,8 @@ int64_t ultra_sender_finish_(ultra_sender_t *l, int64_t start_us, uint8_t *out)
         t = sol;
     }
     if (best_err >= 0) {
-        stamp_slots(l, best_t, out);             /* (never settled: the best pass again) */
-        sol = solve_header(l, start_us, out, best_t);
+        ones = (uint32_t)((int32_t)ones + stamp_slots(l, best_t, out, 0));   /* (never settled: the best pass) */
+        sol = solve_header(l, start_us, out, best_t, ones);
     }
     l->last_time_us = sol;
     return sol;

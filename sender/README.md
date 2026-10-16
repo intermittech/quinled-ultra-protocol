@@ -113,13 +113,13 @@ item pool is full; nothing changed, the group's start neither).
 | `ultra_sender_config_init(&cfg, boards, lights)` | Defaults: 3 copies, refresh 200 ms, start delay auto, recommended timing, unused light indices cleared. |
 | `ultra_sender_init(&line, &cfg, boards[], items[], n_items)` | 1-64 boards. Starts with the preamble; queue the lights' state right away (automatic starts count the preamble in). |
 | `ultra_sender_deinit(&line)` | Leaves its group, takes no more commands or frames; before initializing it again or dropping it. |
-| `ultra_sender_set_lights(&line, board, n)` | Lights in use on one board (0-5); the others are cleared (empty LIGHT_DEF, SCENE 0, no power-on effect): 3 copies, then in the refresh's first 3 rounds after init, a resync or a change of `n`, then in every 4th round (a 1-light board's SET every ~1.2 s at rest, not ~3 s). |
+| `ultra_sender_set_lights(&line, board, n)` | Lights in use on one board (0-5); the others are cleared (empty LIGHT_DEF, SCENE 0, no power-on effect): 3 copies, then in the refresh's first 3 rounds after init, a resync or a change of `n`, then in every 4th round (a 1-light board's SET every ~1.2 s at rest). |
 | `ultra_sender_next_frame(&line, now_us, buf)` | The next frame if one is due, else 0. Back to back while commands wait, every `refresh_ms` at rest. |
 | `ultra_sender_retime(&line, now_us, buf)` | The last frame couldn't be sent: the same slots with a new TIME (don't build another: `next_frame()` took its copies from the queues). |
 | `ultra_sender_busy()`, `ultra_sender_due_us()` | When to call again. |
 | `ultra_sender_resync(&line, now_us)` | The preamble again, then everything as new commands (a manual resync). |
 | `ultra_sender_power(&line, on, now_us)` | The boards' supply: after a switch-on (and its power-on delay) a short preamble (10 frames) once a full one reached them, then everything again. |
-| `ultra_sender_power_off(&line)`, `ultra_sender_power_off_at(&line)` | 0.2.6, the planned power-off notice (a host that switches the line's power, e.g. a Diff-Power port in standby): the next frames carry IDENTIFY 7 in every board's slot, 3 copies with one SEQ per board, 50 ms apart; then the line sends nothing until `ultra_sender_power(&line, 1, now_us)` wakes it (commands given meanwhile go out then). `_power_off_at()`: when the power may be cut, 200 ms after the first copy (never before the last one's end); `INT64_MAX` while copies are still to go out. No take-back: once given, cut. |
+| `ultra_sender_power_off(&line)`, `ultra_sender_power_off_at(&line)` | The planned power-off notice (a host that switches the line's power, e.g. a Diff-Power port in standby): the next frames carry IDENTIFY 7 in every board's slot, 3 copies with one SEQ per board, 50 ms apart; then the line sends nothing until `ultra_sender_power(&line, 1, now_us)` wakes it (commands given meanwhile go out then). `_power_off_at()`: when the power may be cut, 200 ms after the first copy (never before the last one's end); `INT64_MAX` while copies are still to go out. No take-back: once given, cut. |
 | `ultra_sender_switch_to_ultra(&line, now_us, boot)` | Boards forced to WS2805 / WS2915: the WS config-frame sequence, the preamble, everything again; CONFIG 22 = `boot` (0 auto, 3 Ultra, 0xFF leave; another value: `ULTRA_ERR_ARG`). |
 
 **Lights** (`board`, `light` = 0..lights-1)
@@ -133,7 +133,7 @@ item pool is full; nothing changed, the group's start neither).
 | `ultra_sender_effect(&line, b, l, fx, params, n, now_us)` | EFFECT 0-9 (not strobe); `ULTRA_FX_NONE` stops it. Exactly the effect's parameter bytes, from `ultra_fx_pulse()`, `_flicker()`, `_random()`, `_candle()`, `_breathe()`, `_color_loop()`, `_sunrise()`, `_sunset()` (their times saturate at 16,777,215 ms). |
 | `ultra_sender_strobe(&line, b, l, steps, count, now_us)` | Strobe: EFFECT + 1-8 STEP slots. |
 | `ultra_sender_scene(&line, b, l, mode, fade_100ms, &v)` | SCENE: the power-on state. |
-| `ultra_sender_scene_effect(&line, b, l, fx, params, n)` | SCENE_EFFECT (0.2.3): the power-on effect. |
+| `ultra_sender_scene_effect(&line, b, l, fx, params, n)` | SCENE_EFFECT: the power-on effect. |
 
 LIGHT_DEF, LIGHT_OPT, SCENE and SCENE_EFFECT with unchanged content send nothing. Undefined roles (8-15), flag bits,
 effect ids, parameter lengths, SCENE modes and CONFIG values are refused. `ultra_values_from_color()` turns an RGB /
@@ -149,7 +149,7 @@ white / CCT colour into M, A and B for a light's roles.
 
 | Call | |
 |---|---|
-| `ultra_sender_config(&line, board, id, value)` | CONFIG (every id the header defines) on one board or `ULTRA_SENDER_ALL`; changes go out with the next frame and stay in the refresh. Values outside the id's range are refused (`ultra_config_value_ok()`). 0.2.5: signal loss 3 (fade to the power-on scene) and CONFIG 24, the trips' retry policy (`ULTRA_SENDER_RETRY(count, interval_s)`); a board from before 0.2.5 keeps its own setting. |
+| `ultra_sender_config(&line, board, id, value)` | CONFIG (every id the header defines) on one board or `ULTRA_SENDER_ALL`; changes go out with the next frame and stay in the refresh. Values outside the id's range are refused (`ultra_config_value_ok()`). Signal loss 3 fades to the power-on scene; CONFIG 24, the trips' retry policy: `ULTRA_SENDER_RETRY(count, interval_s)`. |
 | `ultra_sender_pwm_hz(&line, board, hz)` | PWM frequency → CONFIG 1 / 2. |
 | `ultra_sender_identify(&line, board, value, arg)` | IDENTIFY: blink, version, current calibration, hold dark / release. Three copies, not refreshed. |
 
@@ -277,8 +277,8 @@ several pins in parallel (the bit patterns: the protocol's `examples/README.md`)
 
 ## Return channel (optional)
 
-`ultra_sender_rc.h` builds RW frames with POLL slots for Diff-Power Ultra receivers (protocol 0.2.4; the LIFETIME and
-DIAG pages of 0.2.5, LIFE_SYNC of 0.2.6) and extracts their answers from the UART bytes of each response slot. The
+`ultra_sender_rc.h` builds RW frames with POLL slots for Diff-Power Ultra receivers and extracts their answers from
+the UART bytes of each response slot. The
 Dig2Analog-Ultra never answers (it doesn't report back); a host that never polls needs none of it. Status: a preview,
 checked against the protocol's vectors, not yet against a receiver.
 
@@ -287,10 +287,10 @@ checked against the protocol's vectors, not yet against a receiver.
 - Any page with its arguments: `ultra_rc_request_add(&rq, board, ULTRA_PAGE_DIAG, &part, 1)` (`uint8_t part`: 0 the
   running board, 1 the fault memory); a board without the page answers `ULTRA_PAGE_UNSUPPORTED`.
 - The answer's DATA with the header's offsets and `ultra_get16/24/32`; `ultra_rc_features()` /
-  `ultra_rc_feature(a, bit)` (0.2.7: IDENTITY part 1, `part` = `ULTRA_ID_PART_FEATURES`: what the board takes,
+  `ultra_rc_feature(a, bit)` (IDENTITY part 1, `part` = `ULTRA_ID_PART_FEATURES`: what the board takes,
   `ULTRA_FEAT_*`, bits 0-191; part 0 is the board: UID, versions, hardware id and revision, capabilities) and
-  `ultra_rc_status_why()` (STATUS, 0.2.5: why the light isn't as set, `ULTRA_ST_WHY_*`).
-- **The hub's lifetime counters** (0.2.6, LIFE_SYNC, `ULTRA_FEAT_LIFE_SYNC`): a hub that keeps a ledger of each
+  `ultra_rc_status_why()` (STATUS: why the light isn't as set, `ULTRA_ST_WHY_*`).
+- **The hub's lifetime counters** (LIFE_SYNC, `ULTRA_FEAT_LIFE_SYNC`): a hub that keeps a ledger of each
   receiver's LIFETIME counters (by its UID) gives them back after the receiver's power-up, so what it couldn't store
   before a power cut isn't lost: `ultra_rc_request_life_sync(&rq, board, uid16, lifetime, total_wh, records_lo)`
   (LIFETIME bytes 0-15 as the ledger has them, the lifetime Wh, the low byte of the RECORDS the ledger was reconciled
@@ -369,12 +369,12 @@ python sender/test/run_tests.py
   `proto.c`, `ultra.c`), each board with its own clock error, forwarding by its own gate plan: every command type on
   1-64 boards with 20 % frame loss, new and WS2805-locked boards through the preamble, effects and transitions in
   step across two lines, power cycles, a host restart, a streamed effect, a fade queued during the preamble, TIME's
-  32-bit wrap with SEQ 255 → 0, every effect 1-9, first copies before the group's start, 0.2.5's signal loss 3 and
+  32-bit wrap with SEQ 255 → 0, every effect 1-9, first copies before the group's start, signal loss 3 and the
   retry policy in every board's settings. It needs the firmware's `src/core` (`--firmware DIR` or `ULTRA_FIRMWARE`) of
   the same protocol release: its `ultra_protocol.h` byte-identical to `src/ultra_protocol.h` (both sides share one
   translation unit), else the step fails; without a firmware it is skipped (a failure with `--release`).
 - **Targets:** an `unsigned int` of 32 bits or more (`ultra_sender.h` stops the build otherwise: the protocol header is
-  16-bit-`int` safe since 0.2.6, the library has never been built or tested on such a target); any byte order (every
+  16-bit-`int` safe; the library has never been built or tested on such a target); any byte order (every
   multi-byte field is built byte by byte; not run on a big-endian target here). RMT timing on hardware isn't covered.
 
 ## License

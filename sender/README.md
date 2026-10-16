@@ -133,7 +133,7 @@ item pool is full; nothing changed, the group's start neither).
 | `ultra_sender_effect(&line, b, l, fx, params, n, now_us)` | EFFECT 0-9 (not strobe); `ULTRA_FX_NONE` stops it. Exactly the effect's parameter bytes, from `ultra_fx_pulse()`, `_flicker()`, `_random()`, `_candle()`, `_breathe()`, `_color_loop()`, `_sunrise()`, `_sunset()` (their times saturate at 16,777,215 ms). |
 | `ultra_sender_strobe(&line, b, l, steps, count, now_us)` | Strobe: EFFECT + 1-8 STEP slots. |
 | `ultra_sender_scene(&line, b, l, mode, fade_100ms, &v)` | SCENE: the power-on state. |
-| `ultra_sender_scene_effect(&line, b, l, fx, params, n)` | SCENE_EFFECT: the power-on effect. |
+| `ultra_sender_scene_effect(&line, b, l, fx, params, n)` | SCENE_EFFECT: the power-on effect, any but strobe (a board stores no strobe steps: `ULTRA_ERR_ARG`). |
 
 LIGHT_DEF, LIGHT_OPT, SCENE and SCENE_EFFECT with unchanged content send nothing. Undefined roles (8-15), flag bits,
 effect ids, parameter lengths, SCENE modes and CONFIG values are refused. `ultra_values_from_color()` turns an RGB /
@@ -330,10 +330,11 @@ python sender/test/run_tests.py
 - **`manifests`** (no compiler needed; `--only manifests` for CI): the four manifests list exactly the sources and
   headers in `src/`, every version is the release of `src/ultra_protocol.h`, that header and `LICENSE` are
   byte-identical to the repository's, and `src/` includes nothing from outside itself.
-- **`test_review`:** the independent review's findings (round 7 and its re-check), each a regression that failed
-  before its fix: start-up and raised-light-count starts, the retimed preamble, partial / NULL effect parameters,
-  group lifecycle, RMT rounding, the TIME / start bounds over the legal timing space, SPI timing and every SPI clock,
-  CONFIG ids 16 and up.
+- **`test_review`:** the independent reviews' findings (round 7, its re-check, round 14), each a regression that
+  failed before its fix: start-up and raised-light-count starts, the retimed preamble, partial / NULL effect
+  parameters, group lifecycle, RMT rounding, the TIME / start bounds over the legal timing space, SPI timing and every
+  SPI clock, CONFIG ids 16 and up, a stray 0xA5 before an answer, the longest reset, no power-on strobe; and the
+  probes that passed (exact-size answer buffers, corruptions, a request's limits, 52 days of uptime).
 - **`test_cpp`** also: a refused `begin()` (lights, timing, boards) leaves a running line as it was, in its group.
 - **`test_cpp`:** the C++ wrapper at run time: capacity, no copy / move, begin again, group teardown.
 - **`test_equiv`:** the arithmetic the size pass changed (round 9) against its old code, kept verbatim in the test:
@@ -369,8 +370,9 @@ python sender/test/run_tests.py
   `proto.c`, `ultra.c`), each board with its own clock error, forwarding by its own gate plan: every command type on
   1-64 boards with 20 % frame loss, new and WS2805-locked boards through the preamble, effects and transitions in
   step across two lines, power cycles, a host restart, a streamed effect, a fade queued during the preamble, TIME's
-  32-bit wrap with SEQ 255 → 0, every effect 1-9, first copies before the group's start, signal loss 3 and the
-  retry policy in every board's settings. It needs the firmware's `src/core` (`--firmware DIR` or `ULTRA_FIRMWARE`) of
+  32-bit wrap with SEQ 255 → 0, every effect 1-9 (and as the power-on effect: the library takes exactly what the
+  board runs at power-on), first copies before the group's start, signal loss 3 and the retry policy in every
+  board's settings. It needs the firmware's `src/core` (`--firmware DIR` or `ULTRA_FIRMWARE`) of
   the same protocol release: its `ultra_protocol.h` byte-identical to `src/ultra_protocol.h` (both sides share one
   translation unit), else the step fails; without a firmware it is skipped (a failure with `--release`).
 - **Targets:** an `unsigned int` of 32 bits or more (`ultra_sender.h` stops the build otherwise: the protocol header is

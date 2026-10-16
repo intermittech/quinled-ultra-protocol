@@ -41,7 +41,7 @@ extern "C" {
 typedef struct {
     uint16_t t0h_ns, t0l_ns;          /* '0': high, low */
     uint16_t t1h_ns, t1l_ns;          /* '1': high, low */
-    uint32_t reset_ns;                /* >= 280000 */
+    uint32_t reset_ns;                /* 280000 .. ULTRA_RESET_MAX_NS */
 } ultra_timing_t;
 
 #define ULTRA_TIMING_RECOMMENDED { 250u, 1050u, 700u, 650u, 300000u }
@@ -53,6 +53,7 @@ typedef struct {
 #define ULTRA_TL_MIN_NS    450u
 #define ULTRA_TL_MAX_NS    10000u
 #define ULTRA_RESET_MIN_NS 280000u
+#define ULTRA_RESET_MAX_NS (0xFFFFFFFFu - ULTRA_TL_MAX_NS)   /* the last bit's LOW + the reset: one 32-bit pulse */
 #define ULTRA_GAP_MAX_US   50u         /* a LOW inside a frame must stay below this */
 
 /* 0 = every value inside the spec's ranges, else -1 */

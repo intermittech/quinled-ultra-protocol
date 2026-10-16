@@ -338,9 +338,10 @@ int ultra_sender_strobe_at(ultra_sender_t *l, uint16_t board, uint8_t light, con
  * cross-fade when the host takes over. Send the state the host restores at its next boot. */
 int ultra_sender_scene(ultra_sender_t *l, uint16_t board, uint8_t light, uint8_t mode, uint8_t fade_100ms,
                        const ultra_values_t *v);
-/* Power-on effect on the SCENE values (0.2.3; ULTRA_FX_NONE = none), parameters as ultra_sender_effect(). Stored on
- * the board: send a fixed one, not the live effect. Send it for every light, ULTRA_FX_NONE for those without (a
- * board keeps what it has stored until a SCENE_EFFECT changes it). */
+/* Power-on effect on the SCENE values (0.2.3; ULTRA_FX_NONE = none), parameters as ultra_sender_effect(); not
+ * ULTRA_FX_STROBE (ULTRA_ERR_ARG: a board stores no strobe steps, so it can't run a strobe at power-on; the live strobe
+ * is ultra_sender_strobe()). Stored on the board: send a fixed one, not the live effect. Send it for every light,
+ * ULTRA_FX_NONE for those without (a board keeps what it has stored until a SCENE_EFFECT changes it). */
 int ultra_sender_scene_effect(ultra_sender_t *l, uint16_t board, uint8_t light, uint8_t fx, const uint8_t *params,
                               uint32_t nparams);
 

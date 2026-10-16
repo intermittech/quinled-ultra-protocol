@@ -1479,8 +1479,8 @@ int ultra_sender_scene_effect(ultra_sender_t *l, uint16_t board, uint8_t light, 
     ultra_sender_board_t *b;
     ultra_sender_item_t *it;
     uint8_t s[ULTRA_SLOT_BYTES];
-    if (!light_ok(l, board, light) || !fx_args_ok(fx, params, nparams)) {
-        return ULTRA_ERR_ARG;
+    if (!light_ok(l, board, light) || fx == ULTRA_FX_STROBE || !fx_args_ok(fx, params, nparams)) {
+        return ULTRA_ERR_ARG;                    /* (strobe: the board stores no steps, so no power-on strobe) */
     }
     b = &l->boards[board];
     it = item_get(l, b, KEY(light, RK_SCENE_FX, 0));

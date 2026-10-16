@@ -120,19 +120,16 @@ uint32_t ultra_sender_rc_frame(ultra_sender_t *l, const ultra_rc_request_t *r, i
 int ultra_rc_answer(const uint8_t *rx, const uint8_t *ferr, uint32_t n, uint8_t answer[32])
 {
     uint32_t i, j;
-    for (i = 0; i < n; i++) {
-        if (rx[i] == ULTRA_RSP_SYNC && (ferr == 0 || !ferr[i])) {
-            break;                               /* the first SYNC without a framing error: the answer */
+    for (i = 0; n >= 32u && i <= n - 32u; i++) {   /* every SYNC in turn: junk before the answer may read 0xA5 too */
+        if (rx[i] != ULTRA_RSP_SYNC) {
+            continue;
+        }
+        for (j = 0; j < 32u && (ferr == 0 || !ferr[i + j]); j++) {
+            answer[j] = rx[i + j];
+        }
+        if (j == 32u && ultra_answer_check(answer) == 0) {
+            return 0;                            /* 32 bytes without a framing error, SYNC and CRC-16 ok */
         }
     }
-    if (i + 32u > n) {
-        return -1;
-    }
-    for (j = 0; j < 32u; j++) {
-        if (ferr != 0 && ferr[i + j]) {
-            return -1;
-        }
-        answer[j] = rx[i + j];
-    }
-    return ultra_answer_check(answer) == 0 ? 0 : -1;
+    return -1;
 }

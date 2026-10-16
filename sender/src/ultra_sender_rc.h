@@ -75,9 +75,10 @@ uint32_t ultra_sender_rc_frame(ultra_sender_t *l, const ultra_rc_request_t *r, i
 /* the start of answer `index`'s response slot after the frame's TIME, us */
 uint32_t ultra_rc_slot_start_us(uint8_t rate, uint8_t index);
 
-/* One response slot's received bytes (rx, n; ferr: a framing error per byte, or NULL): every byte before the first
- * SYNC without a framing error is skipped (the turnaround checks' pulses arrive as junk bytes, then the 0xFF lead
- * byte), the 32 bytes from it are the answer. 0 = a valid answer copied to answer (SYNC and CRC-16 ok), -1 = none. */
+/* One response slot's received bytes (rx, n; ferr: a framing error per byte, or NULL): the answer is the first 32
+ * bytes from a SYNC that pass the CRC-16 without a framing error; each SYNC is tried in turn (the turnaround checks'
+ * pulses arrive as junk bytes, which may read 0xA5 too, then the 0xFF lead byte). 0 = a valid answer copied to
+ * answer, -1 = none (answer then holds scratch). */
 int ultra_rc_answer(const uint8_t *rx, const uint8_t *ferr, uint32_t n, uint8_t answer[32]);
 /* an answer's fields: page, index, RFLAGS (ULTRA_RSP_*), SEQ, UID16; DATA from answer + ULTRA_RSP_DATA (24 bytes,
  * offsets ULTRA_ST_* / ULTRA_PW_* / ... per page) */

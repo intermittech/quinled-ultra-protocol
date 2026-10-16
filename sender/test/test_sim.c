@@ -21,8 +21,9 @@
  *  5. a host restart (its clock starts again): the boards take the new host's commands;
  *  6. a host-side effect streamed to 10 x 5 lights, then stopped: every light ends at its last value;
  *  7. (review round 7) a fade queued during the start-up preamble starts from dark on every board; TIME's 32-bit wrap
- *     and SEQ 255 -> 0 while the boards run; every board effect 1-9 with its parameters; without loss every light has
- *     its first copy before the group's start (light counts raised at run time).
+ *     and SEQ 255 -> 0 while the boards run; every board effect 1-9 with its parameters (and round 14: the power-on
+ *     effects the library takes are the ones the board runs at power-on); without loss every light has its first copy
+ *     before the group's start (light counts raised at run time).
  *
  * Build: python sender/test/run_tests.py (needs the board firmware's src/core).
  */
@@ -985,6 +986,54 @@ static void wrap_and_seq(void)
     }
 }
 
+/* round 14 (GPT 5): the power-on effects (SCENE_EFFECT) the library takes are the ones a board can run at power-on
+ * (its ultra_scene_fx_ok): every effect but strobe, which it refuses (a board stores no steps) */
+static void scene_effects(void)
+{
+    line_t *p = &A;
+    uint8_t prm[10][ULTRA_FX_PARAMS], n[10];
+    int res[9];
+    uint32_t l, agree = 0, stored = 0;
+    ultra_values_t v;
+    line_init(p, 2, 5, 37, 0.02);
+    p->now = 2e9;
+    def_lights(p, 5);
+    drain(p);
+    memset(prm, 0, sizeof prm);
+    n[1] = (uint8_t)ultra_fx_pulse(prm[1], 300, 400, 900, 100, 60000);
+    n[2] = 1;                                    /* (a strobe's parameter: its step count) */
+    prm[2][0] = 2;
+    n[3] = (uint8_t)ultra_fx_flicker(prm[3], 62000, 1000, 16);
+    n[4] = (uint8_t)ultra_fx_random(prm[4], 500, 1000);
+    n[5] = (uint8_t)ultra_fx_candle(prm[5], 26214, 120);
+    n[6] = (uint8_t)ultra_fx_breathe(prm[6], 3000, 100, 65000);
+    n[7] = (uint8_t)ultra_fx_color_loop(prm[7], 20000, 60000);
+    n[8] = (uint8_t)ultra_fx_sunrise(prm[8], 600000);
+    n[9] = (uint8_t)ultra_fx_sunset(prm[9], 600000);
+    v.m = 40000;
+    memcpy(v.a, ONE5, sizeof v.a);
+    memcpy(v.b, ONE5, sizeof v.b);
+    for (l = 0; l < 9u; l++) {
+        const uint8_t fx = (uint8_t)(l + 1u);
+        CHECK(ultra_sender_scene(&p->s, (uint16_t)(l / 5u), (uint8_t)(l % 5u), 1, 0, &v) == ULTRA_OK, "scene");
+        res[l] = ultra_sender_scene_effect(&p->s, (uint16_t)(l / 5u), (uint8_t)(l % 5u), fx, prm[fx], n[fx]);
+    }
+    drain(p);
+    run(p, 2000);
+    for (l = 0; l < 9u; l++) {
+        const uint8_t fx = (uint8_t)(l + 1u);
+        const ultra_light_t *L = &p->bd[l / 5u].u.light[l % 5u];
+        ultra_light_t q = *L;                    /* (the light as delivered, with this effect: would it run?) */
+        q.scene_fx = fx;
+        agree += (res[l] == ULTRA_OK) == (ultra_scene_fx_ok(&q) != 0);
+        stored += res[l] == ULTRA_OK && L->scene_fx == fx && ultra_scene_fx_ok(L);
+    }
+    CHECK(agree == 9u && stored == 8u && res[ULTRA_FX_STROBE - 1] == ULTRA_ERR_ARG, "power-on effects: the library "
+          "takes what the board runs at power-on (%u / 9 agree), 8 stored and runnable, strobe refused", agree);
+    printf("  power-on effects 1-9: the library takes the %u the board can run at power-on, refuses strobe (%u / 9 "
+           "agree with the firmware's rule)\n", stored, agree);
+}
+
 /* every board effect (1-9) on the boards: id and parameters as sent */
 static void all_effects(void)
 {
@@ -1238,6 +1287,13 @@ static void ls_round(line_t *p, energy_t *e, uint16_t uid, const uint8_t life[16
     memcpy(rx + 1, ans, sizeof ans);
     CHECK(ultra_rc_answer(rx, NULL, sizeof rx, got) == 0 && ultra_rc_page(got) == ULTRA_PAGE_LIFE_SYNC &&
           ultra_rc_seq(got) == poll[2] && ultra_rc_uid16(got) == LS_UID, "life sync: the answer");
+    {   /* round 14 (Claude 1): a junk byte reading 0xA5 before the lead byte loses nothing */
+        uint8_t rx2[2 + RC_ANSWER_BYTES], got2[32];
+        rx2[0] = ULTRA_RSP_SYNC;
+        memcpy(rx2 + 1, rx, sizeof rx);
+        CHECK(ultra_rc_answer(rx2, NULL, sizeof rx2, got2) == 0 && memcmp(got2, got, 32) == 0,
+              "life sync: [A5 FF answer], the same answer");
+    }
 }
 
 static void life_sync(void)
@@ -1321,6 +1377,7 @@ int main(void)
     startup_fade();
     wrap_and_seq();
     all_effects();
+    scene_effects();
     on_time();
     config_025();
     printf("8. the planned power-off notice (0.2.6) on Dig2Analog-Ultra boards\n");

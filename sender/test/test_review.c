@@ -19,9 +19,16 @@
  *   8  the documented TIME / start bounds over the legal timing space   timing_space()
  *   N2 SPI clocks decided at full width        spi_clocks()
  *   N1 (RMT teardown) test_rmt.c; N3 (C++ begin keeps a working line) test_cpp.cpp; N4 (one header) run_tests.py
+ * and from round 14's re-check (protocol 0.2.7; review-r14/reports):
+ *   Claude 1  every SYNC tried: a stray 0xA5 before the answer      rc_answers() (+ test_sim_rx: a receiver's answer)
+ *   GPT 4     a reset the last bit's LOW can't take in 32 bits       reset_max()
+ *   GPT 5     no strobe as the power-on effect                       scene_strobe() (+ test_sim: the board's rule)
+ *   GPT's probes that passed, kept: exact-size answer buffers, corruptions and framing errors (rc_answers()), the
+ *   request's limits (requests()), the scheduler across 32-bit us, 49.7-day ms and 52 days (long_uptime())
  */
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "ultra_sender.h"
@@ -547,6 +554,172 @@ static void wrap(void)
     }
 }
 
+/* ------------------------------------------------------------------------------------------------- round 14 */
+/* a STATUS answer from answer index `index` (DATA full of 0xA5: SYNC bytes inside an answer start nothing) */
+static void answer_of(uint8_t a[32], uint8_t index, uint16_t uid)
+{
+    memset(a, 0xA5, 32);
+    a[0] = ULTRA_RSP_SYNC;
+    a[1] = ULTRA_PAGE_STATUS;
+    a[2] = (uint8_t)(index << 4);
+    a[3] = 255;
+    ultra_put16(a + 4, uid);
+    ultra_put16(a + 30, ultra_crc16(a, 30));
+}
+
+static void rc_answers(void)
+{
+    uint8_t a[32], b[32], out[32], fe[32], rx[96], rfe[96];
+    uint32_t n, bit, k, bad;
+    for (k = 0; k < 2u; k++) {                   /* GPT's probes: exact-size buffers (ASan), corruptions, framing */
+        answer_of(a, (uint8_t)k, (uint16_t)(0x1000u + k));
+        for (n = 0, bad = 0; n <= 32u; n++) {
+            uint8_t *r = n ? (uint8_t *)malloc(n) : NULL, *f = n ? (uint8_t *)calloc(n, 1) : NULL;
+            if (n) {
+                memcpy(r, a, n);
+            }
+            bad += (ultra_rc_answer(r, f, n, out) == 0) != (n == 32u);
+            free(r);
+            free(f);
+        }
+        CHECK(bad == 0u && ultra_rc_index(out) == k && ultra_rc_uid16(out) == 0x1000u + k,
+              "answer %u: found only in its full 32 bytes (buffers of exactly 0-32 bytes), index and UID16 kept", k);
+        for (bit = 0, bad = 0; bit < 256u; bit++) {
+            memcpy(b, a, 32);
+            b[bit / 8u] ^= (uint8_t)(1u << (bit % 8u));
+            bad += ultra_rc_answer(b, NULL, 32, out) == 0;
+        }
+        for (n = 0; n < 32u; n++) {
+            memset(fe, 0, sizeof fe);
+            fe[n] = 1;
+            bad += ultra_rc_answer(a, fe, 32, out) == 0;
+        }
+        CHECK(bad == 0u, "answer %u: every single-bit corruption (256) and framing error (32) refused (%u taken)", k,
+              bad);
+    }
+    /* Claude 1: junk before the answer that reads 0xA5 (the turnaround checks' pulses, then the 0xFF lead byte) */
+    answer_of(a, 2, 0x4242);
+    rx[0] = ULTRA_RSP_SYNC;
+    rx[1] = 0xFF;
+    memcpy(rx + 2, a, 32);
+    memset(out, 0, sizeof out);
+    CHECK(ultra_rc_answer(rx, NULL, 34, out) == 0 && memcmp(out, a, 32) == 0, "[A5 FF answer]: the answer");
+    memset(rfe, 0, sizeof rfe);
+    rfe[1] = 1;                                  /* (the lead byte with a framing error: the stray SYNC's window too) */
+    CHECK(ultra_rc_answer(rx, rfe, 34, out) == 0 && memcmp(out, a, 32) == 0,
+          "[A5 FF(framing error) answer]: the answer");
+    memset(rx, ULTRA_RSP_SYNC, 40);              /* 40 SYNC bytes, then the answer */
+    memcpy(rx + 40, a, 32);
+    CHECK(ultra_rc_answer(rx, NULL, 72, out) == 0 && memcmp(out, a, 32) == 0, "[A5 x 40, answer]: the answer");
+    for (n = 0; n < 32u; n++) {                  /* a whole 32-byte junk window from a SYNC, then the answer */
+        rx[n] = (uint8_t)(n * 37u + 11u);
+    }
+    rx[0] = ULTRA_RSP_SYNC;
+    memcpy(rx + 32, a, 32);
+    CHECK(ultra_rc_answer(rx, NULL, 64, out) == 0 && memcmp(out, a, 32) == 0, "[A5 + 31 junk, answer]: the answer");
+    answer_of(b, 3, 0x4343);                     /* two answers: the first */
+    memcpy(rx, b, 32);
+    memcpy(rx + 32, a, 32);
+    CHECK(ultra_rc_answer(rx, NULL, 64, out) == 0 && memcmp(out, b, 32) == 0, "[answer, answer]: the first");
+    memset(rfe, 0, sizeof rfe);                  /* the first with a framing error inside: the second */
+    rfe[9] = 1;
+    CHECK(ultra_rc_answer(rx, rfe, 64, out) == 0 && memcmp(out, a, 32) == 0,
+          "[answer(framing error), answer]: the second");
+    rx[33] ^= 1u;                                /* both broken: none */
+    CHECK(ultra_rc_answer(rx, rfe, 64, out) == -1, "[answer(framing error), corrupt answer]: none");
+}
+
+/* GPT's probes (passed, kept): the POLL's arguments and a request's capacity */
+static void requests(void)
+{
+    ultra_rc_request_t q;
+    uint8_t args[24];
+    uint32_t n, i, bad = 0;
+    memset(args, 0, sizeof args);
+    for (n = 0; n <= 24u; n++) {
+        ultra_rc_request_init(&q, 0);
+        bad += (ultra_rc_request_add(&q, 0, ULTRA_PAGE_STATUS, args, n) == ULTRA_OK) != (n <= 23u);
+    }
+    ultra_rc_request_init(&q, 2);
+    for (i = 0; i < ULTRA_RW_MAX_SLOTS; i++) {
+        bad += ultra_rc_request_add(&q, (uint16_t)i, ULTRA_PAGE_STATUS, NULL, 0) != ULTRA_OK;
+    }
+    CHECK(bad == 0u && ultra_rc_request_add(&q, 16, ULTRA_PAGE_STATUS, NULL, 0) == ULTRA_ERR_ARG && q.count == 16u,
+          "a POLL takes 0-23 argument bytes; a request 16 POLLs, the 17th refused without a change");
+}
+
+/* GPT's probes (passed, kept): 1000 scheduler calls from boot, before the 32-bit us wrap, the 49.7-day ms wrap and
+ * at 52 days: TIME is the header's, the wire end never before the call */
+static void long_uptime(void)
+{
+    static const int64_t starts[] = { 0, 0x100000000LL - 1500, 0x100000000LL * 1000 - 1500,
+                                      52LL * 86400 * 1000000 };
+    uint32_t i, k, bad = 0;
+    for (i = 0; i < 4u; i++) {
+        ultra_sender_config_t cfg;
+        int64_t t = starts[i];
+        ultra_sender_config_init(&cfg, 2, 1);
+        bad += ultra_sender_init(&line3, &cfg, boards3, items3, 4) != ULTRA_OK;
+        for (k = 0; k < 1000u; k++) {
+            uint32_t host;
+            const uint32_t n = ultra_sender_next_frame(&line3, t, frame);
+            if (n != 0u) {
+                bad += ultra_parse_header(frame + n - 8u, &host) != 0 ||
+                       host != (uint32_t)ultra_sender_last_time_us(&line3) || ultra_sender_last_time_us(&line3) < t;
+                t = ultra_sender_last_time_us(&line3) + 300;
+            } else {
+                t += 200000;
+            }
+        }
+        ultra_sender_deinit(&line3);
+    }
+    CHECK(bad == 0u, "1000 calls each from boot, the 32-bit us wrap, the 49.7-day ms wrap and 52 days (%u bad)", bad);
+}
+
+/* GPT 4: a reset near 2^32 ns wrapped the last bit's LOW (649 ns): refused now, the longest one still exact */
+static void reset_max(void)
+{
+    ultra_timing_t t = ULTRA_TIMING_RECOMMENDED;
+    ultra_sender_config_t cfg;
+    ultra_pulse_t pl[8];
+    const uint8_t zero = 0, one = 1;
+    uint32_t pos = 0;
+    ultra_sender_config_init(&cfg, 1, 1);
+    t.reset_ns = 0xFFFFFFFFu - 400u;
+    cfg.timing = t;
+    CHECK(ultra_timing_check(&t) != 0 && ultra_sender_config_check(&cfg) != 0, "reset 4294966895 ns refused (timing "
+          "and config)");
+    t.reset_ns = ULTRA_RESET_MAX_NS + 1u;
+    CHECK(ultra_timing_check(&t) != 0, "ULTRA_RESET_MAX_NS + 1 refused");
+    t.reset_ns = ULTRA_RESET_MAX_NS;
+    cfg.timing = t;
+    CHECK(ultra_timing_check(&t) == 0 && ultra_sender_config_check(&cfg) == 0 &&
+          ultra_encode_pulses(&t, &zero, 1, &pos, pl, 8) == 8u && pl[7].low_ns == t.t0l_ns + ULTRA_RESET_MAX_NS,
+          "ULTRA_RESET_MAX_NS taken: the last '0' LOW = T0L + reset exactly (%u ns)", pl[7].low_ns);
+    t.t1l_ns = ULTRA_TL_MAX_NS;
+    pos = 0;
+    CHECK(ultra_timing_check(&t) == 0 && ultra_encode_pulses(&t, &one, 1, &pos, pl, 8) == 8u &&
+          pl[7].low_ns == 0xFFFFFFFFu, "with the longest '1' LOW too: 2^32 - 1 ns, no wrap");
+}
+
+/* GPT 5: a board stores no strobe steps, so no strobe as the power-on effect; the live strobe is ultra_sender_strobe */
+static void scene_strobe(void)
+{
+    uint8_t prm[ULTRA_FX_PARAMS], steps = 1;
+    uint32_t used;
+    ultra_strobe_step_t st;
+    setup(1, 1);
+    used = ultra_sender_items_used(&line);
+    CHECK(ultra_sender_scene_effect(&line, 0, 0, ULTRA_FX_STROBE, &steps, 1) == ULTRA_ERR_ARG &&
+          ultra_sender_items_used(&line) == used, "SCENE_EFFECT strobe refused (ULTRA_ERR_ARG), no item taken");
+    CHECK(ultra_sender_scene_effect(&line, 0, 0, ULTRA_FX_BREATHE, prm, ultra_fx_breathe(prm, 3000, 0, 65535)) ==
+          ULTRA_OK && ultra_sender_scene_effect(&line, 0, 0, ULTRA_FX_NONE, 0, 0) == ULTRA_OK,
+          "a power-on breathe and none: taken");
+    memset(&st, 0, sizeof st);
+    st.duration_ms = 100;
+    CHECK(ultra_sender_strobe(&line, 0, 0, &st, 1, now) == ULTRA_OK, "the live strobe: taken");
+}
+
 int main(void)
 {
     startup();
@@ -563,6 +736,11 @@ int main(void)
     spi_clocks();
     config_high_ids();
     wrap();
+    rc_answers();
+    requests();
+    long_uptime();
+    reset_max();
+    scene_strobe();
     printf("%s: %d checks, %d failures\n", failures ? "FAILED" : "ALL REVIEW REGRESSIONS PASSED", checks, failures);
     return failures ? 1 : 0;
 }

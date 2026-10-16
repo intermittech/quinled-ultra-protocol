@@ -38,7 +38,8 @@ int ultra_timing_check(const ultra_timing_t *t)
 {
     if (t->t0h_ns < ULTRA_T0H_MIN_NS || t->t0h_ns > ULTRA_T0H_MAX_NS || t->t1h_ns < ULTRA_T1H_MIN_NS ||
         t->t1h_ns > ULTRA_T1H_MAX_NS || t->t0l_ns < ULTRA_TL_MIN_NS || t->t0l_ns > ULTRA_TL_MAX_NS ||
-        t->t1l_ns < ULTRA_TL_MIN_NS || t->t1l_ns > ULTRA_TL_MAX_NS || t->reset_ns < ULTRA_RESET_MIN_NS) {
+        t->t1l_ns < ULTRA_TL_MIN_NS || t->t1l_ns > ULTRA_TL_MAX_NS || t->reset_ns < ULTRA_RESET_MIN_NS ||
+        t->reset_ns > ULTRA_RESET_MAX_NS) {
         return -1;
     }
     return 0;

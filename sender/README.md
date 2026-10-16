@@ -278,9 +278,10 @@ several pins in parallel (the bit patterns: the protocol's `examples/README.md`)
 ## Return channel (optional)
 
 `ultra_sender_rc.h` builds RW frames with POLL slots for Diff-Power Ultra receivers and extracts their answers from
-the UART bytes of each response slot. The
-Dig2Analog-Ultra never answers (it doesn't report back); a host that never polls needs none of it. Status: a preview,
-checked against the protocol's vectors, not yet against a receiver.
+the UART bytes of each response slot. The Ultra-Analog (hardware 2) and the Ultra-Digital (hardware 3) receivers
+answer; a page a receiver doesn't have comes back as `ULTRA_PAGE_UNSUPPORTED`. The Dig2Analog-Ultra never answers (it
+doesn't report back); a host that never polls needs none of it. Tested against the protocol's vectors and the
+receiver firmware (`test_sim_rx`, below).
 
 - No RW frame until the chain has seen a second of headers after its preamble (time and frames).
 - The transport sends the RW frame without the reset gap and releases the line within 150 µs.

@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (C) 2026 QuinLED
  *
- * QuinLED Ultra sender, optional module: the return channel (protocol 0.2.4, the pages of 0.2.5 and 0.2.6; wiki:
- * Return channel). Only QuinLED Diff-Power Ultra receivers answer (firmware 0.6.8 and later, BOARD=2; the LIFETIME and
- * DIAG pages from 0.6.9, LIFE_SYNC from 0.6.10); a Dig2Analog-Ultra never does, and a host that never polls needs none
- * of this. Preview: the frame rules are tested against the protocol's vectors, not yet against a receiver.
+ * QuinLED Ultra sender, optional module: the return channel (wiki: Return channel). The QuinLED Diff-Power Ultra
+ * receivers answer: the Ultra-Analog (hardware 2) and the Ultra-Digital (hardware 3); a page a receiver doesn't have
+ * comes back as ULTRA_PAGE_UNSUPPORTED. A Dig2Analog-Ultra never answers, and a host that never polls needs none of
+ * this. Tested against the protocol's vectors and the receiver firmware (test_sim_rx: the Ultra-Analog receiver's own
+ * receive path, pages and LIFE_SYNC merge).
  *
  * An RW frame carries header FLAGS RW and a POLL in the slot of every board up to the last one asked: the boards
  * asked get answer index 0..R-1 (rising along the chain), the ones between get ULTRA_POLL_RELAY_ONLY (they turn around

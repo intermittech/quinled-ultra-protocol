@@ -274,9 +274,9 @@ void ultra_sender_power(ultra_sender_t *l, int on, int64_t now_us);
  * that switches the line's power: from the next frame on the line sends only the notice, in every board's slot, 3
  * copies with one SEQ at least 50 ms apart (0, 50, 100 ms), then nothing until ultra_sender_power(l, 1, ...) wakes it
  * (a preamble and every state again: commands given meanwhile go out then). No take-back: once given, cut the power.
- * Boards with ULTRA_FEAT_STANDBY (a Diff-Power ultra receiver from firmware 0.6.10) fade to dark and take the cut as
- * planned (no supply dip, no flash write for it); every other board ignores the notice. ULTRA_ERR_ARG: a notice is
- * already under way. */
+ * Boards with ULTRA_FEAT_STANDBY (Diff-Power Ultra receivers report it) fade to dark and take the cut as planned (no
+ * supply dip, no flash write for it); every other board ignores the notice. ULTRA_ERR_ARG: a notice is already under
+ * way. */
 int  ultra_sender_power_off(ultra_sender_t *l);
 /* When the power may be cut: 200 ms after the notice's first copy went out, and not before its last copy's end.
  * INT64_MAX while copies are still to go out; INT64_MIN: no notice (none given, or the line woken since). */

@@ -4,6 +4,38 @@ Releases of this repository. While below 1.0 they are numbered 0.x.y, and the MI
 format's VERSION (`ULTRA_VERSION`, header byte 2): 0.2.y = wire VERSION 2. A compatible addition raises the
 PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
+## v0.2.7 (wire VERSION 2), not tagged yet
+
+Backward compatible: `ULTRA_VERSION` stays 2, and no byte a host sends changes. Housekeeping, and the QuinLED
+Diff-Power Ultra-Digital receiver (hardware id 3) and its digital ports.
+
+- **The feature bits continue on a page:** bit 23 (`ULTRA_FEAT_IDENTITY_2`) says the features continue on page 0x0F
+  IDENTITY_2 (`ULTRA_PAGE_IDENTITY_2`, `ULTRA_ID2_FEATURES`: bits 32-63, bytes 4-23 reserved for bits 64-223). Every
+  later official feature bit is there; no board sets bit 23 yet, and a host polls 0x0F only when it is set. Bits 24-31
+  stay hardware-specific: the 0.2.6 header gave them to products for their own use, so reclassifying them could
+  give a host official meanings for bits an older product sets for something else, and it would add only 8 bits.
+- **The header's FLAGS nibble is full; the rule for later frame-level features:** none gets a header bit of its own.
+  An optional one sets HINT and names itself in a broadcast slot (its own type, 0x80-0xFF, after the last board's
+  slot); several share HINT in one frame, one broadcast slot each; a board uses those it knows. A must-understand one
+  sets EXT and names itself the same way. Boards that don't know EXT ignore every slot of such a frame, which on a
+  line of mixed firmware drops the older boards' commands, so new features go in new slot types and CONFIG ids
+  first. The comments on HINT / EXT say so; no wire change.
+- **The planned power-off notice's text:** a supply dip in the 10 s after IDENTIFY 7 is the cut's; still powered 2 s
+  after it with the supply steady, the outputs come back; it is forgotten after 10 s (the receiver's firmware after
+  0.6.10; 0.6.10: 2 s). A comment.
+- **Hardware id 3, the QuinLED Diff-Power Ultra-Digital receiver** (IDENTITY 17), and **`ULTRA_HWCAP_PIXEL` 0x0040:** a
+  pixel delay line on a digital port. Page 0x80 on hardware 3 is PIXEL (hardware-specific: its firmware's wiki).
+- **Digital ports** (`ULTRA_DP_*`, `ultra_dp_window_us()`): one receiver per pixel port takes Ultra frames (one
+  slot) behind a marker in a stretched latch gap: the line LOW >= 350 us after the last pixel edge, the marker HIGH
+  15-40 us, LOW 5-20 us, the frame. An RW frame's window is keyed to the hub's release (by t_end + 150 us, at the
+  latest 250 us): the receiver answers once the line has been released 20 us and by t_end + 900 us, the hub listens
+  until the answer or t_end + 900 us + the slot pitch, then retakes the line, pixels 20 us later. The hub's rules: no
+  poll in the first second after a port's power-up, updates behind markers, and the back-off for a receiver that
+  stops answering (3 polls, 3 more after 60 s, then none until the user intervenes: at most 6 one-frame glitches
+  from a dead or misconfigured receiver). Wiki: Return channel, digital ports.
+- **Compatibility and versioning:** "new slot types and CONFIG ids before EXT", the reserved ranges for 0.2.7.
+- **Test vectors:** unchanged (no builder changed).
+
 ## v0.2.6 (wire VERSION 2), 2026-10-15
 
 Backward compatible: `ULTRA_VERSION` stays 2. Every board ignores IDENTIFY 7 before 0.2.6 (a reserved value), and every

@@ -19,7 +19,7 @@ integrators: the wiki page [Sender library](https://github.com/intermittech/quin
 
 ## Install
 
-Version 0.2.6: the protocol release it targets. One package for PlatformIO, Arduino and ESP-IDF; everything is in
+Version 0.2.7: the protocol release it targets. One package for PlatformIO, Arduino and ESP-IDF; everything is in
 `src/`, also `ultra_protocol.h` (a byte-identical copy of the release's `include/ultra_protocol.h`).
 
 - **PlatformIO** (WLED, MoonLight, Tasmota): `library.json`. Put `sender/` in the project's `lib/` folder, or
@@ -32,7 +32,7 @@ Version 0.2.6: the protocol release it targets. One package for PlatformIO, Ardu
     ultra_sender:
       git: https://github.com/intermittech/quinled-ultra-protocol.git
       path: sender
-      version: v0.2.6
+      version: v0.2.7
   ```
 - **Anything else** (CMake, Make, an IDE): compile `src/*.c` (C99) with `src/` on the include path.
 
@@ -45,7 +45,7 @@ Version 0.2.6: the protocol release it targets. One package for PlatformIO, Ardu
 | `src/ultra_esp32_rmt.h` | ESP32 only, header-only: an RMT output for a line (ESP-IDF 5.3+, Arduino-ESP32 3.1+). |
 | `src/ultra_sender_rc.h`, `.c` | Optional: the return channel (POLL frames, answers; Diff-Power Ultra receivers only). |
 | `src/ultra_sender.hpp` | Optional: a thin C++ wrapper with the storage built in. |
-| `src/ultra_protocol.h` | The protocol header of release 0.2.6, unchanged. |
+| `src/ultra_protocol.h` | The protocol header of release 0.2.7, unchanged. |
 | `examples/` | `host_minimal.c` (any PC), `esp32_idf_rmt/` (ESP-IDF, the library as a component), `esp32_arduino/` (Arduino-ESP32). |
 | `test/` | `run_tests.py` and the tests (not part of the packages). |
 

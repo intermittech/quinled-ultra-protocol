@@ -64,7 +64,7 @@
 extern "C" {
 #endif
 
-#define ULTRA_SENDER_VERSION_STR "0.2.6"   /* this library: the protocol release it targets (its ultra_protocol.h) */
+#define ULTRA_SENDER_VERSION_STR "0.2.7"   /* this library: the protocol release it targets (its ultra_protocol.h) */
 
 #ifndef ULTRA_SENDER_MAX_BOARDS
 #define ULTRA_SENDER_MAX_BOARDS 64u        /* per line (the protocol has no fixed maximum; QuinLED supports 50) */

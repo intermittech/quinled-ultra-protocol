@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (C) 2026 QuinLED
  *
- * QuinLED Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.6 (CHANGELOG.md). Shared by the
+ * QuinLED Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.7 (CHANGELOG.md). Shared by the
  * board firmware (C) and the controllers (C / C++).
  * Master: include/ultra_protocol.h in https://github.com/intermittech/quinled-ultra-protocol (spec in its wiki).
  * Every copy (board firmware, ESPHome component, other controllers) must be byte-identical to one tagged release
@@ -36,8 +36,10 @@
  *  - Unknown flag bits (header HINT, slot FLAGS, SET / LIGHT_DEF / LIGHT_OPT flags), reserved bits and spare payload
  *    bytes: ignored. The host sends them as 0, so a future field's value 0 must always mean the old behaviour.
  *  - Header EXT ("must understand"): a board without the frame's extension keeps its lock and clock sync but ignores
- *    every slot of that frame, as for RW. New frame-level features go behind EXT (or RW / UPD) unless boards that
- *    don't know them can safely process the slots.
+ *    every slot of that frame, as for RW. On a line of mixed firmware that drops the older boards' commands for that
+ *    frame, so new features go in new slot types and CONFIG ids (ignored where unknown) before EXT; a frame-level
+ *    feature only behind EXT (or RW / UPD) when boards that don't know it can't safely process the slots. How later
+ *    frame-level features share the full FLAGS nibble: ULTRA_HDR_* below (0.2.7).
  *  - ULTRA_VERSION changes only for incompatible changes: a board rejects every frame of another version.
  *  - Broadcast / extension slots (reserved): k slots after the last board's slot, types >= ULTRA_TYPE_BCAST only,
  *    frame bits 256 x (N + k) + 64. Every board forwards everything after its own slot, so they reach every board;
@@ -71,12 +73,17 @@ extern "C" {
  * return channel (every QuinLED Dig2Analog-Ultra-5ch) ignores every slot of it, and a QuinLED Diff-Power Ultra-Analog
  * receiver answers its POLL of an RW frame without EXT (the return channel, 0.2.4, below). An UPD frame a board leaves
  * to the update side (no clock sync, no slot), HINT it ignores. RW and UPD are never set together; a board ignores
- * such a frame. The hub sets none of them in normal frames (0x00). */
+ * such a frame. The hub sets none of them in normal frames (0x00).
+ * The nibble is full (0.2.7): a later frame-level feature never gets a header bit of its own. An optional one sets
+ * HINT and names itself in a broadcast slot (its own TYPE, 0x80-0xFF, after the last board's slot; the payload carries
+ * it); several share HINT in one frame, one broadcast slot each, and a board uses those it knows and ignores the rest
+ * (HINT with no hint named: nothing). A must-understand one sets EXT and names itself the same way (EXT's cost: the
+ * rules above). The broadcast slot types are assigned here, as they come. */
 #define ULTRA_HDR_RW       0x01u       /* a response window follows this frame (wiki: Return channel) */
-#define ULTRA_HDR_HINT     0x02u       /* optional: a frame-level hint (none defined yet); a board that doesn't know it
-                                          processes the frame as usual */
-#define ULTRA_HDR_EXT      0x04u       /* must understand: the frame uses an extension (none defined yet; it is named
-                                          with it, e.g. in a broadcast slot); a board without it ignores every slot */
+#define ULTRA_HDR_HINT     0x02u       /* optional: the frame's broadcast slots name its hints (none defined yet); a
+                                          board that knows none of them processes the frame as usual */
+#define ULTRA_HDR_EXT      0x04u       /* must understand: the frame's broadcast slots name its extensions (none defined
+                                          yet); a board without one of them ignores every slot */
 #define ULTRA_HDR_UPD      0x08u       /* firmware update session (wiki: Reserved extensions) */
 
 /* slot types */
@@ -148,6 +155,34 @@ enum {
 #define ULTRA_RW_SYNC_IDLE_BITS 9u     /* SYNC's start bit follows >= this many bit times of HIGH (the lead byte's data
                                           and stop bits): the hub's UART is idle at SYNC, whatever it made of the
                                           check pulses and the short HIGH before the lead byte */
+/* (0.2.7) Digital ports (wiki: Return channel, digital ports): a receiver on a pixel line (the QuinLED Diff-Power
+ * Ultra-Digital receiver, ULTRA_HWCAP_PIXEL; one per port, so every frame holds N = 1 slot) takes Ultra frames behind a
+ * marker in a latch gap the hub stretches; the strip never sees them. Before every marker frame (RW, IDENTIFY, CONFIG,
+ * UPD) the line LOW >= ULTRA_DP_QUIET_US after the last pixel edge, the marker HIGH MARK_MIN..MARK_MAX, LOW
+ * GAP_MIN..GAP_MAX, then the frame. After a frame without RW: LOW >= ULTRA_DP_AFTER_US before pixels. An RW frame
+ * (t_end = its last falling edge): the hub releases the line by t_end + ULTRA_RW_RELEASE_US (a release starting after
+ * t_end + ULTRA_DP_RELEASE_MAX_US is taken as the end of a frame without RW: no answer); the receiver answers once it
+ * has seen the line released >= ULTRA_DP_RELEASED_US and by t_end + ULTRA_RW_DIR_MAX_US (the line HIGH, the lead byte
+ * and the 32-byte answer at the POLL's rate; no turnaround check: the release is the check, RFLAGS CONTENTION never
+ * set); the hub listens until SYNC + 31 bytes or t_end + ultra_dp_window_us(rate), then retakes the line (LOW), pixels
+ * >= ULTRA_DP_RETAKE_US later. Never pixels during a window. The hub: no marker for ULTRA_DP_POWERUP_MS after powering
+ * a port or starting its stream; an update's frames each behind a marker, the line LOW >= ULTRA_DP_UPD_LOW_MS after
+ * the ANNOUNCE's window, no pixels until the session ends; the back-off: a receiver that stops answering gets
+ * ULTRA_DP_TRIES polls in quick succession, ULTRA_DP_TRIES more ULTRA_DP_RETRY_S later, then none until the user
+ * intervenes (at most 2 x TRIES one-frame glitches on the first pixels from a dead or misconfigured receiver) */
+#define ULTRA_DP_QUIET_US       350u   /* the LOW before a marker (a receiver still direct switches to delayed in it) */
+#define ULTRA_DP_MARK_MIN_US    15u    /* the marker's HIGH (hub: 20 us); pixels never hold a HIGH this long */
+#define ULTRA_DP_MARK_MAX_US    40u
+#define ULTRA_DP_GAP_MIN_US     5u     /* the LOW between the marker and the frame (hub: 10 us) */
+#define ULTRA_DP_GAP_MAX_US     20u
+#define ULTRA_DP_AFTER_US       300u   /* the LOW after a frame without RW, before pixels */
+#define ULTRA_DP_RELEASE_MAX_US 250u   /* RW: the hub's release starts by t_end + this (aimed: ULTRA_RW_RELEASE_US) */
+#define ULTRA_DP_RELEASED_US    20u    /* RW: the receiver drives only after the line was released this long */
+#define ULTRA_DP_RETAKE_US      20u    /* pixels this long after the hub retakes the line */
+#define ULTRA_DP_POWERUP_MS     1000u  /* no marker this long after a port's power-up or the start of its stream */
+#define ULTRA_DP_UPD_LOW_MS     50u    /* an update: the line LOW this long after the ANNOUNCE's window */
+#define ULTRA_DP_TRIES          3u     /* the back-off: polls in quick succession, the same after RETRY_S, then none */
+#define ULTRA_DP_RETRY_S        60u
 /* POLL slot (type ULTRA_POLL, LIGHT 0xF; the payload's offsets, as slot bytes) */
 #define ULTRA_POLL_INDEX      3u       /* answer index 0..R-1, or ULTRA_POLL_RELAY_ONLY */
 #define ULTRA_POLL_SLOTS      4u       /* R: response slots in this window, 1..ULTRA_RW_MAX_SLOTS */
@@ -185,7 +220,10 @@ enum {
                                           the fault memory and the calibration trend; 2-255: UNSUPPORTED) (ULTRA_DG_*) */
     ULTRA_PAGE_LIFE_SYNC = 0x0E,       /* 0.2.6: the hub's lifetime counters for the board to merge (ULTRA_LS_*; the
                                           answer: the counters after it and the result) (ULTRA_FEAT_LIFE_SYNC) */
-    ULTRA_PAGE_HW = 0x80,              /* 0x0F-0x7F: future official pages; 0x80-0xFD: hardware-specific */
+    ULTRA_PAGE_IDENTITY_2 = 0x0F,      /* 0.2.7: more feature bits (ULTRA_ID2_*; ULTRA_FEAT_IDENTITY_2) */
+    ULTRA_PAGE_HW = 0x80,              /* 0x10-0x7F: future official pages; 0x80-0xFD: hardware-specific, by hardware id
+                                          (hardware 3, the Ultra-Digital receiver: 0x80 PIXEL, its pixel statistics; its
+                                          firmware's wiki) */
     ULTRA_PAGE_BUSY = 0xFE, ULTRA_PAGE_UNSUPPORTED = 0xFF,
 };
 /* IDENTITY page DATA: MCU UID (12) | firmware version word (4, ultra_update.h; 0 = unknown) | bootloader version (1,
@@ -196,7 +234,7 @@ enum {
 #define ULTRA_ID_FW_VERSION       12u
 #define ULTRA_ID_BL_VERSION       16u    /* 0.2.4: (the offsets of the layout above) */
 #define ULTRA_ID_HW_ID            17u    /* 1 Dig2Analog-Ultra-5ch (never answers), 2 Diff-Power Ultra-Analog
-                                            receiver */
+                                            receiver, 3 Diff-Power Ultra-Digital receiver (0.2.7) */
 #define ULTRA_ID_HW_CAPS          18u
 #define ULTRA_ID_FEATURES         20u
 #define ULTRA_HWCAP_RETURN        0x0001u  /* 0.2.4: answers POLLs */
@@ -204,7 +242,10 @@ enum {
 #define ULTRA_HWCAP_VBUS          0x0004u  /* measures its supply / bus voltage (STATUS 13) */
 #define ULTRA_HWCAP_CURRENT       0x0008u  /* measures its input current (STATUS 17) */
 #define ULTRA_HWCAP_NTC           0x0010u  /* a board temperature sensor (STATUS 11) */
-/*      0x0020-0x8000             reserved (0.2.4: the proposal's AUX_V 0x0020 dropped, no page carries its value) */
+#define ULTRA_HWCAP_PIXEL         0x0040u  /* 0.2.7: a pixel delay line on a digital port (the Ultra-Digital receiver):
+                                              polled behind a marker (ULTRA_DP_* above), one receiver per port */
+/*      0x0020                    reserved (0.2.4: the proposal's AUX_V, dropped: no page carries its value)
+ *      0x0080-0x8000             reserved */
 /* STATUS page DATA (wiki: Return channel), the fields the firmware measures already (console `status`):
  * the MCU (die) temperature from the CH32V203's internal sensor, int16 0.1 C, ULTRA_ST_NA = not valid (no good
  * conversion yet, or 5 bad ones in a row; core/mcutemp.h), and the 3.3 V rail from VREFINT, mV (0 = not known).
@@ -525,8 +566,13 @@ enum {
 #define ULTRA_FEAT_LOSS_SCENE     0x00100000u  /* CONFIG 8 value 3: signal loss fades to the power-on scene (0.2.5) */
 #define ULTRA_FEAT_STANDBY        0x00200000u  /* IDENTIFY 7: the planned power-off notice (0.2.6) */
 #define ULTRA_FEAT_LIFE_SYNC      0x00400000u  /* LIFE_SYNC page: the hub's lifetime counters merged (0.2.6) */
-/*      0x00800000                future official features (e.g. broadcast slots, an EXT extension);
- *      0x01000000-0x80000000     hardware-specific */
+#define ULTRA_FEAT_IDENTITY_2     0x00800000u  /* (0.2.7) the features continue on page 0x0F IDENTITY_2: every later
+                                                  official feature bit is there (none yet: no board sets this bit) */
+/*      0x01000000-0x80000000     hardware-specific, by hardware id; never reclassified (a product may use them) */
+/* IDENTITY_2 page DATA (0x0F, 0.2.7): for a board with ULTRA_FEAT_IDENTITY_2 (without it: UNSUPPORTED; a host polls
+ * it only when the bit is set, with IDENTITY). Bytes 0-3: feature bits 32-63 (ULTRA_FEAT2_*, none defined yet), as
+ * IDENTITY 20; bytes 4-23 reserved (0; later feature words, bits 64-223). */
+#define ULTRA_ID2_FEATURES        0u
 
 /* SET flags (low nibble of byte 1; the other slot types send FLAGS 0) */
 #define ULTRA_SET_SMOOTH   0x01u       /* ESPHome's smoothstep curve (6x^5 - 15x^4 + 10x^3), else linear */
@@ -858,10 +904,11 @@ static inline void ultra_slot_config(uint8_t *s, uint8_t seq, const uint8_t *ids
  * board of a line, 3 copies with the same SEQ (applied once) at 0, 50 and 100 ms, and cuts the line's power at 200 ms;
  * once sent it always cuts (no take-back: a command after it waits for the power to be off, then wakes the line). A
  * board that knows it (the QuinLED Diff-Power Ultra-Analog receiver, ULTRA_FEAT_STANDBY) fades to dark (0.3 s) and takes the
- * coming cut as planned: no supply dip, and the lifetime record written only if there is something worth storing (a
- * board doesn't write its record for every standby cycle). After 2 s without the cut it forgets the notice. Its next
- * start is a power-up as any: such a receiver stays dark after every power-up until the first valid frame or 1.5 s,
- * then shows its power-on scene. Other boards ignore it (a reserved value before 0.2.6).
+ * coming cut as planned: no supply dip in the 10 s after it, and the lifetime record written only if there is something
+ * worth storing (a board doesn't write its record for every standby cycle). Still powered 2 s after it with the supply
+ * steady, its outputs come back; after 10 s without the cut it forgets the notice (the receiver's firmware 0.6.10:
+ * 2 s). Its next start is a power-up as any: such a receiver stays dark after every power-up until the first valid
+ * frame or 1.5 s, then shows its power-on scene. Other boards ignore it (a reserved value before 0.2.6).
  * Values 6 and 8-255 and CAL arguments 1-4 / 101-255 are reserved: a board ignores the slot. STOP / ON / RELEASE /
  * VERSION / POWER_OFF send argument 0. */
 #define ULTRA_IDENT_STOP 0u
@@ -1000,6 +1047,8 @@ static inline uint32_t ultra_rw_window_us(uint8_t slots, uint8_t rate)
 {
     return ULTRA_RW_FIRST_US + ultra_rw_slot_us(rate) * slots;
 }
+/* (0.2.7) a digital port's window W_D, us after t_end: the hub listens this long at most (1,360 / 1,690 / 2,350 us) */
+static inline uint32_t ultra_dp_window_us(uint8_t rate) { return ULTRA_RW_DIR_MAX_US + ultra_rw_slot_us(rate); }
 
 /* an answer (32 bytes as received): 0 = SYNC and CRC valid */
 static inline int ultra_answer_check(const uint8_t *a)

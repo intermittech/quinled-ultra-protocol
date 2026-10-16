@@ -46,6 +46,9 @@ housekeeping, and the QuinLED Diff-Power Ultra-Digital receiver (hardware id 3) 
   pre-production break.
 - **Test vectors:** the 0.2.6 ones unchanged; new: `slot_poll_identity_features`, `answer_identity_board`,
   `answer_identity_features`.
+- **The header's comments describe the current state** (round 14): no per-release notes ("0.2.x:", "before 0.2.x",
+  the withdrawn format 1); the return channel's comment names both Ultra receivers. Comments only: the code is the
+  same token for token, but the file's md5 changed, so every copy must be updated.
 
 ## v0.2.6 (wire VERSION 2), 2026-10-15
 

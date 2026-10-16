@@ -6,14 +6,23 @@ PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
 ## v0.2.7 (wire VERSION 2), not tagged yet
 
-Backward compatible: `ULTRA_VERSION` stays 2, and no byte a host sends changes. Housekeeping, and the QuinLED
-Diff-Power Ultra-Digital receiver (hardware id 3) and its digital ports.
+`ULTRA_VERSION` stays 2: the frames to the boards are unchanged. **One break in the return channel's answers**, made
+once before production (no receiver has been built yet): IDENTITY and STATUS byte 3, below. A host reading them must
+take this release; the names of the changed fields changed with them, so code written for 0.2.6 doesn't build. The rest:
+housekeeping, and the QuinLED Diff-Power Ultra-Digital receiver (hardware id 3) and its digital ports.
 
-- **The feature bits continue on a page:** bit 23 (`ULTRA_FEAT_IDENTITY_2`) says the features continue on page 0x0F
-  IDENTITY_2 (`ULTRA_PAGE_IDENTITY_2`, `ULTRA_ID2_FEATURES`: bits 32-63, bytes 4-23 reserved for bits 64-223). Every
-  later official feature bit is there; no board sets bit 23 yet, and a host polls 0x0F only when it is set. Bits 24-31
-  stay hardware-specific: the 0.2.6 header gave them to products for their own use, so reclassifying them could
-  give a host official meanings for bits an older product sets for something else, and it would add only 8 bits.
+- **IDENTITY in two parts** (POLL argument 0: `ULTRA_ID_PART_BOARD`, `ULTRA_ID_PART_FEATURES`; 2-255: UNSUPPORTED),
+  room for the protocol's life instead of a field that was nearly full (23 of 24 official feature bits):
+  - part 0, the board: the UID, the firmware and bootloader versions, the hardware id, **the hardware revision**
+    (`ULTRA_ID_HW_REV`, new), **32-bit capabilities** (`ULTRA_ID_CAPS` at 20; 0.2.6: 16 bits at 18);
+  - part 1, the firmware's features: **192 feature bits**, six big-endian u32 words (`ULTRA_IDF_*`; word 0 = the
+    `ULTRA_FEAT_*` masks, bits 0-22 as before); every bit official, bits 23-191 free. No hardware-specific feature
+    bits any more (0.2.6: bits 24-31): a hardware-specific ability goes by the hardware id (its capabilities, pages
+    0x80-0xFD, CONFIG 128-255). `ultra_feat_has()` reads any bit.
+- **STATUS byte 3 is the hardware id** (`ULTRA_ST_HW_ID`; 0.2.6 `ULTRA_ST_HW`: hardware id << 4 | revision, so 15
+  boards at most). Hardware ids are one byte everywhere now (the update descriptor, the bootloader, IDENTITY,
+  STATUS): 4-254 for later boards of the series; the revision is in IDENTITY part 0 (16 a board: the update
+  descriptor's revision mask).
 - **The header's FLAGS nibble is full; the rule for later frame-level features:** none gets a header bit of its own.
   An optional one sets HINT and names itself in a broadcast slot (its own type, 0x80-0xFF, after the last board's
   slot); several share HINT in one frame, one broadcast slot each; a board uses those it knows. A must-understand one
@@ -23,7 +32,7 @@ Diff-Power Ultra-Digital receiver (hardware id 3) and its digital ports.
 - **The planned power-off notice's text:** a supply dip in the 10 s after IDENTIFY 7 is the cut's; still powered 2 s
   after it with the supply steady, the outputs come back; it is forgotten after 10 s (the receiver's firmware after
   0.6.10; 0.6.10: 2 s). A comment.
-- **Hardware id 3, the QuinLED Diff-Power Ultra-Digital receiver** (IDENTITY 17), and **`ULTRA_HWCAP_PIXEL` 0x0040:** a
+- **Hardware id 3, the QuinLED Diff-Power Ultra-Digital receiver** (IDENTITY 17), and **`ULTRA_HWCAP_PIXEL` 0x40:** a
   pixel delay line on a digital port. Page 0x80 on hardware 3 is PIXEL (hardware-specific: its firmware's wiki).
 - **Digital ports** (`ULTRA_DP_*`, `ultra_dp_window_us()`): one receiver per pixel port takes Ultra frames (one
   slot) behind a marker in a stretched latch gap: the line LOW >= 350 us after the last pixel edge, the marker HIGH
@@ -33,8 +42,10 @@ Diff-Power Ultra-Digital receiver (hardware id 3) and its digital ports.
   poll in the first second after a port's power-up, updates behind markers, and the back-off for a receiver that
   stops answering (3 polls, 3 more after 60 s, then none until the user intervenes: at most 6 one-frame glitches
   from a dead or misconfigured receiver). Wiki: Return channel, digital ports.
-- **Compatibility and versioning:** "new slot types and CONFIG ids before EXT", the reserved ranges for 0.2.7.
-- **Test vectors:** unchanged (no builder changed).
+- **Compatibility and versioning:** "new slot types and CONFIG ids before EXT", the reserved ranges for 0.2.7, the
+  pre-production break.
+- **Test vectors:** the 0.2.6 ones unchanged; new: `slot_poll_identity_features`, `answer_identity_board`,
+  `answer_identity_features`.
 
 ## v0.2.6 (wire VERSION 2), 2026-10-15
 

@@ -573,11 +573,64 @@ static void return_channel(void)
         printf("ok   the next frame waits for the response window (W %u us + %u us)\n",
                (unsigned)ultra_rw_window_us(2, 0), (unsigned)ULTRA_RW_HOLDOFF_US);
     }
-    /* 0.2.5 pages: LIFETIME (no arguments), DIAG part 1 (the fault memory) */
+    /* 0.2.5 pages: LIFETIME (no arguments), DIAG part 1 (the fault memory); 0.2.7: IDENTITY part 1 (the features) */
     {
-        static const uint8_t diag_part1[1] = { 1 };
+        static const uint8_t diag_part1[1] = { 1 }, id_part1[1] = { ULTRA_ID_PART_FEATURES };
         rc_page_slot("slot_poll_lifetime", ULTRA_PAGE_LIFETIME, NULL, 0, 0x63);
         rc_page_slot("slot_poll_diag_faults", ULTRA_PAGE_DIAG, diag_part1, sizeof diag_part1, 0x64);
+        rc_page_slot("slot_poll_identity_features", ULTRA_PAGE_IDENTITY, id_part1, sizeof id_part1, 0x66);
+    }
+    /* 0.2.7: IDENTITY's two answers, built from the header's layout and compared, then read back through
+     * ultra_rc_answer and the getters (part 0's fields, part 1's features) */
+    {
+        uint8_t a[32], rx[33], fe[33], got[32], uid[12];
+        int k, ok;
+        for (k = 0; k < 12; k++) {
+            uid[k] = (uint8_t)(0x11 * k);
+        }
+        for (k = 0; k < 2; k++) {
+            const char *name = k == 0 ? "answer_identity_board" : "answer_identity_features";
+            memset(a, 0, sizeof a);
+            a[0] = ULTRA_RSP_SYNC;
+            a[1] = ULTRA_PAGE_IDENTITY;
+            a[3] = (uint8_t)(k == 0 ? 0x67u : 0x66u);
+            ultra_put16(a + 4, ultra_crc16(uid, 12));
+            if (k == 0) {
+                memcpy(a + ULTRA_RSP_DATA + ULTRA_ID_UID, uid, 12);
+                ultra_put32(a + ULTRA_RSP_DATA + ULTRA_ID_FW_VERSION, 0x00060BFFu);
+                a[ULTRA_RSP_DATA + ULTRA_ID_BL_VERSION] = 2u;
+                a[ULTRA_RSP_DATA + ULTRA_ID_HW_ID] = 2u;
+                ultra_put32(a + ULTRA_RSP_DATA + ULTRA_ID_CAPS, ULTRA_HWCAP_RETURN | ULTRA_HWCAP_RELAY |
+                                                                ULTRA_HWCAP_VBUS | ULTRA_HWCAP_CURRENT);
+            } else {
+                ultra_put32(a + ULTRA_RSP_DATA + ULTRA_IDF_FEATURES, 0x007FFFFFu);
+            }
+            ultra_put16(a + 30, ultra_crc16(a, 30));
+            compare(name, a, 32);
+            rx[0] = ULTRA_RSP_LEAD;
+            if (vector(name, rx + 1, 32) != 32) {
+                memset(rx + 1, 0, 32);
+            }
+            memset(fe, 0, sizeof fe);
+            ok = ultra_rc_answer(rx, fe, sizeof rx, got) == ULTRA_OK && ultra_rc_page(got) == ULTRA_PAGE_IDENTITY &&
+                 ultra_rc_uid16(got) == ultra_crc16(uid, 12);
+            if (k == 0) {
+                ok = ok && memcmp(got + ULTRA_RSP_DATA + ULTRA_ID_UID, uid, 12) == 0 &&
+                     got[ULTRA_RSP_DATA + ULTRA_ID_HW_ID] == 2u && got[ULTRA_RSP_DATA + ULTRA_ID_HW_REV] == 0u &&
+                     ultra_get32(got + ULTRA_RSP_DATA + ULTRA_ID_CAPS) == 0x0000000Fu &&
+                     ultra_get32(got + ULTRA_RSP_DATA + ULTRA_ID_FW_VERSION) == 0x00060BFFu;
+            } else {
+                ok = ok && ultra_rc_features(got) == 0x007FFFFFu && (ultra_rc_features(got) & ULTRA_FEAT_LIFE_SYNC) &&
+                     ultra_rc_feature(got, 22) && !ultra_rc_feature(got, 23) && !ultra_rc_feature(got, 191);
+            }
+            checked++;
+            if (!ok) {
+                printf("FAIL %s: ultra_rc_answer / the IDENTITY getters\n", name);
+                failures++;
+            } else {
+                printf("ok   %s: ultra_rc_answer and the IDENTITY getters\n", name);
+            }
+        }
     }
     /* 0.2.6: LIFE_SYNC, the hub's ledger (ultra_rc_request_life_sync), and a board's APPLIED answer: built here from
      * the header's layout and compared, then taken apart through ultra_rc_answer and the ultra_rc_ls_* accessors */

@@ -286,9 +286,10 @@ checked against the protocol's vectors, not yet against a receiver.
 - The transport sends the RW frame without the reset gap and releases the line within 150 µs.
 - Any page with its arguments: `ultra_rc_request_add(&rq, board, ULTRA_PAGE_DIAG, &part, 1)` (`uint8_t part`: 0 the
   running board, 1 the fault memory); a board without the page answers `ULTRA_PAGE_UNSUPPORTED`.
-- The answer's DATA with the header's offsets and `ultra_get16/24/32`; `ultra_rc_features()` (IDENTITY: what the
-  board takes, `ULTRA_FEAT_*`) and `ultra_rc_status_why()` (STATUS, 0.2.5: why the light isn't as set,
-  `ULTRA_ST_WHY_*`).
+- The answer's DATA with the header's offsets and `ultra_get16/24/32`; `ultra_rc_features()` /
+  `ultra_rc_feature(a, bit)` (0.2.7: IDENTITY part 1, `part` = `ULTRA_ID_PART_FEATURES`: what the board takes,
+  `ULTRA_FEAT_*`, bits 0-191; part 0 is the board: UID, versions, hardware id and revision, capabilities) and
+  `ultra_rc_status_why()` (STATUS, 0.2.5: why the light isn't as set, `ULTRA_ST_WHY_*`).
 - **The hub's lifetime counters** (0.2.6, LIFE_SYNC, `ULTRA_FEAT_LIFE_SYNC`): a hub that keeps a ledger of each
   receiver's LIFETIME counters (by its UID) gives them back after the receiver's power-up, so what it couldn't store
   before a power cut isn't lost: `ultra_rc_request_life_sync(&rq, board, uid16, lifetime, total_wh, records_lo)`

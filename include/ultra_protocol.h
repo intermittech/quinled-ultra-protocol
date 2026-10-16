@@ -194,7 +194,7 @@ enum {
 #define ULTRA_RW_RATE_250K    2u       /* 250 kbaud: 1450 us (beyond 100 m) */
 #define ULTRA_RW_RATES        3u       /* 3-255 reserved: not a valid POLL (the board doesn't take part) */
 /* response slot: SYNC | PAGE | INDEX<<4 | RFLAGS | SEQ | UID16 (2) | DATA (24) | CRC-16 (2), after the lead byte.
- * UID16: CRC-16 (ultra_crc16) over the 12 bytes of the MCU's unique id in address order (IDENTITY 0..11); a
+ * UID16: CRC-16 (ultra_crc16) over the 12 bytes of the MCU's unique id in address order (IDENTITY part 0, 0..11); a
  * fingerprint, not an identity (the host reads IDENTITY for that). Unknown RFLAGS bits are ignored. */
 #define ULTRA_RSP_LEAD        0xFFu    /* the lead byte: one falling edge, its start bit */
 #define ULTRA_RSP_SYNC        0xA5u
@@ -207,7 +207,9 @@ enum {
                                           went out (that window: no relay, no answer) */
 enum {
     ULTRA_PAGE_STATUS = 0x00, ULTRA_PAGE_OUTPUTS = 0x01, ULTRA_PAGE_ACKS = 0x02, ULTRA_PAGE_ERRORS = 0x03,
-    ULTRA_PAGE_IDENTITY = 0x04, ULTRA_PAGE_FW_UPDATE = 0x05,
+    ULTRA_PAGE_IDENTITY = 0x04,        /* 0.2.7: two parts (POLL argument 0: 0 = the board, 1 = its features; 2-255:
+                                          UNSUPPORTED) (ULTRA_ID_*) */
+    ULTRA_PAGE_FW_UPDATE = 0x05,
     ULTRA_PAGE_CALIBRATION = 0x06,     /* current sense: the model, connected load and limit in effect */
     ULTRA_PAGE_CAL_TEST = 0x07,        /* the stored test, in two parts (POLL argument 0: 0 = CH1-3, 1 = CH4-5 + rest;
                                           2-255: UNSUPPORTED) */
@@ -220,32 +222,47 @@ enum {
                                           the fault memory and the calibration trend; 2-255: UNSUPPORTED) (ULTRA_DG_*) */
     ULTRA_PAGE_LIFE_SYNC = 0x0E,       /* 0.2.6: the hub's lifetime counters for the board to merge (ULTRA_LS_*; the
                                           answer: the counters after it and the result) (ULTRA_FEAT_LIFE_SYNC) */
-    ULTRA_PAGE_IDENTITY_2 = 0x0F,      /* 0.2.7: more feature bits (ULTRA_ID2_*; ULTRA_FEAT_IDENTITY_2) */
-    ULTRA_PAGE_HW = 0x80,              /* 0x10-0x7F: future official pages; 0x80-0xFD: hardware-specific, by hardware id
+    ULTRA_PAGE_HW = 0x80,              /* 0x0F-0x7F: future official pages; 0x80-0xFD: hardware-specific, by hardware id
                                           (hardware 3, the Ultra-Digital receiver: 0x80 PIXEL, its pixel statistics; its
                                           firmware's wiki) */
     ULTRA_PAGE_BUSY = 0xFE, ULTRA_PAGE_UNSUPPORTED = 0xFF,
 };
-/* IDENTITY page DATA: MCU UID (12) | firmware version word (4, ultra_update.h; 0 = unknown) | bootloader version (1,
- * 0 = none) | hardware id (1) | hardware capabilities (2, ULTRA_HWCAP_*: 0.2.4) | firmware features (4,
- * ULTRA_FEAT_*). Only over the return channel: for a board without one (every Dig2Analog-Ultra-5ch) the host can't
- * know its features and relies on the compatibility rules above (an unknown command does nothing, an unknown effect
- * shows the plain state). */
+/* IDENTITY page DATA, two parts (0.2.7; POLL argument 0 = ULTRA_ID_PART_*, 2-255: UNSUPPORTED). A host reads both at
+ * the start and whenever UID16 changes.
+ * Part 0, the board: MCU UID (12) | firmware version word (4, ultra_update.h; 0 = unknown) | bootloader version (1,
+ * 0 = none) | hardware id (1) | hardware revision (1) | reserved (1, 0) | hardware capabilities (4, ULTRA_HWCAP_*).
+ * Part 1, the firmware's features: 192 feature bits in six u32 words (big-endian each, ULTRA_IDF_*): word w holds
+ * bits 32 w .. 32 w + 31, bit 32 w its least significant (word 0: the ULTRA_FEAT_* masks; ultra_feat_has). Every bit
+ * is official, assigned here in order; a hardware-specific ability goes by the hardware id (its capabilities, pages
+ * 0x80-0xFD, CONFIG 128-255), never by a feature bit.
+ * (0.2.4-0.2.6 had one part: the capabilities as 2 bytes at 18 and 32 feature bits at 20, bits 24-31 hardware-specific.
+ * Changed in 0.2.7, before any receiver was built.) Only over the return channel: for a board without one (every
+ * Dig2Analog-Ultra-5ch) the host can't know its features and relies on the compatibility rules above (an unknown
+ * command does nothing, an unknown effect shows the plain state). */
+#define ULTRA_ID_PART_BOARD       0u     /* POLL argument 0 */
+#define ULTRA_ID_PART_FEATURES    1u
+#define ULTRA_ID_UID              0u     /* part 0 */
 #define ULTRA_ID_FW_VERSION       12u
-#define ULTRA_ID_BL_VERSION       16u    /* 0.2.4: (the offsets of the layout above) */
+#define ULTRA_ID_BL_VERSION       16u
 #define ULTRA_ID_HW_ID            17u    /* 1 Dig2Analog-Ultra-5ch (never answers), 2 Diff-Power Ultra-Analog
-                                            receiver, 3 Diff-Power Ultra-Digital receiver (0.2.7) */
-#define ULTRA_ID_HW_CAPS          18u
-#define ULTRA_ID_FEATURES         20u
-#define ULTRA_HWCAP_RETURN        0x0001u  /* 0.2.4: answers POLLs */
-#define ULTRA_HWCAP_RELAY         0x0002u  /* relays the answers of the boards behind it */
-#define ULTRA_HWCAP_VBUS          0x0004u  /* measures its supply / bus voltage (STATUS 13) */
-#define ULTRA_HWCAP_CURRENT       0x0008u  /* measures its input current (STATUS 17) */
-#define ULTRA_HWCAP_NTC           0x0010u  /* a board temperature sensor (STATUS 11) */
-#define ULTRA_HWCAP_PIXEL         0x0040u  /* 0.2.7: a pixel delay line on a digital port (the Ultra-Digital receiver):
-                                              polled behind a marker (ULTRA_DP_* above), one receiver per port */
-/*      0x0020                    reserved (0.2.4: the proposal's AUX_V, dropped: no page carries its value)
- *      0x0080-0x8000             reserved */
+                                            receiver, 3 Diff-Power Ultra-Digital receiver (0.2.7); 4-254 later boards
+                                            (ultra_update.h UPD_HW_ID_*, assigned there), 0 / 255 never */
+#define ULTRA_ID_HW_REV           18u    /* 0.2.7: the board's revision: the bit number in a firmware image's revision
+                                            mask (ultra_update.h UPD_D_HW_REV_MASK: 16 revisions a board) */
+#define ULTRA_ID_CAPS             20u    /* 0.2.7: u32, ULTRA_HWCAP_* (0.2.6: ULTRA_ID_HW_CAPS, u16 at 18) */
+#define ULTRA_IDF_FEATURES        0u     /* part 1: the six words (0.2.6's ULTRA_ID_FEATURES: one u32 at 20; the names
+                                            changed with the layout, so code written for it doesn't build) */
+#define ULTRA_IDF_WORDS           6u
+#define ULTRA_IDF_BITS            192u
+#define ULTRA_HWCAP_RETURN        0x00000001u  /* 0.2.4: answers POLLs */
+#define ULTRA_HWCAP_RELAY         0x00000002u  /* relays the answers of the boards behind it */
+#define ULTRA_HWCAP_VBUS          0x00000004u  /* measures its supply / bus voltage (STATUS 13) */
+#define ULTRA_HWCAP_CURRENT       0x00000008u  /* measures its input current (STATUS 17) */
+#define ULTRA_HWCAP_NTC           0x00000010u  /* a board temperature sensor (STATUS 11) */
+#define ULTRA_HWCAP_PIXEL         0x00000040u  /* 0.2.7: a pixel delay line on a digital port (the Ultra-Digital
+                                                  receiver): polled behind a marker (ULTRA_DP_* above), one per port */
+/*      0x00000020                reserved (0.2.4: the proposal's AUX_V, dropped: no page carries its value)
+ *      0x00000080-0x80000000     reserved: later official capabilities */
 /* STATUS page DATA (wiki: Return channel), the fields the firmware measures already (console `status`):
  * the MCU (die) temperature from the CH32V203's internal sensor, int16 0.1 C, ULTRA_ST_NA = not valid (no good
  * conversion yet, or 5 bad ones in a row; core/mcutemp.h), and the 3.3 V rail from VREFINT, mV (0 = not known).
@@ -255,7 +272,8 @@ enum {
 #define ULTRA_ST_NA               0x8000u
 /* the rest of STATUS (0.2.4) */
 #define ULTRA_ST_FW_VERSION       0u     /* u24: major, minor, patch (0 = a development build) */
-#define ULTRA_ST_HW               3u     /* u8: hardware id << 4 | revision */
+#define ULTRA_ST_HW_ID            3u     /* u8: the hardware id, as IDENTITY 17 (0.2.7; 0.2.4-0.2.6: ULTRA_ST_HW, hardware
+                                            id << 4 | revision: 15 ids at most. The revision: IDENTITY part 0) */
 #define ULTRA_ST_UPTIME           4u     /* u24: s since power-up (wraps after 194 days: compare modulo 2^24; after a
                                             restart it starts at 0 again, RESET has the cause) */
 #define ULTRA_ST_RESET            7u     /* u8: the reset cause of this start, ULTRA_ST_RST_* (several may be set) */
@@ -452,7 +470,7 @@ enum {
 #define ULTRA_LT_UPDATES          19u    /* u16: firmware updates (starts with a new app version) */
 #define ULTRA_LT_RECORDS          21u    /* u24: the record's writes (its flash wear) */
 /* LIFE_SYNC page (0x0E, 0.2.6; ULTRA_FEAT_LIFE_SYNC): a hub that keeps each board's lifetime counters (its ledger,
- * by the board's full UID, IDENTITY 0..11) sends them back after the board's power-up, so what the board couldn't
+ * by the board's full UID, IDENTITY part 0) sends them back after the board's power-up, so what the board couldn't
  * store before a power cut isn't lost. The board merges once per power-up, and only when the POLL's UID16 and RECORDS
  * low 8 bits are its own (the record the hub reconciled against: a board that wrote since, or another board, merges
  * nothing). Each counter is raised by the hub's step d ahead (in the wire's units) when 0 < d <= its step, else kept:
@@ -543,6 +561,7 @@ enum {
                                             against the first, % (ULTRA_HE_NA: not known) */
 #define ULTRA_DG_TREND_LIT_H      13u    /* u16: ... over how many lit hours (0xFFFF: not known) */
 #define ULTRA_DG_TREND_TESTS      15u    /* u8: tests in that history (0: not known) */
+/* the firmware's features: IDENTITY part 1's word 0 (bits 0-31) as masks (ultra_feat_has: any bit, 0-191) */
 #define ULTRA_FEAT_SCENE          0x00000001u  /* SCENE: power-on scene */
 #define ULTRA_FEAT_DIM_TO_WARM    0x00000002u  /* LIGHT_OPT dim to warm with red assist */
 #define ULTRA_FEAT_DTW_POINTS     0x00000004u  /* LIGHT_OPT set points */
@@ -566,13 +585,13 @@ enum {
 #define ULTRA_FEAT_LOSS_SCENE     0x00100000u  /* CONFIG 8 value 3: signal loss fades to the power-on scene (0.2.5) */
 #define ULTRA_FEAT_STANDBY        0x00200000u  /* IDENTIFY 7: the planned power-off notice (0.2.6) */
 #define ULTRA_FEAT_LIFE_SYNC      0x00400000u  /* LIFE_SYNC page: the hub's lifetime counters merged (0.2.6) */
-#define ULTRA_FEAT_IDENTITY_2     0x00800000u  /* (0.2.7) the features continue on page 0x0F IDENTITY_2: every later
-                                                  official feature bit is there (none yet: no board sets this bit) */
-/*      0x01000000-0x80000000     hardware-specific, by hardware id; never reclassified (a product may use them) */
-/* IDENTITY_2 page DATA (0x0F, 0.2.7): for a board with ULTRA_FEAT_IDENTITY_2 (without it: UNSUPPORTED; a host polls
- * it only when the bit is set, with IDENTITY). Bytes 0-3: feature bits 32-63 (ULTRA_FEAT2_*, none defined yet), as
- * IDENTITY 20; bytes 4-23 reserved (0; later feature words, bits 64-223). */
-#define ULTRA_ID2_FEATURES        0u
+/*      0x00800000-0x80000000     bits 23-31, then words 1-5 (bits 32-191): later official features, in order (0.2.7:
+ *                                 every bit official, none hardware-specific) */
+/* feature bit `bit` (0-191) in IDENTITY part 1's DATA f (ULTRA_IDF_FEATURES): 1 = the firmware has it */
+static inline int ultra_feat_has(const uint8_t *f, uint32_t bit)
+{
+    return bit < ULTRA_IDF_BITS && ((f[4u * (bit >> 5) + 3u - ((bit & 31u) >> 3)] >> (bit & 7u)) & 1u);
+}
 
 /* SET flags (low nibble of byte 1; the other slot types send FLAGS 0) */
 #define ULTRA_SET_SMOOTH   0x01u       /* ESPHome's smoothstep curve (6x^5 - 15x^4 + 10x^3), else linear */

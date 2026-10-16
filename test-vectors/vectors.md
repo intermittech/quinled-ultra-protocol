@@ -375,6 +375,17 @@ TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x65`, CRC-16 `0x0EE1` (valid)
 02 13 00 05 00 01 00 00 16 00 00 23 5A 07 0E E1
 ```
 
+### `slot_poll_identity_features`: POLL IDENTITY part 1, the features (0.2.7)
+
+Index 0, R = 1, page 0x04 IDENTITY, rate 1. Argument 0 (slot byte 7) = 1: the firmware's 192 feature bits (0: the board, its UID, versions, hardware id and revision, capabilities; 2-255: UNSUPPORTED). SEQ 0x66.
+
+TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x66`, CRC-16 `0x02A5` (valid)
+
+```
+07 F0 66 00 01 04 01 01 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A5
+```
+
 ### `slot_identify_power_off`: IDENTIFY planned power-off (0.2.6)
 
 Value 7, argument 0 (ultra_slot_power_off): 3 copies with the same SEQ (applied once) at 0, 50 and 100 ms, the line's power cut at 200 ms. A Diff-Power Ultra-Analog receiver (ULTRA_FEAT_STANDBY) fades to dark and takes the cut as planned (no supply dip); other boards and firmware from before 0.2.6 ignore it. SEQ 0x59.
@@ -534,5 +545,27 @@ SYNC `0xA5`, PAGE `0x0E`, INDEX 0, RFLAGS `0x0`, SEQ `0x65`, UID16 `0x1234`, CRC
 ```
 A5 0E 00 65 12 34 00 27 24 00 0F AA 00 02 13 00
 05 00 01 00 00 16 00 00 23 5A 00 3F 00 07 E4 DE
+```
+
+### `answer_identity_board`: IDENTITY answer, part 0: the board (0.2.7)
+
+An Ultra-Analog receiver: DATA 0-11 the MCU UID (00 11 22 .. BB), 12-15 the firmware version word 0x00060BFF (0.6.11, a release), 16 bootloader 2, 17 hardware id 2, 18 revision 0, 19 reserved 0, 20-23 the capabilities 0x0000000F (answers, relays, bus voltage, input current). The answer to a POLL of part 0 (argument 0 = 0) with SEQ 0x67: index 0, RFLAGS 0, UID16 the CRC-16 of the UID.
+
+SYNC `0xA5`, PAGE `0x04`, INDEX 0, RFLAGS `0x0`, SEQ `0x67`, UID16 `0xAF3C`, CRC-16 `0xEE3D` over bytes 0-29. On the wire: a `0xFF` lead byte, then these 32 bytes, UART 8N1 at the POLL's rate.
+
+```
+A5 04 00 67 AF 3C 00 11 22 33 44 55 66 77 88 99
+AA BB 00 06 0B FF 02 02 00 00 00 00 00 0F EE 3D
+```
+
+### `answer_identity_features`: IDENTITY answer, part 1: the features (0.2.7)
+
+The same board, to slot_poll_identity_features: DATA 0-23 six u32 words, big-endian; word 0 = 0x007FFFFF (feature bits 0-22: SCENE .. LIFE_SYNC), words 1-5 = 0. Index 0, RFLAGS 0, SEQ 0x66.
+
+SYNC `0xA5`, PAGE `0x04`, INDEX 0, RFLAGS `0x0`, SEQ `0x66`, UID16 `0xAF3C`, CRC-16 `0x6A87` over bytes 0-29. On the wire: a `0xFF` lead byte, then these 32 bytes, UART 8N1 at the POLL's rate.
+
+```
+A5 04 00 66 AF 3C 00 7F FF FF 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 6A 87
 ```
 

@@ -87,13 +87,18 @@ static inline uint8_t  ultra_rc_rflags(const uint8_t *a) { return (uint8_t)(a[2]
 static inline uint8_t  ultra_rc_seq(const uint8_t *a) { return a[3]; }
 static inline uint16_t ultra_rc_uid16(const uint8_t *a) { return (uint16_t)ultra_get16(a + 4); }
 /* DATA fields: ultra_get16 / ultra_get24 / ultra_get32 (big-endian) at answer + ULTRA_RSP_DATA + the page's offset.
- * Two shortcuts: an IDENTITY answer's features (ULTRA_FEAT_*: what this board takes, e.g. ULTRA_FEAT_RETRY;
- * ULTRA_FEAT_STANDBY, 0.2.6: it takes the power-off notice, ultra_sender_power_off), and a
- * STATUS answer's reason (0.2.5): why its light isn't as the host set it now, ULTRA_ST_WHY_* (0 = as set; a board from
- * before 0.2.5 sends 0) */
+ * Shortcuts: the features of an IDENTITY answer to part 1 (0.2.7: POLL argument 0 = ULTRA_ID_PART_FEATURES; part 0
+ * is the board): ultra_rc_features its bits 0-31 as the ULTRA_FEAT_* masks (what this board takes, e.g.
+ * ULTRA_FEAT_RETRY; ULTRA_FEAT_STANDBY, 0.2.6: it takes the power-off notice, ultra_sender_power_off),
+ * ultra_rc_feature any bit 0-191; and a STATUS answer's reason (0.2.5): why its light isn't as the host set it now,
+ * ULTRA_ST_WHY_* (0 = as set; a board from before 0.2.5 sends 0) */
 static inline uint32_t ultra_rc_features(const uint8_t *a)
 {
-    return ultra_get32(a + ULTRA_RSP_DATA + ULTRA_ID_FEATURES);
+    return ultra_get32(a + ULTRA_RSP_DATA + ULTRA_IDF_FEATURES);
+}
+static inline int ultra_rc_feature(const uint8_t *a, uint32_t bit)
+{
+    return ultra_feat_has(a + ULTRA_RSP_DATA + ULTRA_IDF_FEATURES, bit);
 }
 static inline uint8_t ultra_rc_status_why(const uint8_t *a)
 {

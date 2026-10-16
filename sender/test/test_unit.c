@@ -953,13 +953,19 @@ static void test_rc_answer(void)
     CHECK(ultra_rc_answer(rx, ferr, 64, got) != 0, "rc answer: no SYNC: none");
     CHECK(ultra_rc_slot_start_us(ULTRA_RW_RATE_1M, 0) == 1000u && ultra_rc_slot_start_us(ULTRA_RW_RATE_1M, 2) == 1920u &&
           ultra_rc_slot_start_us(ULTRA_RW_RATE_250K, 1) == 2450u, "rc slots: 1000 + i x 460 / 1450 us");
-    /* the getters of 0.2.5: an IDENTITY answer's features, a STATUS answer's reason nibble (beside the limit bits) */
+    /* the getters: an IDENTITY part 1 answer's features (0.2.7: six big-endian u32 words), a STATUS answer's reason
+     * nibble (0.2.5, beside the limit bits) */
     memset(a, 0, sizeof a);
     a[1] = ULTRA_PAGE_IDENTITY;
-    a[ULTRA_RSP_DATA + ULTRA_ID_FEATURES + 1] = (uint8_t)((ULTRA_FEAT_RETRY | ULTRA_FEAT_STANDBY) >> 16);
-    a[ULTRA_RSP_DATA + ULTRA_ID_FEATURES + 3] = (uint8_t)ULTRA_FEAT_SCENE;
+    a[ULTRA_RSP_DATA + ULTRA_IDF_FEATURES + 1] = (uint8_t)((ULTRA_FEAT_RETRY | ULTRA_FEAT_STANDBY) >> 16);
+    a[ULTRA_RSP_DATA + ULTRA_IDF_FEATURES + 3] = (uint8_t)ULTRA_FEAT_SCENE;
+    a[ULTRA_RSP_DATA + ULTRA_IDF_FEATURES + 4 * 5] = 0x80u;     /* bit 191: word 5's most significant */
+    a[ULTRA_RSP_DATA + ULTRA_IDF_FEATURES + 4 * 1 + 3] = 0x01u; /* bit 32: word 1's least significant */
     CHECK(ultra_rc_features(a) == (ULTRA_FEAT_RETRY | ULTRA_FEAT_STANDBY | ULTRA_FEAT_SCENE) &&
-          (ultra_rc_features(a) & ULTRA_FEAT_STANDBY) != 0u, "rc: IDENTITY features (big-endian u32), STANDBY (0.2.6)");
+          (ultra_rc_features(a) & ULTRA_FEAT_STANDBY) != 0u, "rc: IDENTITY part 1, word 0 (big-endian u32), STANDBY");
+    CHECK(ultra_rc_feature(a, 0) && ultra_rc_feature(a, 19) && ultra_rc_feature(a, 21) && !ultra_rc_feature(a, 22) &&
+          ultra_rc_feature(a, 32) && !ultra_rc_feature(a, 33) && ultra_rc_feature(a, 191) && !ultra_rc_feature(a, 190) &&
+          !ultra_rc_feature(a, 192), "rc: IDENTITY part 1, bits 0-191 (ultra_feat_has)");
     a[1] = ULTRA_PAGE_STATUS;
     a[ULTRA_RSP_DATA + ULTRA_ST_STATE] = (uint8_t)((ULTRA_ST_WHY_RETRIES_OUT << ULTRA_ST_WHY_SHIFT) | ULTRA_ST_LIMITING);
     CHECK(ultra_rc_status_why(a) == ULTRA_ST_WHY_RETRIES_OUT, "rc: STATUS reason nibble (0.2.5)");

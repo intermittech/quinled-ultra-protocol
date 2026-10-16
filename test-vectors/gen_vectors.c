@@ -340,6 +340,16 @@ int main(int argc, char **argv)
                     "power-ups, overload trips 5, short trips 1, 22 supply dips; the lifetime energy 9050 Wh; RECORDS' "
                     "low byte 7. A board from before 0.2.6 answers UNSUPPORTED (0xFF). SEQ 0x65.", s, 1);
     }
+    {
+        /* (0.2.7) IDENTITY in two parts: part 1, the features (its answer: answer_identity_features, section 6) */
+        static const uint8_t id_part[1] = { ULTRA_ID_PART_FEATURES };
+        ultra_slot_poll(s, 0x66, 0, 1, ULTRA_PAGE_IDENTITY, ULTRA_RW_RATE_500K, id_part, sizeof id_part);
+        check(ultra_poll_valid(s) == 0, "slot_poll_identity_features");
+        slot_vector("slot_poll_identity_features", "POLL IDENTITY part 1, the features (0.2.7)",
+                    "Index 0, R = 1, page 0x04 IDENTITY, rate 1. Argument 0 (slot byte 7) = 1: the firmware's 192 "
+                    "feature bits (0: the board, its UID, versions, hardware id and revision, capabilities; 2-255: "
+                    "UNSUPPORTED). SEQ 0x66.", s, 1);
+    }
     ultra_slot_power_off(s, 0x59);
     slot_vector("slot_identify_power_off", "IDENTIFY planned power-off (0.2.6)",
                 "Value 7, argument 0 (ultra_slot_power_off): 3 copies with the same SEQ (applied once) at 0, 50 and "
@@ -482,6 +492,49 @@ int main(int argc, char **argv)
                       "lifetime energy 9050 Wh, 20 the result 0 APPLIED, 21 the counters raised 0x3F (powered, lit, "
                       "power-ups, trips, dips, energy), 22-23 RECORDS 7. Index 0, RFLAGS 0, SEQ 0x65, UID16 0x1234.",
                       a);
+    }
+    {
+        /* (0.2.7) IDENTITY's two parts from a Diff-Power Ultra-Analog receiver (UID 00 11 22 .. BB) */
+        uint8_t a[32], uid[12];
+        uint32_t k;
+        for (k = 0; k < 12u; k++) {
+            uid[k] = (uint8_t)(0x11u * k);
+        }
+        for (k = 0; k < 2u; k++) {
+            memset(a, 0, sizeof a);
+            a[0] = ULTRA_RSP_SYNC;
+            a[1] = ULTRA_PAGE_IDENTITY;
+            a[3] = (uint8_t)(k == 0u ? 0x67u : 0x66u);       /* (part 1: slot_poll_identity_features's SEQ) */
+            ultra_put16(a + 4, ultra_crc16(uid, 12));     /* UID16: the CRC-16 of the UID */
+            if (k == 0u) {
+                memcpy(a + ULTRA_RSP_DATA + ULTRA_ID_UID, uid, 12);
+                ultra_put32(a + ULTRA_RSP_DATA + ULTRA_ID_FW_VERSION, 0x00060BFFu);
+                a[ULTRA_RSP_DATA + ULTRA_ID_BL_VERSION] = 2u;
+                a[ULTRA_RSP_DATA + ULTRA_ID_HW_ID] = 2u;
+                a[ULTRA_RSP_DATA + ULTRA_ID_HW_REV] = 0u;
+                ultra_put32(a + ULTRA_RSP_DATA + ULTRA_ID_CAPS, ULTRA_HWCAP_RETURN | ULTRA_HWCAP_RELAY |
+                                                                ULTRA_HWCAP_VBUS | ULTRA_HWCAP_CURRENT);
+            } else {
+                ultra_put32(a + ULTRA_RSP_DATA + ULTRA_IDF_FEATURES, 0x007FFFFFu);   /* bits 0-22; words 1-5: 0 */
+                check(ultra_feat_has(a + ULTRA_RSP_DATA, 22u) && !ultra_feat_has(a + ULTRA_RSP_DATA, 23u) &&
+                      !ultra_feat_has(a + ULTRA_RSP_DATA, 191u) && !ultra_feat_has(a + ULTRA_RSP_DATA, 192u),
+                      "ultra_feat_has");
+            }
+            ultra_put16(a + 30, ultra_crc16(a, 30));
+            if (k == 0u) {
+                answer_vector("answer_identity_board", "IDENTITY answer, part 0: the board (0.2.7)",
+                              "An Ultra-Analog receiver: DATA 0-11 the MCU UID (00 11 22 .. BB), 12-15 the firmware "
+                              "version word 0x00060BFF (0.6.11, a release), 16 bootloader 2, 17 hardware id 2, 18 "
+                              "revision 0, 19 reserved 0, 20-23 the capabilities 0x0000000F (answers, relays, bus "
+                              "voltage, input current). The answer to a POLL of part 0 (argument 0 = 0) with SEQ "
+                              "0x67: index 0, RFLAGS 0, UID16 the CRC-16 of the UID.", a);
+            } else {
+                answer_vector("answer_identity_features", "IDENTITY answer, part 1: the features (0.2.7)",
+                              "The same board, to slot_poll_identity_features: DATA 0-23 six u32 words, big-endian; "
+                              "word 0 = 0x007FFFFF (feature bits 0-22: SCENE .. LIFE_SYNC), words 1-5 = 0. Index 0, "
+                              "RFLAGS 0, SEQ 0x66.", a);
+            }
+        }
     }
 
     fprintf(js, "\n  ]\n}\n");

@@ -1,2 +1,9 @@
 # Keep LF everywhere: copies of include/ultra_protocol.h must stay byte-identical on every OS.
 * text=auto eol=lf
+# The shared protocol header and its copy in the sender package, the goldens: text and LF always (not left to text
+# detection). Every copy elsewhere (the firmware's src/core, ESPHome's component) needs the same rule in its own
+# repository: the tests compare the raw bytes.
+include/ultra_protocol.h        text eol=lf
+sender/src/ultra_protocol.h     text eol=lf
+test-vectors/vectors.json       text eol=lf
+sender/test/rotation_trace.txt  text eol=lf

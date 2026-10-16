@@ -487,10 +487,13 @@ def main():
         if fw_h != pkg_h:
             # one translation unit holds both sides: the first header's include guard would hide the other, and the
             # sender's structs (CONFIG storage) would differ between test_sim.c and the library
+            eol = (" Only the line endings differ: a CRLF checkout of the firmware (its .gitattributes: LF for "
+                   "src/core/ultra_protocol.h)." if fw_h.replace(b"\r\n", b"\n") == pkg_h.replace(b"\r\n", b"\n")
+                   else "")
             note(False, f"test_sim: the firmware's ultra_protocol.h (md5 {hashlib.md5(fw_h).hexdigest()}, release "
                         f"{header_release(core / 'ultra_protocol.h')}) isn't the package's (md5 "
                         f"{hashlib.md5(pkg_h).hexdigest()}, {header_release(SRC / 'ultra_protocol.h')}): a firmware "
-                        f"of the same protocol release (--firmware)")
+                        f"of the same protocol release (--firmware).{eol}")
         else:
             objs = build_firmware_objs(kind, cc, core)
             if objs is None:

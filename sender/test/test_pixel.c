@@ -161,8 +161,8 @@ static void test_segments_and_refusals(void)
           "segments 0 and 3");
     CHECK(ultra_sender_pixel_fx(&L, 0, 4, &f, now) == ULTRA_ERR_ARG, "segment 4: the receiver ignores LIGHT 4-14");
     CHECK(ultra_sender_pixel_fx(&L, 5, 0, &f, now) == ULTRA_ERR_ARG, "no such board");
-    f.flags = 0x40;
-    CHECK(ultra_sender_pixel_fx(&L, 0, 1, &f, now) == ULTRA_ERR_ARG, "reserved flag bits refused");
+    f.flags = 0x80;
+    CHECK(ultra_sender_pixel_fx(&L, 0, 1, &f, now) == ULTRA_ERR_ARG, "the reserved flag bit refused");
     CHECK(ultra_sender_pixel_fx(&L, 0, 1, NULL, now) == ULTRA_ERR_ARG, "NULL");
     f.flags = ULTRA_PXF_LOCK | ULTRA_PXF_STORE;
     CHECK(ultra_sender_pixel_fx(&L, 0, 1, &f, now) == ULTRA_OK, "LOCK, STORE and the white mode are fine");
@@ -173,6 +173,45 @@ static void test_segments_and_refusals(void)
         }
     }
     CHECK(seen == ((1u << 0) | (1u << 1) | (1u << 3)), "three segments went out (mask %x)", (unsigned)seen);
+    /* RESTART is an action: the command's copies carry it (the receiver starts the effect over), the refresh and a resync's
+     * replay do not (or every refresh would start it over) */
+    mk(1, 5, NI);
+    pre();
+    f = sample();
+    f.flags = ULTRA_PXF_RESTART | ULTRA_PXF_LOCK;
+    CHECK(ultra_sender_pixel_fx(&L, 0, 0, &f, now) == ULTRA_OK, "RESTART is accepted");
+    {
+        uint32_t k = 0, with = 0, without = 0;
+        uint8_t seq0 = 0, same_seq = 1;
+        for (i = 0; i < 400u && k < 9u; i++) {
+            L.last_start_us = now - 10000000;
+            (void)fr();
+            if (slot(0)[0] == ULTRA_PIXEL_FX) {
+                if (k == 0u) {
+                    seq0 = slot(0)[2];
+                }
+                same_seq = (uint8_t)(same_seq && slot(0)[2] == seq0);
+                if (slot(0)[ULTRA_PX_FLAGS] & ULTRA_PXF_RESTART) {
+                    with++;
+                    CHECK(k < 3u, "only the command's copies carry RESTART (copy %u)", (unsigned)k);
+                } else {
+                    without++;
+                }
+                CHECK((slot(0)[ULTRA_PX_FLAGS] & ULTRA_PXF_LOCK) != 0u, "its other flags stay");
+                CHECK(ultra_slot_check(slot(0)) == 0, "sealed");
+                k++;
+            }
+        }
+        CHECK(with == 3u && without >= 3u && same_seq, "3 copies with RESTART, the refresh without, one SEQ (%u / %u)", (unsigned)with,
+              (unsigned)without);
+        ultra_sender_resync(&L, now);
+        for (i = 0; i < 200u; i++) {
+            (void)fr();
+            if (slot(0)[0] == ULTRA_PIXEL_FX) {
+                CHECK(!(slot(0)[ULTRA_PX_FLAGS] & ULTRA_PXF_RESTART), "a resync's replay does not restart the effect");
+            }
+        }
+    }
     /* a board with fewer lights in use refuses a segment beyond them */
     mk(1, 1, NI);
     pre();

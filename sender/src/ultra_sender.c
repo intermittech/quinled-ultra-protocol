@@ -588,6 +588,9 @@ int ultra_sender_set_lights(ultra_sender_t *l, uint16_t board, uint8_t lights)
         if (KEY_LIGHT(it->key) >= lights) {
             q_drop(l, b, &it->q, 1);               /* not sent any more */
         } else if (KEY_LIGHT(it->key) >= old && (it->q.flags & IT_VALID)) {
+            if (KEY_RANK(it->key) == RK_PIXFX) {
+                it->aux = 0;
+            }
             q_put(l, b, &it->q, 0, 1);             /* back: its state again */
         }
     }
@@ -860,6 +863,10 @@ static int take_urgent(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t *s, i
     }
     case C_ITEM:
         copy32(s, bit->slot);
+        if (s[0] == ULTRA_PIXEL_FX && bit->aux != 0u) {   /* a PIXEL_FX asked to restart: its copies say so */
+            s[ULTRA_PX_FLAGS] = (uint8_t)(s[ULTRA_PX_FLAGS] | ULTRA_PXF_RESTART);
+            ultra_slot_seal(s);
+        }
         b->f_start = recent_start(bit, now_us);
         if (bit->q.flags & IT_STREAM) {
             uint32_t glide = bit->aux;
@@ -1175,6 +1182,9 @@ static void replay(ultra_sender_t *l, int64_t start_us)
             }
             if (KEY_RANK(it->key) == RK_SET) {
                 it_set_start(it, start_us);
+            }
+            if (KEY_RANK(it->key) == RK_PIXFX) {
+                it->aux = 0;                         /* (a RESTART is an action, done: the replay is a state) */
             }
             q_put(l, b, &it->q, 0, 1);
         }
@@ -1538,7 +1548,7 @@ int ultra_sender_scene_effect(ultra_sender_t *l, uint16_t board, uint8_t light, 
 /* ------------------------------------------------------------------------------- local pixel effects (0.2.8) */
 static int pixel_fx_ok(const ultra_pixel_fx_t *fx)
 {
-    return fx != 0 && (fx->flags & ~0x3Fu) == 0u;     /* (bits 6-7 are reserved: the header's builder drops them) */
+    return fx != 0 && (fx->flags & ~0x7Fu) == 0u;     /* (bit 7 is reserved: the header's builder drops it) */
 }
 
 int ultra_sender_pixel_fx_at(ultra_sender_t *l, uint16_t board, uint8_t segment, const ultra_pixel_fx_t *fx,
@@ -1556,9 +1566,12 @@ int ultra_sender_pixel_fx_at(ultra_sender_t *l, uint16_t board, uint8_t segment,
         return ULTRA_ERR_FULL;
     }
     f = *fx;
+    /* RESTART is an action, not a state: the command's copies carry it, the stored slot (the refresh, a resync's replay)
+     * does not, or every refresh would start the effect over */
+    it->aux = (f.flags & ULTRA_PXF_RESTART) ? 1u : 0u;
+    f.flags = (uint8_t)(f.flags & ~ULTRA_PXF_RESTART);
     ultra_slot_pixel_fx(it->slot, segment, next_seq(b, it), &f);   /* (START: stamped against every frame's TIME) */
     it->q.flags = IT_VALID;
-    it->aux = 0;
     it_set_start(it, start_us);
     q_put(l, b, &it->q, 0, 1);
     return ULTRA_OK;

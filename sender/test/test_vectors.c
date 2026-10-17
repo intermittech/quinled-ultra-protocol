@@ -473,6 +473,21 @@ static void slots(void)
         slot_frame_at(TIME_V);
         compare("slot_pixel_fx_stream", buf, 32);
 
+        memset(&fx, 0, sizeof fx);
+        fx.effect = 20;
+        fx.speed = 128;
+        fx.intensity = 128;
+        fx.palette = 0xFFu;
+        fx.c[0][0] = 255, fx.c[0][1] = 255, fx.c[0][2] = 255;
+        fx.brightness = 255;
+        fx.flags = ULTRA_PXF_RESTART | ULTRA_PXF_LOCK;
+        line_new(1);
+        skip_preamble();
+        ultra_sender_preset_seq(&line, 0, 1, ULTRA_PIXEL_FX, 0x0B);
+        ultra_sender_pixel_fx_at(&line, 0, 1, &fx, TIME_V);
+        slot_frame_at(TIME_V);
+        compare("slot_pixel_fx_restart", buf, 32);
+
         line_new(1);
         skip_preamble();
         ultra_sender_preset_seq(&line, 0, ULTRA_LIGHT_BOARD, ULTRA_CONFIG, 0x47);

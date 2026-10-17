@@ -23,6 +23,10 @@ PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 - **Sender library 0.2.8:** `ultra_sender_pixel_fx()` / `_at()`, `ultra_sender_pixel_fx_start()` and
   `ultra_sender_pixel_config()` (a new effect takes a new START, a change of its parameters keeps it), the START
   stamped like an EFFECT's, the refresh and a resync covering them; `test_pixel`.
+- **PIXEL_FX FLAGS bit 6 = `ULTRA_PXF_RESTART`** (0x40; bit 7 stays reserved): the slot is not a renewal of the running effect: random
+  effects are re-seeded, time-driven ones begin again at START (a new one). An action, not a setting: not stored, not repeated
+  by the refresh. Test vector `slot_pixel_fx_restart`; the sender library's copies carry it, the refresh and a resync's replay
+  do not.
 - **Digital ports in the sender library:** `ultra_dport.h` (the planner: when a transmission may start and the LOW around
   it, the power-up wait, the local beacon, the hand-back, the 3 + 3 back-off, the ESP32 RMT words) and
   `ultra_sender_digital()` (no preamble, no chain lock, the digital poll window); `test_dport`, and the `dline` step: the

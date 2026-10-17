@@ -732,13 +732,18 @@ enum {
 /* FLAGS. STORE: this segment's fields (not START and SEQ) and CONFIG 129-139 become the power-on / standalone effect
  * (CONFIG 138); with EFFECT 0 the stored effect is cleared. The record is written only in stream mode or while the strip
  * is dark, never as a visible pause. LOCK: a plain pixel stream from the controller doesn't take the strip back
- * (otherwise, with ULTRA_PXP_STREAM_WINS, it does). Bits 6-7: reserved, sent as 0 */
+ * (otherwise, with ULTRA_PXP_STREAM_WINS, it does). RESTART: this slot is not a renewal of the running effect: the
+ * time-driven effects begin again at START (so START must be new; the same START restarts no time) and the random ones
+ * are re-seeded. Without it, the same effect with every parameter the same and only START new (the hub renewing an old
+ * START before its signed 32-bit ms run out, ~every 20 days) changes nothing: phase and picture go on. RESTART is an
+ * action, not a setting: STORE keeps it out of the stored effect. Bit 7: reserved, sent as 0 */
 #define ULTRA_PXF_REVERSE     0x01u
 #define ULTRA_PXF_MIRROR      0x02u
 #define ULTRA_PXF_WHITE_MASK  0x0Cu    /* auto-white mode, ULTRA_PXW_*, of RGBW and RGBCCT strips (0: CONFIG 135's) */
 #define ULTRA_PXF_WHITE_SHIFT 2u
 #define ULTRA_PXF_STORE       0x10u
 #define ULTRA_PXF_LOCK        0x20u
+#define ULTRA_PXF_RESTART     0x40u
 #define ULTRA_PXW_DEFAULT     0u       /* in FLAGS: the strip's own (CONFIG 135); in CONFIG 135: accurate */
 #define ULTRA_PXW_OFF         1u       /* no white from the colour (white only where an effect asks for it) */
 #define ULTRA_PXW_ACCURATE    2u       /* W = min(R, G, B), taken out of R, G, B: the colour stays true */
@@ -1198,7 +1203,7 @@ static inline void ultra_slot_pixel_fx(uint8_t *s, uint8_t segment, uint8_t seq,
     ultra_put16(s + ULTRA_PX_TRANSITION, f->transition_ms);
     ultra_put16(s + ULTRA_PX_SEG_START, f->seg_start);
     ultra_put16(s + ULTRA_PX_SEG_LEN, f->seg_len);
-    s[ULTRA_PX_FLAGS] = (uint8_t)(f->flags & 0x3Fu);
+    s[ULTRA_PX_FLAGS] = (uint8_t)(f->flags & 0x7Fu);
     s[ULTRA_PX_CUSTOM1] = f->custom1;
     s[ULTRA_PX_CUSTOM2] = f->custom2;
     ultra_slot_seal(s);
@@ -1225,7 +1230,7 @@ static inline int ultra_pixel_fx_parse(const uint8_t *s, ultra_pixel_fx_t *f)
     f->transition_ms = (uint16_t)ultra_get16(s + ULTRA_PX_TRANSITION);
     f->seg_start = (uint16_t)ultra_get16(s + ULTRA_PX_SEG_START);
     f->seg_len = (uint16_t)ultra_get16(s + ULTRA_PX_SEG_LEN);
-    f->flags = (uint8_t)(flags & 0x3Fu);
+    f->flags = (uint8_t)(flags & 0x7Fu);
     f->custom1 = s[ULTRA_PX_CUSTOM1];
     f->custom2 = s[ULTRA_PX_CUSTOM2];
     return (int)light;

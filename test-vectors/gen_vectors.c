@@ -390,6 +390,22 @@ int main(int argc, char **argv)
         slot_vector("slot_pixel_fx_stream", "PIXEL_FX effect 0, back to the stream (0.2.8)",
                     "Effect 0: the hub's pixels pass again (every other field but STORE is ignored). START 500 ms. "
                     "SEQ 0x0A.", s, 1);
+        memset(&fx, 0, sizeof fx);
+        fx.effect = 20;
+        fx.start_ms = 0;
+        fx.speed = 128;
+        fx.intensity = 128;
+        fx.palette = 0xFFu;
+        fx.c[0][0] = 255, fx.c[0][1] = 255, fx.c[0][2] = 255;
+        fx.brightness = 255;
+        fx.flags = ULTRA_PXF_RESTART | ULTRA_PXF_LOCK;
+        ultra_slot_pixel_fx(s, 1, 0x0B, &fx);
+        slot_vector("slot_pixel_fx_restart", "PIXEL_FX with RESTART, segment 1 (0.2.8)",
+                    "Effect 20, START 0 (a new START: the time-driven effects begin again there), the effect's own "
+                    "palette, c1 white, brightness 255, FLAGS 0x60 = RESTART (0x40) | LOCK (0x20). RESTART is an action: "
+                    "the receiver starts the effect over (random effects re-seeded); without it the same slot with "
+                    "only a new START is a renewal that changes nothing. It is not stored and not repeated by the "
+                    "refresh. SEQ 0x0B.", s, 1);
         ultra_slot_config_px(s, 0x47, px_ids, px_vals, 9);
         slot_vector("slot_config_pixel", "CONFIG of an Ultra-Digital receiver's strip (0.2.8)",
                     "LIGHT 0xF (board). Nine pairs: id 129 chip = 3 (SK6812 RGBW), 130 wire order G R B W, 131 "

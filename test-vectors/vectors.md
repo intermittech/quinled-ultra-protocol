@@ -408,6 +408,17 @@ TYPE `0x0B`, LIGHT 0, FLAGS `0x0`, SEQ `0x0A`, CRC-16 `0xB5E8` (valid)
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 B5 E8
 ```
 
+### `slot_pixel_fx_restart`: PIXEL_FX with RESTART, segment 1 (0.2.8)
+
+Effect 20, START 0 (a new START: the time-driven effects begin again there), the effect's own palette, c1 white, brightness 255, FLAGS 0x60 = RESTART (0x40) | LOCK (0x20). RESTART is an action: the receiver starts the effect over (random effects re-seeded); without it the same slot with only a new START is a renewal that changes nothing. It is not stored and not repeated by the refresh. SEQ 0x0B.
+
+TYPE `0x0B`, LIGHT 1, FLAGS `0x0`, SEQ `0x0B`, CRC-16 `0x05F2` (valid)
+
+```
+0B 10 0B 14 00 00 00 00 80 80 FF FF FF FF 00 00
+00 00 00 00 FF 00 00 00 00 00 00 60 00 00 05 F2
+```
+
 ### `slot_config_pixel`: CONFIG of an Ultra-Digital receiver's strip (0.2.8)
 
 LIGHT 0xF (board). Nine pairs: id 129 chip = 3 (SK6812 RGBW), 130 wire order G R B W, 131 pixels = 300, 132 frames per second at most = 60, 133 LED current per channel = 200 x 0.1 mA, 134 current limit = 0 (the link's), 135 auto-white accurate, 136 / 137 no virtual strip. Ids 138 and 139 follow in a second CONFIG. A board without these ids skips them. SEQ 0x47.

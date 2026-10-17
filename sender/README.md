@@ -158,7 +158,7 @@ white / CCT colour into M, A and B for a light's roles.
 
 | Call | |
 |---|---|
-| `ultra_sender_pixel_fx(&line, board, segment, &fx, now_us)` | PIXEL_FX for a segment (0-3) of the receiver on `board`: a new effect, its START the group start for now. `fx.effect` 0 hands the strip back to the hub's stream. |
+| `ultra_sender_pixel_fx(&line, board, segment, &fx, now_us)` | PIXEL_FX for a segment (0-3) of the receiver on `board`: a new effect, its START the group start for now. `fx.effect` 0 hands the strip back to the hub's stream. `fx.flags` `ULTRA_PXF_RESTART`: the effect starts over (an explicit choice; random effects re-seed, time-driven ones begin at the new START): the command's copies carry it, the refresh and a resync's replay do not. Without it the same slot with only a new START is a renewal that changes nothing on a running receiver. |
 | `ultra_sender_pixel_fx_at(&line, board, segment, &fx, start_us)` | The same with the START you give: pass `ultra_sender_pixel_fx_start()` again for a change of the effect's parameters, colours or brightness, so it carries on in phase. Renew it after ~20 days (the START is an int32 of ms). |
 | `ultra_sender_pixel_config(&line, board, id, value)` | CONFIG 129-139 of the strip (`ULTRA_CFG_PX_*`: chip, wire order, pixels, ...), in their own CONFIG slots, one SEQ per changed page, part of the refresh. |
 

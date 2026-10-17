@@ -1066,6 +1066,12 @@ int64_t ultra_sender_due_us(const ultra_sender_t *l)
     return due > l->hold_us ? due : l->hold_us;   /* not before a response window's end (or the notice's next copy) */
 }
 
+uint32_t ultra_sender_beacon_frame(ultra_sender_t *l, int64_t now_us, uint8_t *buf)
+{
+    l->has_sent = 0;                             /* (the refresh interval is the only thing that has_sent gates) */
+    return ultra_sender_next_frame(l, now_us, buf);
+}
+
 uint32_t ultra_sender_next_frame(ultra_sender_t *l, int64_t now_us, uint8_t *buf)
 {
     uint32_t len;

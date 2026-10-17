@@ -318,6 +318,7 @@ static void test_handback(void)
     int64_t t_back, frame_us = 60000;
     ws2812(150 * 3);
     H.dp.quiet_until_us = 0;
+    H.line.refresh_us = 3000000000u;       /* (a refresh interval of 50 minutes: the headers come from the planner's beacon) */
     ultra_dp_local(&H.dp, 1);
     hub_pixels(&H, 16667);
     hub_run(&H, H.now_us + 1000);
@@ -337,7 +338,27 @@ static void test_handback(void)
               "the first pixel frame waits for the receiver's frame and a reset (%lld, from %lld)",
               (long long)H.tx[first_px].start_us, (long long)(t_back + frame_us + H.dp.reset_us));
     }
-    printf("ok   the hand-back to the stream: the hub's pixels wait for the receiver's frame and a reset\n");
+    /* the receiver goes back to the stream only after a LOW as long as its chip's latch: a stream whose resets are shorter
+     * never gives it one, so a marker frame (a NOP / refresh: its 350 us LOW) comes first, even at a long refresh interval */
+    {
+        int first_marker = -1, nops = 0;
+        for (i = 0; i < H.ntx; i++) {
+            if (H.tx[i].start_us >= t_back + frame_us + (int64_t)H.dp.reset_us && H.tx[i].kind != ULTRA_DP_PIXELS &&
+                first_marker < 0) {
+                first_marker = i;
+            }
+            nops += H.tx[i].kind == ULTRA_DP_FRAME && H.tx[i].beacon && H.tx[i].start_us >= t_back;
+        }
+        CHECK(first_marker >= 0 && first_px >= 0 && first_marker < first_px,
+              "a marker frame comes after the receiver's frame and before the first pixel frame (%d, %d)", first_marker, first_px);
+        CHECK(first_marker >= 0 && H.tx[first_marker].start_us >= t_back + frame_us + (int64_t)H.dp.reset_us + ULTRA_DP_NOP_MARGIN_US - 1000,
+              "... a margin after it");
+        CHECK(nops == 1, "one NOP frame for the hand-back (%d)", nops);
+        CHECK(H.dp.nop_us == 0, "done");
+        CHECK(first_px >= 0 && H.tx[first_px].start_us - (H.tx[first_marker].start_us + (int64_t)(H.tx[first_marker].end_us - H.tx[first_marker].start_us)) >= -1,
+              "the pixels follow the marker frame");
+    }
+    printf("ok   the hand-back to the stream: the hub's pixels wait for the receiver's frame and a reset, and for one marker frame (the chip's latch)\n");
 }
 
 static void test_powerup(void)

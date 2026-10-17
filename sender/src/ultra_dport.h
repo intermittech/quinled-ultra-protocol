@@ -28,7 +28,9 @@
  *  5. A receiver running a local effect (PIXEL_FX) gets no pixels, and a header (a marker frame: a command, a poll or a
  *     NOP) at least every ULTRA_DP_BEACON_MS: its effect clock comes from the header TIME.
  *  6. The switch local -> stream (PIXEL_FX 0): the receiver finishes its frame first; the hub's pixels wait for it
- *     (ultra_dp_handback).
+ *     (ultra_dp_handback), and for one marker frame after it (a NOP / refresh, ultra_dp_next gives it as a FRAME with
+ *     beacon = 1): the receiver goes back to the stream only after a LOW as long as its chip's latch, and a stream whose
+ *     resets are shorter (SK6812 at 80 us) never gives it one; the marker frame's 350 us LOW does.
  * Not thread-safe: one task.
  */
 #ifndef ULTRA_DPORT_H
@@ -44,6 +46,7 @@ extern "C" {
 #define ULTRA_DP_BEACON_MS   1000u    /* a local port gets a header at least this often */
 #define ULTRA_DP_MARKER_US   20u      /* the marker's HIGH (15-40 us allowed), then LOW ULTRA_DP_GAP_HUB_US */
 #define ULTRA_DP_GAP_HUB_US  10u
+#define ULTRA_DP_NOP_MARGIN_US 1000u  /* the hand-back's marker frame: this long after the receiver's frame and reset (its decode) */
 
 /* what the caller has to send (a bit mask) */
 #define ULTRA_DP_W_CMD    1u          /* a command / refresh frame is queued (the scheduler's) */
@@ -82,6 +85,7 @@ typedef struct {
     uint8_t  started;                 /* a marker frame was sent since power-up */
     uint8_t  last_kind;               /* the last transmission's ultra_dp_kind_t */
     uint8_t  last_mkind;              /* ... the last marker frame's */
+    int64_t  nop_us;                  /* a marker frame is due from here (after a hand-back: the receiver's latch); 0: none */
 } ultra_dp_t;
 
 static inline void ultra_dp_init(ultra_dp_t *dp, uint32_t pixel_reset_us)
@@ -105,6 +109,9 @@ static inline void ultra_dp_powered(ultra_dp_t *dp, int64_t now_us)
 static inline void ultra_dp_local(ultra_dp_t *dp, int on)
 {
     dp->local = (uint8_t)(on != 0);
+    if (on) {
+        dp->nop_us = 0;               /* (a hand-back not finished: the receiver is local again) */
+    }
 }
 
 /* the hub asked the receiver for the stream again (PIXEL_FX 0, applied at start_us on the host clock): the receiver
@@ -116,6 +123,7 @@ static inline void ultra_dp_handback(ultra_dp_t *dp, int64_t start_us, uint32_t 
     if (t > dp->pixels_until_us) {
         dp->pixels_until_us = t;
     }
+    dp->nop_us = t + (int64_t)ULTRA_DP_NOP_MARGIN_US;
 }
 
 /* rule 4: the user intervened (a button, a configuration change, a port power cycle the user commanded) */
@@ -165,7 +173,7 @@ static inline void ultra_dp_poll_result(ultra_dp_t *dp, int64_t now_us, int answ
  * strip), and a poll that is due goes before a command frame after a command frame (nor the polls). */
 static inline int ultra_dp_next(ultra_dp_t *dp, int64_t now_us, unsigned want, ultra_dp_tx_t *tx)
 {
-    int marker_ok, px_ok;
+    int marker_ok, px_ok, nop_due;
     int64_t low;
     tx->kind = ULTRA_DP_NONE;
     tx->lead_low_us = tx->tail_low_us = 0;
@@ -178,14 +186,16 @@ static inline int ultra_dp_next(ultra_dp_t *dp, int64_t now_us, unsigned want, u
         dp->bo_misses = 0;
     }
     marker_ok = !ultra_dp_blocked(dp, now_us) && now_us >= dp->quiet_until_us;
-    px_ok = (want & ULTRA_DP_W_PIXELS) && !dp->local && now_us >= dp->pixels_until_us;
+    nop_due = dp->nop_us != 0 && now_us >= dp->nop_us && !dp->local;
+    px_ok = (want & ULTRA_DP_W_PIXELS) && !dp->local && now_us >= dp->pixels_until_us &&
+            !(dp->nop_us != 0 && marker_ok);   /* (after a hand-back the marker frame goes first) */
     if (px_ok && (dp->last_kind == ULTRA_DP_FRAME || dp->last_kind == ULTRA_DP_POLL)) {
         marker_ok = 0;                /* (one marker frame between two pixel frames at most while pixels are due) */
     }
     /* the LOW the line has been at since the last transmission: its tail and the idle time after it; after a window
      * the hub retakes the line as it starts: nothing yet */
     low = dp->after_window ? 0 : (int64_t)dp->tail_us + (now_us - dp->free_us);
-    if (marker_ok && ((want & ULTRA_DP_W_CMD) || (want & ULTRA_DP_W_POLL) ||
+    if (marker_ok && ((want & ULTRA_DP_W_CMD) || (want & ULTRA_DP_W_POLL) || nop_due ||
                       (dp->local && (dp->last_marker_us == 0 || now_us - dp->last_marker_us >= (int64_t)ULTRA_DP_BEACON_MS * 1000)))) {
         int64_t lead = low >= (int64_t)ULTRA_DP_QUIET_US ? 0 : (int64_t)ULTRA_DP_QUIET_US - low;
         if (dp->after_window && lead < (int64_t)ULTRA_DP_RETAKE_US) {
@@ -229,6 +239,9 @@ static inline void ultra_dp_started(ultra_dp_t *dp, const ultra_dp_tx_t *tx, int
     }
     dp->last_kind = (uint8_t)tx->kind;
     if (tx->kind != ULTRA_DP_PIXELS) {
+        if (dp->nop_us != 0 && start_us >= dp->nop_us) {
+            dp->nop_us = 0;           /* the hand-back's marker frame (or any other) went out after the receiver's frame */
+        }
         dp->last_mkind = (uint8_t)tx->kind;
         dp->last_marker_us = start_us > 0 ? start_us : 1;
         dp->started = 1;

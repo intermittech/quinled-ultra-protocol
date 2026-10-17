@@ -27,6 +27,7 @@ PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
   effects are re-seeded, time-driven ones begin again at START (a new one). An action, not a setting: not stored, not repeated
   by the refresh. Test vector `slot_pixel_fx_restart`; the sender library's copies carry it, the refresh and a resync's replay
   do not.
+- **The hand-back's marker frame** (`ultra_dport.h`, found by the verifier): after PIXEL_FX 0 the receiver goes back to the stream only after a LOW as long as its chip's latch; a stream with shorter resets (SK6812 at 80 us) never gave it one and the receiver stayed local until the next marker frame. The planner now sends one marker frame (a NOP) `ULTRA_DP_NOP_MARGIN_US` after the receiver's frame and reset, before the pixels; `ultra_sender_beacon_frame()` builds a header frame whatever the refresh interval.
 - **Digital ports in the sender library:** `ultra_dport.h` (the planner: when a transmission may start and the LOW around
   it, the power-up wait, the local beacon, the hand-back, the 3 + 3 back-off, the ESP32 RMT words) and
   `ultra_sender_digital()` (no preamble, no chain lock, the digital poll window); `test_dport`, and the `dline` step: the

@@ -184,7 +184,8 @@ static int hub_step(hub_t *h)
             len = ultra_sender_rc_frame(&h->line, &rq, frame_start, buf);
             h->poll_due_us += h->poll_period_us;
         } else {
-            len = ultra_sender_next_frame(&h->line, frame_start, buf);
+            len = t.beacon ? ultra_sender_beacon_frame(&h->line, frame_start, buf)
+                           : ultra_sender_next_frame(&h->line, frame_start, buf);
         }
         if (len == 0u) {
             if (t.kind == ULTRA_DP_POLL) {

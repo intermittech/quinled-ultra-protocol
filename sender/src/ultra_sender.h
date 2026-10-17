@@ -261,6 +261,10 @@ int  ultra_sender_set_lights(ultra_sender_t *l, uint16_t board, uint8_t lights);
  * line is free (the previous frame and its reset gap are out), send the bytes in one go (no gap >= 50 us), then keep
  * the line LOW for the reset gap. A WS switch frame (after ultra_sender_switch_to_ultra) is shorter; send it alike. */
 uint32_t ultra_sender_next_frame(ultra_sender_t *l, int64_t now_us, uint8_t *buf);
+/* A frame now, due or not (the refresh interval is not waited for): a digital port's header (ultra_dport.h: the local
+ * effects' beacon, the marker frame after a hand-back). Nothing queued: a refresh slot or a NOP. 0 only while a response
+ * window or a power-off holds the line. */
+uint32_t ultra_sender_beacon_frame(ultra_sender_t *l, int64_t now_us, uint8_t *buf);
 /* the last frame couldn't be sent: the same slots again with a new TIME for now_us (nothing more is taken from the
  * queues; buf must still hold that frame); returns its length */
 uint32_t ultra_sender_retime(ultra_sender_t *l, int64_t now_us, uint8_t *buf);

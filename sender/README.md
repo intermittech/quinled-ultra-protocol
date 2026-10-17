@@ -195,7 +195,7 @@ ultra_dp_poll_result(&dp, now_us, answered);
 |---|---|
 | `ultra_dp_next()` / `ultra_dp_started()` | The next transmission that may start (a command or refresh frame, a poll, the header a local port is due, then pixels; a pixel frame that is due goes before a second marker frame in a row, a poll before the next command frame) and what it did to the line. |
 | `ultra_dp_powered()` | No marker for `ULTRA_DP_POWERUP_MS` after the port is powered (pixels may go). |
-| `ultra_dp_local()` / `ultra_dp_handback()` | A local effect runs: no pixels, a header at least every `ULTRA_DP_BEACON_MS`. PIXEL_FX 0: the pixels wait for the receiver's frame and a reset. |
+| `ultra_dp_local()` / `ultra_dp_handback()` | A local effect runs: no pixels, a header at least every `ULTRA_DP_BEACON_MS` (`ultra_sender_beacon_frame()` builds it whatever the refresh interval). PIXEL_FX 0: the pixels wait for the receiver's frame and a reset, and for one marker frame after that (a FRAME with `beacon` = 1): the receiver goes back to the stream only after a LOW as long as its chip's latch, which a stream with a short reset never gives it. |
 | `ultra_dp_poll_result()` / `ultra_dp_retry()` / `ultra_dp_blocked()` | The back-off: 3 polls in quick succession, 3 more 60 s later, then no marker frame until the user's retry; an answer in between starts it over. |
 | `ultra_dp_rmt_*()` | The RMT words (lead LOW, marker, bits, tail LOW) at any resolution, and an encoder step in the shape of ESP-IDF's simple-encoder callback. |
 

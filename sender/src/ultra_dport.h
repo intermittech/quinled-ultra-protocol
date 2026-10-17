@@ -80,6 +80,8 @@ typedef struct {
     uint8_t  local;                   /* a local effect runs */
     uint8_t  bo_phase, bo_misses;
     uint8_t  started;                 /* a marker frame was sent since power-up */
+    uint8_t  last_kind;               /* the last transmission's ultra_dp_kind_t */
+    uint8_t  last_mkind;              /* ... the last marker frame's */
 } ultra_dp_t;
 
 static inline void ultra_dp_init(ultra_dp_t *dp, uint32_t pixel_reset_us)
@@ -158,10 +160,12 @@ static inline void ultra_dp_poll_result(ultra_dp_t *dp, int64_t now_us, int answ
 }
 
 /* What may start at now_us. want: ULTRA_DP_W_*. NONE: nothing (the line is busy, a window is open, or only a marker frame
- * was wanted and rule 3 or 4 forbids it). Priority: a command, a poll, the header a local port is due, then pixels. */
+ * was wanted and rule 3 or 4 forbids it). Priority: a command, a poll, the header a local port is due, then pixels; except
+ * that a pixel frame that is due goes before a second marker frame in a row (a stream of commands must not starve the
+ * strip), and a poll that is due goes before a command frame after a command frame (nor the polls). */
 static inline int ultra_dp_next(ultra_dp_t *dp, int64_t now_us, unsigned want, ultra_dp_tx_t *tx)
 {
-    int marker_ok;
+    int marker_ok, px_ok;
     int64_t low;
     tx->kind = ULTRA_DP_NONE;
     tx->lead_low_us = tx->tail_low_us = 0;
@@ -174,6 +178,10 @@ static inline int ultra_dp_next(ultra_dp_t *dp, int64_t now_us, unsigned want, u
         dp->bo_misses = 0;
     }
     marker_ok = !ultra_dp_blocked(dp, now_us) && now_us >= dp->quiet_until_us;
+    px_ok = (want & ULTRA_DP_W_PIXELS) && !dp->local && now_us >= dp->pixels_until_us;
+    if (px_ok && (dp->last_kind == ULTRA_DP_FRAME || dp->last_kind == ULTRA_DP_POLL)) {
+        marker_ok = 0;                /* (one marker frame between two pixel frames at most while pixels are due) */
+    }
     /* the LOW the line has been at since the last transmission: its tail and the idle time after it; after a window
      * the hub retakes the line as it starts: nothing yet */
     low = dp->after_window ? 0 : (int64_t)dp->tail_us + (now_us - dp->free_us);
@@ -184,7 +192,7 @@ static inline int ultra_dp_next(ultra_dp_t *dp, int64_t now_us, unsigned want, u
             lead = ULTRA_DP_RETAKE_US;
         }
         tx->lead_low_us = (uint32_t)lead;
-        if (want & ULTRA_DP_W_CMD) {
+        if ((want & ULTRA_DP_W_CMD) && !((want & ULTRA_DP_W_POLL) && dp->last_mkind == ULTRA_DP_FRAME)) {
             tx->kind = ULTRA_DP_FRAME;
         } else if (want & ULTRA_DP_W_POLL) {
             tx->kind = ULTRA_DP_POLL;
@@ -195,7 +203,7 @@ static inline int ultra_dp_next(ultra_dp_t *dp, int64_t now_us, unsigned want, u
         tx->tail_low_us = tx->kind == ULTRA_DP_POLL ? 2u : ULTRA_DP_AFTER_US;   /* a POLL: 2 us LOW, then the caller lets go */
         return 1;
     }
-    if ((want & ULTRA_DP_W_PIXELS) && !dp->local && now_us >= dp->pixels_until_us) {
+    if (px_ok) {
         tx->kind = ULTRA_DP_PIXELS;
         tx->lead_low_us = dp->after_window ? ULTRA_DP_RETAKE_US : 0u;
         tx->tail_low_us = dp->reset_us;
@@ -219,7 +227,9 @@ static inline void ultra_dp_started(ultra_dp_t *dp, const ultra_dp_tx_t *tx, int
         dp->tail_us = tx->tail_low_us;
         dp->after_window = 0;
     }
+    dp->last_kind = (uint8_t)tx->kind;
     if (tx->kind != ULTRA_DP_PIXELS) {
+        dp->last_mkind = (uint8_t)tx->kind;
         dp->last_marker_us = start_us > 0 ? start_us : 1;
         dp->started = 1;
     }

@@ -31,6 +31,8 @@ typedef struct {
     uint8_t  beacon, slot_type;
     uint32_t nwords;
     uint32_t *words;                     /* the RMT words as the encoder gave them */
+    uint32_t nbytes;                     /* the bytes it carried (a frame's, or the pixel frame's) */
+    uint8_t  bytes[MAX_PIX];
 } tx_t;
 
 typedef struct {
@@ -54,6 +56,7 @@ typedef struct {
     tx_t tx[MAX_TX];
     int ntx;
     uint64_t rng;
+    uint32_t npix;                       /* pixel frames sent */
 } hub_t;
 
 static uint32_t hub_rand(hub_t *h)
@@ -168,6 +171,8 @@ static int hub_step(hub_t *h)
         s.bit1 = h->px.bit1;
         s.tail = ultra_dp_rmt_low(t.tail_low_us, RES_HZ);
         r->words = encode_words(h, &s, h->pixbuf, h->pix_bytes, &r->nwords);
+        r->nbytes = h->pix_bytes;
+        memcpy(r->bytes, h->pixbuf, h->pix_bytes);
         r->end_us = start;                /* below: from the words */
     } else {
         mark_us = ULTRA_DP_MARKER_US + ULTRA_DP_GAP_HUB_US;
@@ -194,6 +199,8 @@ static int hub_step(hub_t *h)
         s.bit1 = h->ultra.bit1;
         s.tail = ultra_dp_rmt_low(t.tail_low_us, RES_HZ);
         r->words = encode_words(h, &s, buf, len, &r->nwords);
+        r->nbytes = len;
+        memcpy(r->bytes, buf, len);
         r->t_end_us = t_end;
     }
     /* the duration from the words */
@@ -217,7 +224,9 @@ static int hub_step(hub_t *h)
         if (h->pixel_ready_us < start) {
             h->pixel_ready_us = start;     /* late: no catching up */
         }
-        h->pixbuf[0] ^= 0x55;
+        h->npix++;                         /* (every frame different: a counter in its first bytes) */
+        h->pixbuf[0] = (uint8_t)(h->npix ^ 0x55u);
+        h->pixbuf[1] = (uint8_t)(h->npix >> 8);
     }
     h->ntx++;
     return 1;

@@ -29,6 +29,12 @@
      src/ultra_protocol.h (a firmware of the same protocol release): a different one is a failure, never mixed;
      test_sim_rx: the same firmware built as the Diff-Power Ultra receiver (BOARD=2): the power-off notice, and
      LIFE_SYNC into the receiver's own merge (energy.c and what it needs);
+   - dline_sim (step `dline`): a digital port against the Ultra-Digital receiver's own delay line: the firmware's
+     test/test_dline.c (a sample-exact model of the receiver's hardware around core/dline.c, with its checks on the
+     strip: every pixel frame whole and in order, nothing else on the output, every poll answered) is patched as text,
+     its hub replaced by test/dport_driver.h (the sender library + ultra_dport.h, the RMT words as the ESP32 sends
+     them), and built with core/dline.c + ws_decode.c; chips of the receiver's table, flat out, commands, a local
+     effect. Needs the firmware like test_sim (same header rule); skipped with a note, a failure with --release;
    - examples/host_minimal.c builds and runs;
    - asan: test_unit, test_vectors, test_review, test_pixel, test_cpp, test_rmt, test_equiv and test_rotation again under
      AddressSanitizer (MSVC /fsanitize=address; gcc / clang: -fsanitize=address,undefined).
@@ -228,15 +234,16 @@ def text_size(cc, obj):
     return None
 
 
-def build_run(kind, cc, name, sources, incs, args=(), defines=(), fw_objs=(), cpp=False, asan=False):
-    """build sources (C, or C++ with cpp: C++17; the C ones of a C++ build as C) into one executable and run it"""
+def build_run(kind, cc, name, sources, incs, args=(), defines=(), fw_objs=(), cpp=False, asan=False, loose=False):
+    """build sources (C, or C++ with cpp: C++17; the C ones of a C++ build as C) into one executable and run it
+    (loose: the firmware's own test file is among them, built with its warning level)"""
     BUILD.mkdir(exist_ok=True)
     tag = name + ("_asan" if asan else "")
     exe = BUILD / (tag + (".exe" if sys.platform == "win32" else ""))
     objdir = BUILD / ("obj_" + tag)
     objdir.mkdir(exist_ok=True)
     if kind == "msvc":
-        a = ["/nologo", "/O2", "/W4", "/WX", "/wd4996"]
+        a = ["/nologo", "/O2", "/W3", "/wd4996"] if loose else ["/nologo", "/O2", "/W4", "/WX", "/wd4996"]
         if cpp:
             a += ["/EHsc", "/std:c++17"]
         if asan:
@@ -257,7 +264,7 @@ def build_run(kind, cc, name, sources, incs, args=(), defines=(), fw_objs=(), cp
             is_cpp = src.suffix == ".cpp"
             comp = os.environ.get("CXX", cc.replace("gcc", "g++").replace("clang", "clang++")) if is_cpp else cc
             obj = objdir / (src.stem + ".o")
-            r = subprocess.run([comp, "-std=c++17" if is_cpp else "-std=c99", "-O2", "-Wall", "-Wextra", "-Werror",
+            r = subprocess.run([comp, "-std=c++17" if is_cpp else "-std=c99", "-O2", *(["-w"] if loose else ["-Wall", "-Wextra", "-Werror"]),
                                 *san, *["-D" + d for d in defines], *[f"-I{i}" for i in incs], "-c", str(src), "-o",
                                 str(obj)], capture_output=True, text=True)
             out += r.stdout + r.stderr
@@ -283,6 +290,38 @@ def build_run(kind, cc, name, sources, incs, args=(), defines=(), fw_objs=(), cp
     print(tail)
     note(r.returncode == 0, f"{tag}" + ("" if r.returncode == 0 else f" (exit {r.returncode})"))
     return r.returncode == 0
+
+
+def dline_sim(kind, cc, core, release):
+    """a digital port (0.2.8) against the Ultra-Digital receiver's own delay line: the firmware's test/test_dline.c (a
+    sample-exact model of the receiver's hardware, with core/dline.c on it and its checks on the strip) with its model
+    hub replaced by the reference hub of test/dport_driver.h (the sender library, ultra_dport.h's planner, the RMT words
+    as the ESP32 would send them). The firmware's file is patched as text (its hub function, its main) and not modified."""
+    src = core.parent.parent / "test" / "test_dline.c"
+    if not (src.exists() and (core / "dline.c").exists() and (core / "ws_decode.c").exists()):
+        msg = f"dline sim: the firmware has no test/test_dline.c + core/dline.c ({core})"
+        if release:
+            note(False, msg + " (--release)")
+        else:
+            print("NOTE " + msg + ": skipped")
+        return
+    text = src.read_text(encoding="utf-8")
+    NL = chr(10)
+    edits = (('#include "../src/core/', '#include "'),
+             ('#include "ws_decode.h"' + NL, '#include "ws_decode.h"' + NL + '#include "dport_driver.h"' + NL),
+             ("int main(int argc, char **argv)", "static int fw_main(int argc, char **argv)"),
+             ("static void run(const scen_t *sc)" + NL,
+              '#include "sim_dline_hook.inc"' + NL + NL + "static void run(const scen_t *sc)" + NL))
+    for old, new in edits:
+        if old not in text:
+            note(False, f"dline sim: the firmware's test_dline.c has changed ({old!r} not found): update run_tests.py")
+            return
+        text = text.replace(old, new)
+    text += NL + '#include "sim_dline_main.inc"' + NL
+    BUILD.mkdir(exist_ok=True)
+    out = BUILD / "dline_sim.c"
+    out.write_text(text, encoding="utf-8", newline=NL)
+    build_run(kind, cc, "dline_sim", [out, core / "dline.c", core / "ws_decode.c", *LIB], [HERE, core] + INC, loose=True)
 
 
 def firmware_dir(arg):
@@ -429,7 +468,7 @@ def main():
     ap.add_argument("--firmware", help="the board firmware (its src/core): frame_rx.c, proto.c, ultra.c")
     ap.add_argument("--skip-cross", action="store_true", help="no cross-compiler warnings / size check")
     ap.add_argument("--only", help="comma list of steps: manifests, warnings, cross, vectors, unit, review, cpp, rmt, "
-                                   "equiv, rotation, minimal, sim, asan")
+                                   "equiv, rotation, minimal, sim, dline, asan")
     ap.add_argument("--release", action="store_true",
                     help="a release check: a step that can't run (no firmware for sim) is a failure, not a note")
     ap.add_argument("--sync-header", action="store_true", help="copy include/ultra_protocol.h into src/ and stop")
@@ -515,6 +554,18 @@ def main():
                 else:
                     build_run(kind, cc, "test_sim_rx", [HERE / "test_sim.c", *LIB], [core] + INC,
                               defines=("SIM_RX=1",), fw_objs=rx)
+
+    if want("dline"):
+        core = core if core is not None else firmware_dir(a.firmware)
+        if core is None:
+            if a.release:
+                note(False, "dline sim: board firmware not found (--firmware / ULTRA_FIRMWARE) (--release)")
+            else:
+                print("NOTE dline sim: board firmware not found: skipped")
+        elif (core / "ultra_protocol.h").read_bytes() != (SRC / "ultra_protocol.h").read_bytes():
+            note(False, "dline sim: the firmware's ultra_protocol.h isn't the package's (see test_sim)")
+        else:
+            dline_sim(kind, cc, core, a.release)
 
     if want("asan"):
         # the same tests under AddressSanitizer (the library's memory use; UBSan too with gcc / clang)

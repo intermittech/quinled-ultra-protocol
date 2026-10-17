@@ -466,6 +466,35 @@ static void test_sender_digital(void)
     printf("ok   the sender library as a digital port: no preamble, no lock, the digital window\n");
 }
 
+/* a steady stream of commands starves neither the pixel stream nor the polls: a marker frame never directly follows a
+ * marker frame while a pixel frame is due, and a poll that is due goes before the next command frame */
+static void test_fairness(void)
+{
+    int k, i, n_px = 0, n_poll = 0, n_cmd = 0;
+    ws2812(30 * 3);
+    H.dp.quiet_until_us = 0;
+    ultra_sender_set_lights(&H.line, 0, ULTRA_LIGHTS);
+    hub_pixels(&H, 2500);
+    hub_start_poll_timer(&H, 7000);
+    for (k = 0; k < 100; k++) {
+        ultra_pixel_fx_t fx;
+        memset(&fx, 0, sizeof fx);
+        fx.brightness = (uint8_t)(1 + k);
+        CHECK(ultra_sender_pixel_fx(&H.line, 0, 0, &fx, H.now_us) == ULTRA_OK, "queue");
+        hub_run(&H, H.now_us + 3000);
+    }
+    for (i = 0; i < H.ntx; i++) {
+        n_px += H.tx[i].kind == ULTRA_DP_PIXELS;
+        n_poll += H.tx[i].kind == ULTRA_DP_POLL;
+        n_cmd += H.tx[i].kind == ULTRA_DP_FRAME;
+    }
+    CHECK(n_px >= 100, "the stream gets its frames in a command storm (%d of ~120)", n_px);
+    CHECK(n_poll >= 35, "the polls get their turns in a command storm (%d of ~42)", n_poll);
+    CHECK(n_cmd >= 60, "and the commands go out (%d)", n_cmd);
+    check_wire(&H, 20, "command storm");
+    printf("ok   a command storm starves neither the stream (%d frames) nor the polls (%d)\n", n_px, n_poll);
+}
+
 int main(void)
 {
     test_encoder();
@@ -475,6 +504,7 @@ int main(void)
     test_handback();
     test_powerup();
     test_backoff();
+    test_fairness();
     test_sender_digital();
     printf("%s: %d checks, %d failures\n", failures ? "FAILED" : "ALL DIGITAL PORT TESTS PASSED", checks, failures);
     return failures ? 1 : 0;

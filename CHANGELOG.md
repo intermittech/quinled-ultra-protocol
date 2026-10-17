@@ -4,10 +4,11 @@ Releases of this repository. While below 1.0 they are numbered 0.x.y, and the MI
 format's VERSION (`ULTRA_VERSION`, header byte 2): 0.2.y = wire VERSION 2. A compatible addition raises the
 PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
-## v0.2.8 (wire VERSION 2), not tagged yet
+## v0.2.8 (wire VERSION 2), 2026-10-17
 
 `ULTRA_VERSION` stays 2. **Local pixel effects** of the QuinLED Diff-Power Ultra-Digital receiver (hardware id 3,
-`ULTRA_HWCAP_PIXEL_FX`): the hub says which effect, and the receiver renders the strip itself.
+`ULTRA_HWCAP_PIXEL_FX`): the hub says which effect, and the receiver renders the strip itself. Version 0.2.7 was never
+tagged: its changes (below, after the local pixel effects) are part of this release.
 
 - **PIXEL_FX** (slot type 0x0B, `ULTRA_PIXEL_FX`; LIGHT = the segment 0-3): effect, START (the effect's time zero on the
   host clock), speed, intensity, palette, three colours, brightness, transition, the segment's pixels, flags, two custom
@@ -33,7 +34,7 @@ PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
   `ultra_sender_digital()` (no preamble, no chain lock, the digital poll window); `test_dport`, and the `dline` step: the
   reference hub on the receiver's own delay line.
 
-## v0.2.7 (wire VERSION 2), not tagged yet
+### The 0.2.7 changes (that version was never tagged)
 
 `ULTRA_VERSION` stays 2: the frames to the boards are unchanged. **One break in the return channel's answers**, made
 once before production (no receiver has been built yet): IDENTITY and STATUS byte 3, below. A host reading them must

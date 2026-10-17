@@ -204,6 +204,7 @@ typedef struct ultra_sender {
     uint8_t  preamble_full, synced_once, powered, has_sent;
     uint8_t  switch_frame, kind, hdr_flags;
     uint8_t  hw_dirty;                 /* a pixel CONFIG page changed (flushed with the next frame) */
+    uint8_t  digital;                  /* a digital port (ultra_sender_digital): no preamble, no chain lock */
     uint8_t  gc_auto;                  /* group_commands follows the most lights on a board */
     uint8_t  last_ends_preamble;       /* the last frame built is the preamble's last (retime moves ready_us) */
     uint8_t  off;                      /* the power-off notice: 0 none, 1 its copies out (quiet until the wake),
@@ -241,6 +242,15 @@ int  ultra_sender_init(ultra_sender_t *l, const ultra_sender_config_t *c, ultra_
                        ultra_sender_item_t *items, uint16_t n_items);
 /* the line leaves its group and takes no more commands or frames; its storage is free afterwards */
 void ultra_sender_deinit(ultra_sender_t *l);
+/* This line is a DIGITAL PORT (protocol 0.2.8): one QuinLED Diff-Power Ultra-Digital receiver (boards == 1) in the data
+ * path of a pixel strip. It needs no preamble and no chain lock (the marker is the "for you"), so the line never
+ * sends the preamble (also not after a resync or a supply switch-on) and the return channel's POLL has no lock wait.
+ * Its frames are not sent as they are: each goes behind a marker in a latch gap, with the LOW before and after it
+ * (ultra_dport.h decides when and how; ultra_dp_rmt_* turns it into RMT words), and the pixel stream goes between them.
+ * The scheduler is used as it is: ultra_sender_next_frame() for commands, ultra_sender_rc_frame() for polls; ask
+ * for a frame only when the planner (ultra_dp_next) says so, and when something is queued or the port is local.
+ * Call it right after ultra_sender_init(). on = 0 switches it off again (a preamble follows the next resync). */
+int  ultra_sender_digital(ultra_sender_t *l, int on);
 /* lights in use on one board (0..5): commands to other indices are refused, and with clear_unused they are cleared.
  * Lowering it stops sending that light's state; raising it sends it again. */
 int  ultra_sender_set_lights(ultra_sender_t *l, uint16_t board, uint8_t lights);

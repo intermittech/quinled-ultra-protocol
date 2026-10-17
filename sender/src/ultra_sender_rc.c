@@ -56,6 +56,9 @@ static int64_t rw_hold(const ultra_sender_t *l, const uint8_t *buf)
     for (i = 0; i < l->n; i++) {
         const uint8_t *s = buf + ULTRA_SLOT_BYTES * i;
         if (s[0] == ULTRA_POLL) {
+            if (l->digital) {                    /* a digital port: its window ends at W_D (ultra_dport.h retakes then) */
+                return l->last_time_us + (int64_t)ultra_dp_window_us(s[ULTRA_POLL_RATE]);
+            }
             return l->last_time_us + (int64_t)ultra_rw_window_us(s[ULTRA_POLL_SLOTS], s[ULTRA_POLL_RATE]) +
                    ULTRA_RW_HOLDOFF_US;
         }
@@ -81,8 +84,9 @@ uint32_t ultra_sender_rc_frame(ultra_sender_t *l, const ultra_rc_request_t *r, i
     uint32_t i, k = 0, last;
     if (l->n == 0u || r->count == 0u || r->count > ULTRA_RW_MAX_SLOTS || r->rate >= ULTRA_RW_RATES ||
         r->ask[r->count - 1u].board >= l->n || l->switch_frame < ULTRA_SWITCH_WS_FRAMES || l->preamble_left != 0u ||
-        l->ready_us == INT64_MIN || now_us < l->ready_us + (int64_t)ULTRA_RW_LOCK_MS * 1000 || now_us < l->hold_us ||
-        l->ready_frames < lock_frames(l) || l->off != 0u) {
+        (!l->digital && (l->ready_us == INT64_MIN || now_us < l->ready_us + (int64_t)ULTRA_RW_LOCK_MS * 1000 ||
+                         l->ready_frames < lock_frames(l))) ||
+        now_us < l->hold_us || l->off != 0u) {
         return 0;                                /* (nor during or after a power-off notice: until the wake) */
     }
     last = r->ask[r->count - 1u].board;

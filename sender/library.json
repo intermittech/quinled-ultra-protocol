@@ -18,7 +18,7 @@
   "license": "MIT",
   "frameworks": ["arduino", "espidf"],
   "platforms": "*",
-  "headers": ["ultra_sender.h", "ultra_sender.hpp", "ultra_sender_bits.h", "ultra_sender_rc.h", "ultra_esp32_rmt.h",
+  "headers": ["ultra_sender.h", "ultra_sender.hpp", "ultra_sender_bits.h", "ultra_sender_rc.h", "ultra_dport.h", "ultra_esp32_rmt.h",
               "ultra_protocol.h"],
   "build": {
     "srcDir": "src",

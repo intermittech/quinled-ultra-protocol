@@ -549,6 +549,22 @@ int ultra_sender_init(ultra_sender_t *l, const ultra_sender_config_t *c, ultra_s
     return ULTRA_OK;
 }
 
+int ultra_sender_digital(ultra_sender_t *l, int on)
+{
+    if (l->n != 1u) {
+        return ULTRA_ERR_ARG;                    /* one receiver per port */
+    }
+    l->digital = (uint8_t)(on != 0);
+    if (on) {
+        l->preamble_left = 0;
+        l->preamble_full = 1;
+        l->synced_once = 1;
+    } else {
+        l->preamble_left = (uint16_t)ultra_preamble_frames(l->n);
+    }
+    return ULTRA_OK;
+}
+
 int ultra_sender_set_lights(ultra_sender_t *l, uint16_t board, uint8_t lights)
 {
     ultra_sender_board_t *b;
@@ -1173,6 +1189,9 @@ static void resync(ultra_sender_t *l, int64_t now_us, int full)
     l->ready_us = INT64_MIN;
     if (!full && l->preamble_left > POWER_ON_FRAMES) {
         l->preamble_left = POWER_ON_FRAMES;
+    }
+    if (l->digital) {
+        l->preamble_left = 0;                    /* (a digital port needs none) */
     }
     replay(l, now_us + stream_lead(l));          /* (the lead counts the preamble and switch frames in) */
 }

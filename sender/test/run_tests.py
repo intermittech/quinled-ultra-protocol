@@ -12,6 +12,9 @@
    - test_vectors: every protocol test vector, produced through the library's API, byte for byte;
    - test_unit: the scheduler's rules (copies, order, refresh, preamble, TIME, start offsets, encoders, ...);
    - test_review: the regressions of the independent review (round 7);
+   - test_dport: a digital port (0.2.8): ultra_dport.h's planner and RMT words, and the sender library as a hub
+     (test/dport_driver.h), checked on the wire the words describe: the LOW before every marker and after a frame, the
+     window and the retake, a header a second to a local port, the hand-back, the power-up wait, the 3 + 3 back-off;
    - test_pixel: the Ultra-Digital receiver's local pixel effects (0.2.8): PIXEL_FX (copies, START, refresh, resync) and
      the pixel CONFIG 129-139, the refusals, the pool, boards next to a pixel receiver unchanged;
    - test_cpp: the C++ wrapper at run time;
@@ -460,6 +463,7 @@ def main():
         "unit": ("test_unit", [HERE / "test_unit.c", *LIB], lib_incs, [], (), False),
         "review": ("test_review", [HERE / "test_review.c", *LIB], lib_incs, [], (), False),
         "pixel": ("test_pixel", [HERE / "test_pixel.c", *LIB], lib_incs, [], (), False),
+        "dport": ("test_dport", [HERE / "test_dport.c", *LIB], [HERE, *lib_incs], [], (), False),
         "cpp": ("test_cpp", [HERE / "test_cpp.cpp", *LIB], lib_incs, [], (), True),
         "rmt": ("test_rmt", [HERE / "test_rmt.c", *LIB[:2]], [HERE / "mock_idf", *lib_incs], [], ("ESP_PLATFORM",),
                 False),
@@ -514,7 +518,7 @@ def main():
 
     if want("asan"):
         # the same tests under AddressSanitizer (the library's memory use; UBSan too with gcc / clang)
-        for step in ("unit", "vectors", "review", "pixel", "cpp", "rmt", "equiv", "rotation"):
+        for step in ("unit", "vectors", "review", "pixel", "dport", "cpp", "rmt", "equiv", "rotation"):
             name, srcs, incs, args, defines, cpp = host[step]
             build_run(kind, cc, name, srcs, incs, args, defines, cpp=cpp, asan=True)
 

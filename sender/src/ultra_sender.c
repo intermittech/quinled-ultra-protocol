@@ -26,13 +26,17 @@
 #endif
 
 /* the kinds of state of a light, in refresh order */
-enum { RK_DEF = 0, RK_OPT, RK_SET, RK_EFFECT, RK_SCENE, RK_SCENE_FX, RK_STEP };
+enum { RK_DEF = 0, RK_OPT, RK_SET, RK_EFFECT, RK_SCENE, RK_SCENE_FX, RK_STEP, RK_PIXFX, RK_HWCFG };
 #define KEY(light, rank, sub) ((uint16_t)(((uint32_t)(light) << 8) | ((uint32_t)(rank) << 4) | (uint32_t)(sub)))
 #define KEY_LIGHT(k)          ((uint8_t)((k) >> 8))
 #define KEY_RANK(k)           ((uint8_t)(((k) >> 4) & 15u))
+/* an item is part of the board's state while its light is in use (the board's own items, light ULTRA_LIGHT_BOARD: the
+ * hardware-specific CONFIG pages of an Ultra-Digital receiver, always) */
+#define ITEM_ON(b, key)       (KEY_LIGHT(key) == ULTRA_LIGHT_BOARD || KEY_LIGHT(key) < (b)->lights)
 
 #define IT_VALID  0x01u                /* the item has content to send */
 #define IT_STREAM 0x02u                /* a streamed SET */
+#define IT_HWDIRTY 0x04u               /* a pixel CONFIG page changed: its SEQ and queueing wait for flush_config */
 
 #define KIND_NONE  ULTRA_KIND_NONE
 #define KIND_ULTRA ULTRA_KIND_ULTRA
@@ -562,6 +566,9 @@ int ultra_sender_set_lights(ultra_sender_t *l, uint16_t board, uint8_t lights)
     b->lights = lights;
     for (i = b->first; i != END; i = it->next) {
         it = &l->items[i];
+        if (KEY_LIGHT(it->key) == ULTRA_LIGHT_BOARD) {
+            continue;                              /* (the board's own items stay) */
+        }
         if (KEY_LIGHT(it->key) >= lights) {
             q_drop(l, b, &it->q, 1);               /* not sent any more */
         } else if (KEY_LIGHT(it->key) >= old && (it->q.flags & IT_VALID)) {
@@ -573,7 +580,8 @@ int ultra_sender_set_lights(ultra_sender_t *l, uint16_t board, uint8_t lights)
         int clash = 0;
         for (i = b->first; i != END; i = it->next) {
             it = &l->items[i];
-            if (KEY_LIGHT(it->key) >= lights && KEY_LIGHT(it->key) < old && it->slot[2] == b->clr_seq) {
+            if (KEY_LIGHT(it->key) >= lights && KEY_LIGHT(it->key) < old && it->slot[2] == b->clr_seq &&
+                KEY_LIGHT(it->key) != ULTRA_LIGHT_BOARD) {
                 clash = 1;
             }
         }
@@ -636,11 +644,11 @@ static int32_t stamp(uint8_t *s, int64_t start_us, int64_t hdr_us, int floor, ui
         ultra_put24(s + ULTRA_PAYLOAD + 22, duration);
         ultra_put16(s + ULTRA_PAYLOAD + 25, (uint32_t)(uint16_t)(int16_t)ms);
     } else {
-        if (!force && s[0] != ULTRA_EFFECT) {
+        if (!force && s[0] != ULTRA_EFFECT && s[0] != ULTRA_PIXEL_FX) {
             return 0;                            /* (no offset: sealed in the first pass) */
         }
         before = force ? 0u : stamp_ones(s);
-        if (s[0] == ULTRA_EFFECT) {
+        if (s[0] == ULTRA_EFFECT || s[0] == ULTRA_PIXEL_FX) {   /* (START is at slot byte 4 in both) */
             ms = ms < INT32_MIN ? INT32_MIN : ms > INT32_MAX ? INT32_MAX : ms;
             ultra_put32(s + ULTRA_PAYLOAD + 1, (uint32_t)(int32_t)ms);
         }
@@ -715,7 +723,7 @@ static int64_t start_error(const ultra_sender_t *l, const uint8_t *out, int64_t 
             if (off == -32768 || off == 32767) {
                 continue;
             }
-        } else if (sl[0] == ULTRA_EFFECT) {
+        } else if (sl[0] == ULTRA_EFFECT || sl[0] == ULTRA_PIXEL_FX) {
             off = (int32_t)ultra_get32(sl + ULTRA_PAYLOAD + 1);
         } else {
             continue;
@@ -902,7 +910,7 @@ static int take_refresh(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t *s, 
         }
         {
             const ultra_sender_item_t *it = &l->items[i];
-            if (!(it->q.flags & IT_VALID) || KEY_LIGHT(it->key) >= b->lights) {
+            if (!(it->q.flags & IT_VALID) || !ITEM_ON(b, it->key)) {
                 continue;
             }
             copy32(s, it->slot);
@@ -918,6 +926,22 @@ static int take_refresh(ultra_sender_t *l, ultra_sender_board_t *b, uint8_t *s, 
 static void flush_config(ultra_sender_t *l)
 {
     uint32_t i, p;
+    if (l->hw_dirty) {                           /* the pixel CONFIG pages (0.2.8): one SEQ and 3 copies per changed page */
+        l->hw_dirty = 0;
+        for (i = 0; i < l->n; i++) {
+            ultra_sender_board_t *b = &l->boards[i];
+            uint16_t k;
+            for (k = b->first; k != END; k = l->items[k].next) {
+                ultra_sender_item_t *it = &l->items[k];
+                if (KEY_RANK(it->key) == RK_HWCFG && (it->q.flags & IT_HWDIRTY)) {
+                    it->q.flags = IT_VALID;
+                    it->slot[2] = ++b->cfg_seq;  /* (one SEQ count with the official pages) */
+                    ultra_slot_seal(it->slot);
+                    q_put(l, b, &it->q, 0, 1);
+                }
+            }
+        }
+    }
     for (i = 0; i < l->n; i++) {
         ultra_sender_board_t *b = &l->boards[i];
         uint32_t pages;
@@ -1130,7 +1154,7 @@ static void replay(ultra_sender_t *l, int64_t start_us)
         }
         for (k = b->first; k != END; k = l->items[k].next) {
             ultra_sender_item_t *it = &l->items[k];
-            if (!(it->q.flags & IT_VALID) || KEY_LIGHT(it->key) >= b->lights) {
+            if (!(it->q.flags & IT_VALID) || !ITEM_ON(b, it->key)) {
                 continue;
             }
             if (KEY_RANK(it->key) == RK_SET) {
@@ -1492,6 +1516,122 @@ int ultra_sender_scene_effect(ultra_sender_t *l, uint16_t board, uint8_t light, 
     return ULTRA_OK;
 }
 
+/* ------------------------------------------------------------------------------- local pixel effects (0.2.8) */
+static int pixel_fx_ok(const ultra_pixel_fx_t *fx)
+{
+    return fx != 0 && (fx->flags & ~0x3Fu) == 0u;     /* (bits 6-7 are reserved: the header's builder drops them) */
+}
+
+int ultra_sender_pixel_fx_at(ultra_sender_t *l, uint16_t board, uint8_t segment, const ultra_pixel_fx_t *fx,
+                             int64_t start_us)
+{
+    ultra_sender_board_t *b;
+    ultra_sender_item_t *it;
+    ultra_pixel_fx_t f;
+    if (!light_ok(l, board, segment) || segment >= ULTRA_PX_SEGMENTS || !pixel_fx_ok(fx)) {
+        return ULTRA_ERR_ARG;
+    }
+    b = &l->boards[board];
+    it = item_get(l, b, KEY(segment, RK_PIXFX, 0));
+    if (it == 0) {
+        return ULTRA_ERR_FULL;
+    }
+    f = *fx;
+    ultra_slot_pixel_fx(it->slot, segment, next_seq(b, it), &f);   /* (START: stamped against every frame's TIME) */
+    it->q.flags = IT_VALID;
+    it->aux = 0;
+    it_set_start(it, start_us);
+    q_put(l, b, &it->q, 0, 1);
+    return ULTRA_OK;
+}
+
+int ultra_sender_pixel_fx(ultra_sender_t *l, uint16_t board, uint8_t segment, const ultra_pixel_fx_t *fx, int64_t now_us)
+{
+    if (!light_ok(l, board, segment) || segment >= ULTRA_PX_SEGMENTS || !pixel_fx_ok(fx)) {
+        return ULTRA_ERR_ARG;
+    }
+    return ultra_sender_pixel_fx_at(l, board, segment, fx, ultra_sender_start_time(l, board, now_us));
+}
+
+int64_t ultra_sender_pixel_fx_start(const ultra_sender_t *l, uint16_t board, uint8_t segment)
+{
+    const ultra_sender_item_t *it;
+    if (!light_ok(l, board, segment) || segment >= ULTRA_PX_SEGMENTS) {
+        return ULTRA_NO_START;
+    }
+    it = item_find((ultra_sender_t *)l, &l->boards[board], KEY(segment, RK_PIXFX, 0));
+    return it != 0 && (it->q.flags & IT_VALID) ? it_start(it) : ULTRA_NO_START;
+}
+
+int ultra_pixel_config_value_ok(uint8_t id, uint16_t value)
+{
+    switch (id) {
+    case ULTRA_CFG_PX_CHIP:
+        return value < ULTRA_PXC_COUNT;
+    case ULTRA_CFG_PX_POLICY:
+        return value <= (ULTRA_PXP_POWER_ON | ULTRA_PXP_ON_LOSS | ULTRA_PXP_STREAM_WINS);
+    case ULTRA_CFG_PX_LOSS_TIMEOUT:
+        return value == 0u || (value >= 5u && value <= 600u);
+    case ULTRA_CFG_PX_ORDER:
+    case ULTRA_CFG_PX_PIXELS:
+    case ULTRA_CFG_PX_FPS:
+    case ULTRA_CFG_PX_MA_CH:
+    case ULTRA_CFG_PX_LIMIT_MA:
+    case ULTRA_CFG_PX_WHITE:
+    case ULTRA_CFG_PX_VOFFSET:
+    case ULTRA_CFG_PX_VLENGTH:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+int ultra_sender_pixel_config(ultra_sender_t *l, uint16_t board, uint8_t id, uint16_t value)
+{
+    ultra_sender_board_t *b;
+    ultra_sender_item_t *it;
+    uint8_t ids[ULTRA_CFG_PX_COUNT];
+    uint16_t vals[ULTRA_CFG_PX_COUNT];
+    uint8_t s[ULTRA_SLOT_BYTES];
+    uint32_t page, n = 0, j;
+    if (!board_ok(l, board) || !ultra_pixel_config_value_ok(id, value)) {
+        return ULTRA_ERR_ARG;
+    }
+    b = &l->boards[board];
+    page = (uint32_t)(id - ULTRA_CFG_PX_FIRST) / 9u;
+    it = item_get(l, b, KEY(ULTRA_LIGHT_BOARD, RK_HWCFG, page));
+    if (it == 0) {
+        return ULTRA_ERR_FULL;
+    }
+    /* the page's pairs as they are (consecutive from pair 0, in id order), with this one set */
+    if (it->q.flags & IT_VALID) {
+        for (j = 0; j < 9u && it->slot[ULTRA_PAYLOAD + 3u * j] != 0u; j++) {
+            ids[n] = it->slot[ULTRA_PAYLOAD + 3u * j];
+            vals[n++] = (uint16_t)ultra_get16(it->slot + ULTRA_PAYLOAD + 3u * j + 1u);
+        }
+    }
+    for (j = 0; j < n && ids[j] != id; j++) {
+    }
+    if (j == n) {
+        for (j = n; j > 0u && ids[j - 1u] > id; j--) {
+            ids[j] = ids[j - 1u];
+            vals[j] = vals[j - 1u];
+        }
+        n++;
+    }
+    ids[j] = id;
+    vals[j] = value;
+    ultra_slot_config(s, it->slot[2], ids, vals, n);
+    if ((it->q.flags & IT_VALID) && memcmp(s + ULTRA_PAYLOAD, it->slot + ULTRA_PAYLOAD, ULTRA_PAYLOAD_LEN) == 0) {
+        return ULTRA_OK;                         /* unchanged: nothing to send */
+    }
+    copy32(it->slot, s);                         /* (its SEQ and CRC when the page is flushed with the next frame) */
+    it->q.flags = IT_VALID | IT_HWDIRTY;
+    it_set_start(it, ULTRA_NO_START);
+    l->hw_dirty = 1;
+    return ULTRA_OK;
+}
+
 /* ------------------------------------------------------------------------------------------------- effects */
 uint32_t ultra_fx_pulse(uint8_t *p, uint32_t on_ms, uint32_t off_ms, uint32_t interval_ms, uint16_t min,
                         uint16_t max)
@@ -1718,6 +1858,7 @@ int ultra_sender_preset_seq(ultra_sender_t *l, uint16_t board, uint8_t light, ui
     case ULTRA_EFFECT: rk = RK_EFFECT; break;
     case ULTRA_SCENE: rk = RK_SCENE; break;
     case ULTRA_SCENE_EFFECT: rk = RK_SCENE_FX; break;
+    case ULTRA_PIXEL_FX: rk = RK_PIXFX; break;
     default: return ULTRA_ERR_ARG;
     }
     if (!light_ok(l, board, light)) {

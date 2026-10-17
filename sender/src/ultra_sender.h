@@ -64,7 +64,7 @@
 extern "C" {
 #endif
 
-#define ULTRA_SENDER_VERSION_STR "0.2.7"   /* this library: the protocol release it targets (its ultra_protocol.h) */
+#define ULTRA_SENDER_VERSION_STR "0.2.8"   /* this library: the protocol release it targets (its ultra_protocol.h) */
 
 #ifndef ULTRA_SENDER_MAX_BOARDS
 #define ULTRA_SENDER_MAX_BOARDS 64u        /* per line (the protocol has no fixed maximum; QuinLED supports 50) */
@@ -76,7 +76,8 @@ extern "C" {
 #define ULTRA_SENDER_CFG_WORDS ((ULTRA_CFG_COUNT + 31u) / 32u)
 
 /* items for a pool: `per_light` 2 = LIGHT_DEF + SET; 3 = + EFFECT; 6 = + LIGHT_OPT, SCENE, SCENE_EFFECT;
- * 14 = + 8 strobe steps (the most a light can take) */
+ * 14 = + 8 strobe steps (the most a light can take). An Ultra-Digital receiver (local pixel effects) takes one item per
+ * segment it runs (PIXEL_FX) and 2 for its CONFIG 129-139 */
 #define ULTRA_SENDER_ITEMS(boards, lights, per_light) ((boards) * (lights) * (per_light))
 /* the frame buffer for n boards (also fits the WS switch frames) */
 #define ULTRA_SENDER_FRAME_BYTES(n) (32u * (n) + 8u)
@@ -202,6 +203,7 @@ typedef struct ultra_sender {
     uint8_t  repeats, group_commands, max_lights, clear_unused;
     uint8_t  preamble_full, synced_once, powered, has_sent;
     uint8_t  switch_frame, kind, hdr_flags;
+    uint8_t  hw_dirty;                 /* a pixel CONFIG page changed (flushed with the next frame) */
     uint8_t  gc_auto;                  /* group_commands follows the most lights on a board */
     uint8_t  last_ends_preamble;       /* the last frame built is the preamble's last (retime moves ready_us) */
     uint8_t  off;                      /* the power-off notice: 0 none, 1 its copies out (quiet until the wake),
@@ -344,6 +346,30 @@ int ultra_sender_scene(ultra_sender_t *l, uint16_t board, uint8_t light, uint8_t
  * ULTRA_FX_NONE for those without (a board keeps what it has stored until a SCENE_EFFECT changes it). */
 int ultra_sender_scene_effect(ultra_sender_t *l, uint16_t board, uint8_t light, uint8_t fx, const uint8_t *params,
                               uint32_t nparams);
+
+/* Local pixel effects of a QuinLED Diff-Power Ultra-Digital receiver (protocol 0.2.8; ULTRA_HWCAP_PIXEL_FX; the
+ * header: PIXEL_FX and ULTRA_PX_*). A receiver on a digital port has no lights: its board runs up to ULTRA_PX_SEGMENTS
+ * segments (the `light` of these calls). Give it ultra_sender_set_lights(l, board, ULTRA_LIGHTS) so no light index is
+ * cleared on it, and call ultra_sender_pixel_config() for its strip (chip, order, pixel count) before the first
+ * effect. The receiver's frames sit behind the hub's markers (ULTRA_DP_*, the return channel's digital ports): this
+ * library builds the slots; the line's marker framing is the caller's.
+ *
+ * PIXEL_FX is a command like SET: 3 copies, a newer one for the same segment replaces a queued one, and it is part
+ * of the refresh (the receiver applies a SEQ once). fx->start_ms is not used: the START is the effect's time zero on
+ * the host clock, stamped against every frame's TIME. A new effect takes a new START (ultra_sender_pixel_fx: the
+ * group start for now_us); a change of its parameters, colours or brightness keeps it, so the effect carries on in
+ * phase (ultra_sender_pixel_fx_at with ultra_sender_pixel_fx_start()). The START is an int32 of ms against TIME: an
+ * effect running for more than ~20 days needs a new one (the crossfade). fx->effect 0 hands the strip back to the
+ * hub's stream. ULTRA_ERR_ARG: the board or segment out of range, reserved flag bits. */
+int ultra_sender_pixel_fx(ultra_sender_t *l, uint16_t board, uint8_t segment, const ultra_pixel_fx_t *fx, int64_t now_us);
+int ultra_sender_pixel_fx_at(ultra_sender_t *l, uint16_t board, uint8_t segment, const ultra_pixel_fx_t *fx,
+                             int64_t start_us);
+/* the START of the segment's last PIXEL_FX (ULTRA_NO_START: none) */
+int64_t ultra_sender_pixel_fx_start(const ultra_sender_t *l, uint16_t board, uint8_t segment);
+/* CONFIG 129-139 (ULTRA_CFG_PX_*) of the strip: sent with the next frame, in their own CONFIG slots (an unchanged value
+ * queues nothing), part of the refresh. ULTRA_ERR_ARG: not one of these ids, or a value the receiver would refuse */
+int ultra_sender_pixel_config(ultra_sender_t *l, uint16_t board, uint8_t id, uint16_t value);
+int ultra_pixel_config_value_ok(uint8_t id, uint16_t value);
 
 /* effect parameters into p (ULTRA_FX_PARAMS bytes); each returns the parameter length. Fractions are 0..65535. */
 uint32_t ultra_fx_pulse(uint8_t *p, uint32_t on_ms, uint32_t off_ms, uint32_t interval_ms, uint16_t min,

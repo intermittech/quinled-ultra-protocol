@@ -1,4 +1,4 @@
-version: "0.2.7"
+version: "0.2.8"
 description: "QuinLED Ultra protocol sender: drive QuinLED dig2analog-ultra boards (portable C99, no heap, ESP32 RMT output)"
 url: "https://github.com/intermittech/quinled-ultra-protocol/tree/main/sender"
 repository: "https://github.com/intermittech/quinled-ultra-protocol.git"

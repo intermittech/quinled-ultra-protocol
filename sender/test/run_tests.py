@@ -12,6 +12,8 @@
    - test_vectors: every protocol test vector, produced through the library's API, byte for byte;
    - test_unit: the scheduler's rules (copies, order, refresh, preamble, TIME, start offsets, encoders, ...);
    - test_review: the regressions of the independent review (round 7);
+   - test_pixel: the Ultra-Digital receiver's local pixel effects (0.2.8): PIXEL_FX (copies, START, refresh, resync) and
+     the pixel CONFIG 129-139, the refusals, the pool, boards next to a pixel receiver unchanged;
    - test_cpp: the C++ wrapper at run time;
    - test_rmt: the ESP32 RMT helper (ultra_esp32_rmt.h) against a mocked ESP-IDF RMT driver;
    - test_equiv: the arithmetic of the size pass (round 9) against its old code, kept verbatim in the test;
@@ -25,7 +27,7 @@
      test_sim_rx: the same firmware built as the Diff-Power Ultra receiver (BOARD=2): the power-off notice, and
      LIFE_SYNC into the receiver's own merge (energy.c and what it needs);
    - examples/host_minimal.c builds and runs;
-   - asan: test_unit, test_vectors, test_review, test_cpp, test_rmt, test_equiv and test_rotation again under
+   - asan: test_unit, test_vectors, test_review, test_pixel, test_cpp, test_rmt, test_equiv and test_rotation again under
      AddressSanitizer (MSVC /fsanitize=address; gcc / clang: -fsanitize=address,undefined).
 3. Code size (cross compilers found): the library's .text at -Os for ESP32 (Xtensa) and RV32IMC.
 4. The package (`--only manifests`, CI-friendly): library.json, library.properties, idf_component.yml and CMakeLists.txt
@@ -457,6 +459,7 @@ def main():
         "vectors": ("test_vectors", [HERE / "test_vectors.c", *LIB], lib_incs, [str(release_vectors())], (), False),
         "unit": ("test_unit", [HERE / "test_unit.c", *LIB], lib_incs, [], (), False),
         "review": ("test_review", [HERE / "test_review.c", *LIB], lib_incs, [], (), False),
+        "pixel": ("test_pixel", [HERE / "test_pixel.c", *LIB], lib_incs, [], (), False),
         "cpp": ("test_cpp", [HERE / "test_cpp.cpp", *LIB], lib_incs, [], (), True),
         "rmt": ("test_rmt", [HERE / "test_rmt.c", *LIB[:2]], [HERE / "mock_idf", *lib_incs], [], ("ESP_PLATFORM",),
                 False),
@@ -511,7 +514,7 @@ def main():
 
     if want("asan"):
         # the same tests under AddressSanitizer (the library's memory use; UBSan too with gcc / clang)
-        for step in ("unit", "vectors", "review", "cpp", "rmt", "equiv", "rotation"):
+        for step in ("unit", "vectors", "review", "pixel", "cpp", "rmt", "equiv", "rotation"):
             name, srcs, incs, args, defines, cpp = host[step]
             build_run(kind, cc, name, srcs, incs, args, defines, cpp=cpp, asan=True)
 

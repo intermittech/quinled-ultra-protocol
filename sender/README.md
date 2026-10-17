@@ -19,7 +19,7 @@ integrators: the wiki page [Sender library](https://github.com/intermittech/quin
 
 ## Install
 
-Version 0.2.7: the protocol release it targets. One package for PlatformIO, Arduino and ESP-IDF; everything is in
+Version 0.2.8: the protocol release it targets. One package for PlatformIO, Arduino and ESP-IDF; everything is in
 `src/`, also `ultra_protocol.h` (a byte-identical copy of the release's `include/ultra_protocol.h`).
 
 - **PlatformIO** (WLED, MoonLight, Tasmota): `library.json`. Put `sender/` in the project's `lib/` folder, or
@@ -32,7 +32,7 @@ Version 0.2.7: the protocol release it targets. One package for PlatformIO, Ardu
     ultra_sender:
       git: https://github.com/intermittech/quinled-ultra-protocol.git
       path: sender
-      version: v0.2.7
+      version: v0.2.8
   ```
 - **Anything else** (CMake, Make, an IDE): compile `src/*.c` (C99) with `src/` on the include path.
 
@@ -45,7 +45,7 @@ Version 0.2.7: the protocol release it targets. One package for PlatformIO, Ardu
 | `src/ultra_esp32_rmt.h` | ESP32 only, header-only: an RMT output for a line (ESP-IDF 5.3+, Arduino-ESP32 3.1+). |
 | `src/ultra_sender_rc.h`, `.c` | Optional: the return channel (POLL frames, answers; Diff-Power Ultra receivers only). |
 | `src/ultra_sender.hpp` | Optional: a thin C++ wrapper with the storage built in. |
-| `src/ultra_protocol.h` | The protocol header of release 0.2.7, unchanged. |
+| `src/ultra_protocol.h` | The protocol header of release 0.2.8, unchanged. |
 | `examples/` | `host_minimal.c` (any PC), `esp32_idf_rmt/` (ESP-IDF, the library as a component), `esp32_arduino/` (Arduino-ESP32). |
 | `test/` | `run_tests.py` and the tests (not part of the packages). |
 
@@ -152,6 +152,19 @@ white / CCT colour into M, A and B for a light's roles.
 | `ultra_sender_config(&line, board, id, value)` | CONFIG (every id the header defines) on one board or `ULTRA_SENDER_ALL`; changes go out with the next frame and stay in the refresh. Values outside the id's range are refused (`ultra_config_value_ok()`). Signal loss 3 fades to the power-on scene; CONFIG 24, the trips' retry policy: `ULTRA_SENDER_RETRY(count, interval_s)`. |
 | `ultra_sender_pwm_hz(&line, board, hz)` | PWM frequency → CONFIG 1 / 2. |
 | `ultra_sender_identify(&line, board, value, arg)` | IDENTIFY: blink, version, current calibration, hold dark / release. Three copies, not refreshed. |
+
+**Local pixel effects** (protocol 0.2.8; the QuinLED Diff-Power Ultra-Digital receiver):
+
+| Call | |
+|---|---|
+| `ultra_sender_pixel_fx(&line, board, segment, &fx, now_us)` | PIXEL_FX for a segment (0-3) of the receiver on `board`: a new effect, its START the group start for now. `fx.effect` 0 hands the strip back to the hub's stream. |
+| `ultra_sender_pixel_fx_at(&line, board, segment, &fx, start_us)` | The same with the START you give: pass `ultra_sender_pixel_fx_start()` again for a change of the effect's parameters, colours or brightness, so it carries on in phase. Renew it after ~20 days (the START is an int32 of ms). |
+| `ultra_sender_pixel_config(&line, board, id, value)` | CONFIG 129-139 of the strip (`ULTRA_CFG_PX_*`: chip, wire order, pixels, ...), in their own CONFIG slots, one SEQ per changed page, part of the refresh. |
+
+A receiver on a digital port has no lights: call `ultra_sender_set_lights(&line, board, ULTRA_LIGHTS)` for it (nothing
+is cleared) and give it one pool item per segment and two for its CONFIG. The library builds the slots; the line's
+marker framing and the pixel stream (`ULTRA_DP_*`, the return channel's digital ports) are the caller's. The effect
+list is the catalogue (`catalogue/pixel_fx_catalogue.json` in the protocol repository).
 
 **Start times.** `ultra_sender_set()`, `_effect()` and `_strobe()` start at `ultra_sender_start_time()`: far
 enough ahead that the commands reach every board first (one slot per board per frame), and shared by the commands
@@ -331,6 +344,9 @@ python sender/test/run_tests.py
 - **`manifests`** (no compiler needed; `--only manifests` for CI): the four manifests list exactly the sources and
   headers in `src/`, every version is the release of `src/ultra_protocol.h`, that header and `LICENSE` are
   byte-identical to the repository's, and `src/` includes nothing from outside itself.
+- **`test_pixel`:** the local pixel effects (0.2.8): PIXEL_FX (3 copies, the START against TIME, a parameter change
+  keeping it, replacement, the refresh, a resync), the pixel CONFIG pages (one SEQ per changed page, an unchanged value
+  queues nothing), the refusals and the pool, and a board next to a pixel receiver sending what it sent without.
 - **`test_review`:** the independent reviews' findings (round 7, its re-check, round 14), each a regression that
   failed before its fix: start-up and raised-light-count starts, the retimed preamble, partial / NULL effect
   parameters, group lifecycle, RMT rounding, the TIME / start bounds over the legal timing space, SPI timing and every

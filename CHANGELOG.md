@@ -4,6 +4,26 @@ Releases of this repository. While below 1.0 they are numbered 0.x.y, and the MI
 format's VERSION (`ULTRA_VERSION`, header byte 2): 0.2.y = wire VERSION 2. A compatible addition raises the
 PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 
+## v0.2.8 (wire VERSION 2), not tagged yet
+
+`ULTRA_VERSION` stays 2. **Local pixel effects** of the QuinLED Diff-Power Ultra-Digital receiver (hardware id 3,
+`ULTRA_HWCAP_PIXEL_FX`): the hub says which effect, and the receiver renders the strip itself.
+
+- **PIXEL_FX** (slot type 0x0B, `ULTRA_PIXEL_FX`; LIGHT = the segment 0-3): effect, START (the effect's time zero on the
+  host clock), speed, intensity, palette, three colours, brightness, transition, the segment's pixels, flags, two custom
+  sliders. `ultra_slot_pixel_fx()` / `ultra_pixel_fx_parse()`. `ULTRA_TYPES` stays 0x0B: the Dig2Analog-Ultra and the
+  Ultra-Analog receivers ignore the type as an unknown one. `ultra_slot_config()` passes the hardware-specific ids
+  (128-255) now.
+- **CONFIG 129-139** (the strip's chip, wire order, pixels, frame rate, LED current and limit, auto-white, virtual
+  strip, standalone policy, signal loss timeout) and **page 0x81** (`ULTRA_PAGE_HW_FX`: the state, the effects and
+  palettes the firmware has). Spec: the header's comments.
+- **The catalogue** (`catalogue/pixel_fx_catalogue.json`, `check_catalogue.py`, `test_check_catalogue.py`): effect and
+  palette ids and names, never reused; a host builds its effect list from it.
+- **Test vectors:** `slot_pixel_fx`, `slot_pixel_fx_stream`, `slot_config_pixel`, `slot_poll_pixel_fx_effects`.
+- **Sender library 0.2.8:** `ultra_sender_pixel_fx()` / `_at()`, `ultra_sender_pixel_fx_start()` and
+  `ultra_sender_pixel_config()` (a new effect takes a new START, a change of its parameters keeps it), the START
+  stamped like an EFFECT's, the refresh and a resync covering them; `test_pixel`.
+
 ## v0.2.7 (wire VERSION 2), not tagged yet
 
 `ULTRA_VERSION` stays 2: the frames to the boards are unchanged. **One break in the return channel's answers**, made

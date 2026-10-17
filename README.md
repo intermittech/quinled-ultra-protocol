@@ -15,6 +15,7 @@ single data wire as WS28xx LEDs (800 kbit/s), and the boards are daisy-chained.
 | [Wiki](https://github.com/intermittech/quinled-ultra-protocol/wiki) | The specification: physical layer, frame layout, every slot type, timing, host behaviour, compatibility rules. |
 | [`test-vectors/`](test-vectors) | Example slots and frames as hex, generated from the header. Check your implementation byte for byte. |
 | [`examples/`](examples) | A platform-neutral C example that builds frames, plus notes on driving them out (RMT, SPI, I2S, PARLIO). |
+| [`catalogue/`](catalogue) | The pixel effect catalogue (`pixel_fx_catalogue.json`): the effects and palettes the Ultra-Digital receiver runs itself (PIXEL_FX), ids never reused, and its checker. ESPHome generates its effect list from it. |
 | [`sender/`](sender) | The reference sender library (C99 + a C++ wrapper): the scheduler, copies, timing and the bit encoding, with ESP32 RMT examples and PlatformIO / Arduino / ESP-IDF packaging. The easiest way to add Ultra to WLED, Tasmota, MoonLight or your own firmware. |
 
 ## Who it's for

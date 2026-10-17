@@ -438,6 +438,57 @@ static void slots(void)
     ultra_sender_scene_effect(&line, 0, 0, ULTRA_FX_CANDLE, p, n);
     slot_frame_at(TIME_V);
     compare("slot_scene_effect", buf, 32);
+
+    /* 0.2.8: the Ultra-Digital receiver's local pixel effects */
+    {
+        ultra_pixel_fx_t fx;
+        memset(&fx, 0, sizeof fx);
+        fx.effect = 7;
+        fx.speed = 100;
+        fx.intensity = 150;
+        fx.palette = ULTRA_PX_PAL_COLORS;
+        fx.c[0][0] = 255, fx.c[0][1] = 128, fx.c[0][2] = 0;
+        fx.c[1][0] = 10, fx.c[1][1] = 20, fx.c[1][2] = 30;
+        fx.c[2][0] = 40, fx.c[2][1] = 50, fx.c[2][2] = 60;
+        fx.brightness = 128;
+        fx.transition_ms = 1500;
+        fx.seg_start = 5;
+        fx.seg_len = 90;
+        fx.flags = ULTRA_PXF_REVERSE | (ULTRA_PXW_ACCURATE << ULTRA_PXF_WHITE_SHIFT);
+        fx.custom1 = 1;
+        fx.custom2 = 2;
+        line_new(1);
+        skip_preamble();
+        ultra_sender_preset_seq(&line, 0, 2, ULTRA_PIXEL_FX, 9);
+        ultra_sender_pixel_fx_at(&line, 0, 2, &fx, TIME_V - 1234000);   /* START -1234 ms against the frame's TIME */
+        slot_frame_at(TIME_V);
+        compare("slot_pixel_fx", buf, 32);
+
+        memset(&fx, 0, sizeof fx);
+        fx.effect = ULTRA_PX_FX_STREAM;
+        line_new(1);
+        skip_preamble();
+        ultra_sender_preset_seq(&line, 0, 0, ULTRA_PIXEL_FX, 0x0A);
+        ultra_sender_pixel_fx_at(&line, 0, 0, &fx, TIME_V + 500000);
+        slot_frame_at(TIME_V);
+        compare("slot_pixel_fx_stream", buf, 32);
+
+        line_new(1);
+        skip_preamble();
+        ultra_sender_preset_seq(&line, 0, ULTRA_LIGHT_BOARD, ULTRA_CONFIG, 0x47);
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_CHIP, ULTRA_PXC_SK6812_RGBW);
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_ORDER,
+                                  ULTRA_PX_ORDER(ULTRA_PXCH_G, ULTRA_PXCH_R, ULTRA_PXCH_B, ULTRA_PXCH_W, 0));
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_PIXELS, 300);
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_FPS, 60);
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_MA_CH, 200);
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_LIMIT_MA, 0);
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_WHITE, ULTRA_PXW_ACCURATE);
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_VOFFSET, 0);
+        ultra_sender_pixel_config(&line, 0, ULTRA_CFG_PX_VLENGTH, 0);
+        slot_frame_at(TIME_V);
+        compare("slot_config_pixel", buf, 32);
+    }
 }
 
 static void frames(void)
@@ -579,6 +630,10 @@ static void return_channel(void)
         rc_page_slot("slot_poll_lifetime", ULTRA_PAGE_LIFETIME, NULL, 0, 0x63);
         rc_page_slot("slot_poll_diag_faults", ULTRA_PAGE_DIAG, diag_part1, sizeof diag_part1, 0x64);
         rc_page_slot("slot_poll_identity_features", ULTRA_PAGE_IDENTITY, id_part1, sizeof id_part1, 0x66);
+        {
+            static const uint8_t px_effects[1] = { ULTRA_PXG_PART_EFFECTS };
+            rc_page_slot("slot_poll_pixel_fx_effects", ULTRA_PAGE_HW_FX, px_effects, sizeof px_effects, 0x67);
+        }
     }
     /* 0.2.7: IDENTITY's two answers, built from the header's layout and compared, then read back through
      * ultra_rc_answer and the getters (part 0's fields, part 1's features) */

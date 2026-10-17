@@ -9,9 +9,9 @@ The catalogue lists the effects and palettes the Ultra-Digital receiver's firmwa
 Rules:
   - catalogue_version is an integer 0-65535 (the u16 of page 0x81 part 0); raise it whenever the content changes.
   - effects: id 1-255 (1-127 official, 128-255 custom), unique and never reused; a unique name (the Home Assistant
-    effect name, case-insensitive); summary (text); speed / intensity: null (not used) or the slider's label; palette:
-    true / false (uses the Palette select); colors: the labels of the colours it uses (c1.., at most 3); custom1 /
-    custom2: null or a label; defaults: speed, intensity, palette (0-127, 0xFE c1 -> c2 -> c3, 0xFF the effect's own),
+    effect name, case-insensitive); summary (text); speed / intensity / palette: true / false (the slider or the Palette
+    select is used) with speed_label / intensity_label (text, null when unused); colors: how many of c1..c3 it uses (0-3)
+    and color_slots: three labels by position (null: that colour is not used); custom1 / custom2: null or a label; defaults: speed, intensity, palette (0-127, 0xFE c1 -> c2 -> c3, 0xFF the effect's own),
     c1 / c2 / c3 ([r, g, b]), custom1, custom2; state_bytes_per_pixel (int); origin (text: where the algorithm is from,
     for the licence notices).
   - palettes: id 0-127, unique and never reused; unique name; origin (text); cyclic (true / false). 0xFE and 0xFF are
@@ -24,8 +24,8 @@ Exit status 0: fine, 1: a problem (each printed).
 import json
 import sys
 
-EFFECT_KEYS = {"id", "name", "summary", "speed", "intensity", "palette", "colors", "custom1", "custom2", "defaults",
-               "state_bytes_per_pixel", "origin", "retired"}
+EFFECT_KEYS = {"id", "name", "summary", "colors", "color_slots", "speed", "speed_label", "intensity", "intensity_label",
+               "palette", "custom1", "custom2", "defaults", "state_bytes_per_pixel", "origin", "retired"}
 DEFAULT_KEYS = {"speed", "intensity", "palette", "c1", "c2", "c3", "custom1", "custom2"}
 PALETTE_KEYS = {"id", "name", "origin", "cyclic", "retired"}
 
@@ -81,14 +81,21 @@ def check(cat, previous=None):
                 errors.append(f"{where}: unknown keys {sorted(extra)}")
             if not isinstance(e.get("summary"), str) or not e["summary"].strip():
                 errors.append(f"{where}: a summary is required")
-            for k in ("speed", "intensity", "custom1", "custom2"):
+            for k in ("custom1", "custom2", "speed_label", "intensity_label"):
                 if k not in e or not _label(e[k]):
                     errors.append(f"{where}: {k} must be null or a label")
-            if not isinstance(e.get("palette"), bool):
-                errors.append(f"{where}: palette must be true or false")
-            cols = e.get("colors")
-            if not isinstance(cols, list) or len(cols) > 3 or any(not _label(c) or c is None for c in cols):
-                errors.append(f"{where}: colors is a list of at most 3 labels")
+            for k in ("speed", "intensity", "palette"):
+                if not isinstance(e.get(k), bool):
+                    errors.append(f"{where}: {k} must be true or false")
+                elif k != "palette" and e[k] != (e.get(k + "_label") is not None):
+                    errors.append(f"{where}: {k} and {k}_label disagree (a label exactly when it is used)")
+            cols, slots = e.get("colors"), e.get("color_slots")
+            if not isinstance(cols, int) or isinstance(cols, bool) or not 0 <= cols <= 3:
+                errors.append(f"{where}: colors must be 0-3")
+            if not isinstance(slots, list) or len(slots) != 3 or any(not _label(c) for c in slots):
+                errors.append(f"{where}: color_slots is three labels or nulls")
+            elif isinstance(cols, int) and sum(c is not None for c in slots) != cols:
+                errors.append(f"{where}: colors ({cols}) is not the number of color_slots labels")
             d = e.get("defaults")
             if not isinstance(d, dict) or set(d) != DEFAULT_KEYS:
                 errors.append(f"{where}: defaults hold exactly {sorted(DEFAULT_KEYS)}")

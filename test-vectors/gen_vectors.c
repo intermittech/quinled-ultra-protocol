@@ -390,7 +390,7 @@ int main(int argc, char **argv)
         slot_vector("slot_pixel_fx_stream", "PIXEL_FX effect 0, back to the stream (0.2.8)",
                     "Effect 0: the hub's pixels pass again (every other field but STORE is ignored). START 500 ms. "
                     "SEQ 0x0A.", s, 1);
-        ultra_slot_config(s, 0x47, px_ids, px_vals, 9);
+        ultra_slot_config_px(s, 0x47, px_ids, px_vals, 9);
         slot_vector("slot_config_pixel", "CONFIG of an Ultra-Digital receiver's strip (0.2.8)",
                     "LIGHT 0xF (board). Nine pairs: id 129 chip = 3 (SK6812 RGBW), 130 wire order G R B W, 131 "
                     "pixels = 300, 132 frames per second at most = 60, 133 LED current per channel = 200 x 0.1 mA, 134 "

@@ -665,8 +665,10 @@ enum {
     ULTRA_CFG_PX_ORDER = 130,          /* the wire order of the channels (ULTRA_PX_ORDER; 0 = the chip's own) */
     ULTRA_CFG_PX_PIXELS = 131,         /* pixels on the strip (0 = none yet: no local effect runs) */
     ULTRA_CFG_PX_FPS = 132,            /* frames per second at most (0 = as many as the line allows) */
-    ULTRA_CFG_PX_MA_CH = 133,          /* LED current of one channel at 255, 0.1 mA (0 = 20 mA), for the current limit */
-    ULTRA_CFG_PX_LIMIT_MA = 134,       /* the strip's current limit, mA (0 = the link's, 2,250 mA) */
+    ULTRA_CFG_PX_MA_CH = 133,          /* LED current of one channel at 255, 0.1 mA, at the strip's supply (0 = 20 mA): the
+                                          limiter's estimate */
+    ULTRA_CFG_PX_LIMIT_MA = 134,       /* the limit of the receiver's bus-side input current, mA, as it measures and reports
+                                          it (0 = the link's, 2,250 mA): a lit frame is dimmed to stay under it */
     ULTRA_CFG_PX_WHITE = 135,          /* bits 0-1: the default auto-white mode (ULTRA_PXW_*; 0 = accurate); bits 8-15: the
                                           WS2805 white split, the share of the cold white (0 = even) */
     ULTRA_CFG_PX_VOFFSET = 136,        /* this strip starts at this pixel of a virtual strip (an effect continuing over
@@ -701,7 +703,8 @@ enum {
  *                       ULTRA_PX_PAL_DEFAULT the effect's own
  *   C1, C2, C3  R, G, B (white comes from the auto-white mode)
  *   BRIGHTNESS  u8      0 = dark (the strip is held LOW: flash writes allowed), 255 = full; scaled down by the current limit
- *   TRANSITION  u16     ms: brightness and colour ramps, and the crossfade from the effect it replaces
+ *   TRANSITION  u16     ms: brightness and colour ramps; another effect than the running one fades the old out and the new in
+ *                       (half of it each)
  *   SEG_START, SEG_LEN  u16 each: the segment's first pixel and its length (0 = to the end of the strip). Segments are
  *                       drawn in order, a higher one over a lower one
  *   FLAGS       u8      ULTRA_PXF_*
@@ -747,7 +750,8 @@ enum {
 #define ULTRA_PXC_WS2812B_CLASSIC 1u   /* WS2812B before V5: RGB, G R B */
 #define ULTRA_PXC_SK6812_RGB      2u   /* SK6812, SK6812 B/1 RGB: G R B */
 #define ULTRA_PXC_SK6812_RGBW     3u   /* SK6812 RGBW: G R B W */
-#define ULTRA_PXC_WS2814_RGBW     4u   /* WS2814 (24 V): R G B W; ULTRA_CFG_PX_ORDER picks WRGB and the others */
+#define ULTRA_PXC_WS2814_RGBW     4u   /* WS2814 (12 V: R G B W; the 24 V WS2814A / WS2814F strips are W R G B): the default
+                                          is R G B W, ULTRA_CFG_PX_ORDER picks the other */
 #define ULTRA_PXC_WS2805_RGBCCT   5u   /* WS2805 (RGB + warm + cold white, 5 bytes): R G B WW CW */
 #define ULTRA_PXC_WS2815          6u   /* WS2815 (12 V, backup data line): G R B */
 #define ULTRA_PXC_WS2811_400K     7u   /* WS2811 at 400 kHz: R G B */
@@ -782,7 +786,7 @@ enum {
 #define ULTRA_PXG_RUNNING      9u      /* 4 x u8: each segment's running effect (0 = none) */
 #define ULTRA_PXG_SEQ          13u     /* 4 x u8: the SEQ of each segment's last PIXEL_FX applied */
 #define ULTRA_PXG_FPS10        17u     /* u16: frames per second x 10 (local frames, the last second) */
-#define ULTRA_PXG_LOAD         19u     /* u8: the render's CPU share, 0.5 % steps (0-200) */
+#define ULTRA_PXG_LOAD         19u     /* u8: the CPU load of the last second, 0.5 % steps (0-200) */
 #define ULTRA_PXG_LIMIT        20u     /* u8: the current limiter's brightness scale now, 255 = none */
 #define ULTRA_PXG_LATE         21u     /* u8: frames that started after their grid time (saturating) */
 #define ULTRA_PXG_CONFIG_CRC   22u     /* u16: ultra_px_config_crc over CONFIG 129-139 as the receiver has them */
@@ -1031,15 +1035,32 @@ static inline void ultra_slot_step(uint8_t *s, uint8_t light, uint8_t seq, uint8
     ultra_slot_seal(s);
 }
 
-/* CONFIG: up to 9 (id, value) pairs; an unused pair is (0, 0). Ids that aren't defined (25-127) are left out; the
- * hardware-specific ids (128-255) pass: the board that has them takes them, the others skip them. */
+/* CONFIG: up to 9 (id, value) pairs; an unused pair is (0, 0). Ids that aren't defined are left out. */
 static inline void ultra_slot_config(uint8_t *s, uint8_t seq, const uint8_t *ids, const uint16_t *values, uint32_t n)
 {
     uint8_t *p = s + ULTRA_PAYLOAD;
     uint32_t i, j = 0;
     ultra_slot_begin(s, ULTRA_CONFIG, ULTRA_LIGHT_BOARD, 0, seq);
     for (i = 0; i < n && j < 9u; i++) {
-        if (ids[i] != ULTRA_CFG_NONE && (ids[i] < ULTRA_CFG_COUNT || ids[i] >= ULTRA_CFG_HW)) {
+        if (ids[i] != ULTRA_CFG_NONE && ids[i] < ULTRA_CFG_COUNT) {
+            p[3 * j] = ids[i];
+            ultra_put16(p + 3 * j + 1, values[i]);
+            j++;
+        }
+    }
+    ultra_slot_seal(s);
+}
+
+/* CONFIG for the Ultra-Digital receiver's local pixel effects: up to 9 (id, value) pairs of ULTRA_CFG_PX_FIRST ..
+ * ULTRA_CFG_PX_FIRST + ULTRA_CFG_PX_COUNT - 1; any other id is left out (an unused pair is (0, 0)). Every other board skips
+ * these ids as unknown ones. */
+static inline void ultra_slot_config_px(uint8_t *s, uint8_t seq, const uint8_t *ids, const uint16_t *values, uint32_t n)
+{
+    uint8_t *p = s + ULTRA_PAYLOAD;
+    uint32_t i, j = 0;
+    ultra_slot_begin(s, ULTRA_CONFIG, ULTRA_LIGHT_BOARD, 0, seq);
+    for (i = 0; i < n && j < 9u; i++) {
+        if (ids[i] >= ULTRA_CFG_PX_FIRST && ids[i] < ULTRA_CFG_PX_FIRST + ULTRA_CFG_PX_COUNT) {
             p[3 * j] = ids[i];
             ultra_put16(p + 3 * j + 1, values[i]);
             j++;

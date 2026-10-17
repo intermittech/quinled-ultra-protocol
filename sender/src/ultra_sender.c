@@ -1621,7 +1621,7 @@ int ultra_sender_pixel_config(ultra_sender_t *l, uint16_t board, uint8_t id, uin
     }
     ids[j] = id;
     vals[j] = value;
-    ultra_slot_config(s, it->slot[2], ids, vals, n);
+    ultra_slot_config_px(s, it->slot[2], ids, vals, n);
     if ((it->q.flags & IT_VALID) && memcmp(s + ULTRA_PAYLOAD, it->slot + ULTRA_PAYLOAD, ULTRA_PAYLOAD_LEN) == 0) {
         return ULTRA_OK;                         /* unchanged: nothing to send */
     }

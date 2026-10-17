@@ -1,6 +1,6 @@
 {
  "catalogue_version": 1,
- "note": "ids are never reused; 1-127 official, 128-255 custom. palette 254 = colour 1 -> 2 -> 3, 255 = the effect's own default. A parameter that is null is not used by the effect.",
+ "note": "ids are never reused; 1-127 official, 128-255 custom. palette 254 = colour 1 -> 2 -> 3, 255 = the effect's own default. colors = how many of c1..c3 the effect uses, color_slots = their labels by position (null: that slot is unused); speed / intensity / palette: true when used; the labels say what they do; custom1 / custom2: null or a label. A retired id would stay with retired: true.",
  "palette_special": {
   "colors": 254,
   "default": 255
@@ -10,12 +10,17 @@
    "id": 1,
    "name": "Solid",
    "summary": "One colour; fades smoothly to another (the transition).",
-   "speed": null,
-   "intensity": null,
-   "palette": false,
-   "colors": [
-    "Colour"
+   "colors": 1,
+   "color_slots": [
+    "Colour",
+    null,
+    null
    ],
+   "speed": false,
+   "speed_label": null,
+   "intensity": false,
+   "intensity_label": null,
+   "palette": false,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -47,13 +52,17 @@
    "id": 2,
    "name": "Breathe",
    "summary": "The colour swells and fades like breathing.",
-   "speed": "Rate",
-   "intensity": "Depth",
-   "palette": false,
-   "colors": [
+   "colors": 2,
+   "color_slots": [
     "Colour",
-    "Low colour"
+    "Low colour",
+    null
    ],
+   "speed": true,
+   "speed_label": "Rate",
+   "intensity": true,
+   "intensity_label": "Depth",
+   "palette": false,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -85,10 +94,17 @@
    "id": 3,
    "name": "Colorloop",
    "summary": "The whole strip cycles through the hues.",
-   "speed": "Rate",
-   "intensity": "Saturation",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Rate",
+   "intensity": true,
+   "intensity_label": "Saturation",
    "palette": false,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -120,10 +136,17 @@
    "id": 4,
    "name": "Rainbow",
    "summary": "A rainbow moves along the strip.",
-   "speed": "Speed",
-   "intensity": "Size (rainbows per strip)",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Size (rainbows per strip)",
    "palette": false,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -155,10 +178,17 @@
    "id": 5,
    "name": "Palette",
    "summary": "The chosen palette moves along the strip.",
-   "speed": "Speed",
-   "intensity": "Size (repeats per strip)",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Size (repeats per strip)",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -190,10 +220,17 @@
    "id": 6,
    "name": "Colorwaves",
    "summary": "Slow, ever-changing waves of palette colour.",
-   "speed": "Speed",
-   "intensity": "Wave density",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Wave density",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -225,10 +262,17 @@
    "id": 7,
    "name": "Pride 2015",
    "summary": "Animated, ever-changing rainbows (not palette-based).",
-   "speed": "Speed",
-   "intensity": "Wave density",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Wave density",
    "palette": false,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -260,12 +304,17 @@
    "id": 8,
    "name": "Sinelon",
    "summary": "A dot sweeps back and forth, trailing a fading tail.",
-   "speed": "Speed",
-   "intensity": "Tail length",
-   "palette": true,
-   "colors": [
-    "Background"
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
    ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Tail length",
+   "palette": true,
    "custom1": "Dots (0-127: one, 128-255: two)",
    "custom2": null,
    "defaults": {
@@ -297,12 +346,17 @@
    "id": 9,
    "name": "Twinklefox",
    "summary": "Twinkling holiday lights that fade in and out.",
-   "speed": "Speed",
-   "intensity": "Density",
-   "palette": true,
-   "colors": [
-    "Background"
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
    ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Density",
+   "palette": true,
    "custom1": "Incandescent cooling (0-127: on, 128-255: off)",
    "custom2": null,
    "defaults": {
@@ -334,12 +388,17 @@
    "id": 10,
    "name": "Colortwinkles",
    "summary": "Pixels light up in random palette colours and fade away.",
-   "speed": "Speed",
-   "intensity": "Density",
-   "palette": true,
-   "colors": [
-    "Background"
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
    ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Density",
+   "palette": true,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -371,12 +430,17 @@
    "id": 11,
    "name": "Candle",
    "summary": "The whole strip flickers like a candle.",
-   "speed": "Flicker rate",
-   "intensity": "Flicker amount",
-   "palette": false,
-   "colors": [
-    "Flame"
+   "colors": 1,
+   "color_slots": [
+    "Flame",
+    null,
+    null
    ],
+   "speed": true,
+   "speed_label": "Flicker rate",
+   "intensity": true,
+   "intensity_label": "Flicker amount",
+   "palette": false,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -408,12 +472,17 @@
    "id": 12,
    "name": "Candle Multi",
    "summary": "Every pixel flickers on its own like a candle.",
-   "speed": "Flicker rate",
-   "intensity": "Flicker amount",
-   "palette": false,
-   "colors": [
-    "Flame"
+   "colors": 1,
+   "color_slots": [
+    "Flame",
+    null,
+    null
    ],
+   "speed": true,
+   "speed_label": "Flicker rate",
+   "intensity": true,
+   "intensity_label": "Flicker amount",
+   "palette": false,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -445,10 +514,17 @@
    "id": 13,
    "name": "Aurora",
    "summary": "Drifting curtains of northern-light colour.",
-   "speed": "Speed",
-   "intensity": "Curtain size",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Curtain size",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -480,10 +556,17 @@
    "id": 14,
    "name": "Blends",
    "summary": "Patches of palette colour that slowly blend into each other.",
-   "speed": "Speed",
-   "intensity": "Patch size",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Patch size",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -515,10 +598,17 @@
    "id": 15,
    "name": "Flow",
    "summary": "Zones that each show the palette, flowing in turn in opposite directions.",
-   "speed": "Speed",
-   "intensity": "Zones",
+   "colors": 1,
+   "color_slots": [
+    "Edge fill",
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Zones",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -526,9 +616,9 @@
     "intensity": 128,
     "palette": 0,
     "c1": [
-     255,
-     255,
-     255
+     0,
+     0,
+     0
     ],
     "c2": [
      0,
@@ -550,10 +640,17 @@
    "id": 16,
    "name": "Fire 2012",
    "summary": "Flames rising from the start of the strip.",
-   "speed": "Speed",
-   "intensity": "Sparking",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Sparking",
    "palette": true,
-   "colors": [],
    "custom1": "Cooling",
    "custom2": null,
    "defaults": {
@@ -585,14 +682,17 @@
    "id": 17,
    "name": "Gradient",
    "summary": "Colour 1 to colour 2 to colour 3 across the strip.",
-   "speed": "Scroll speed (0: still)",
-   "intensity": "Repeats (0: one gradient, no loop)",
-   "palette": false,
-   "colors": [
+   "colors": 3,
+   "color_slots": [
     "Colour 1",
     "Colour 2",
     "Colour 3"
    ],
+   "speed": true,
+   "speed_label": "Scroll speed (0: still)",
+   "intensity": true,
+   "intensity_label": "Repeats (0: one gradient, no loop)",
+   "palette": false,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -624,10 +724,17 @@
    "id": 18,
    "name": "Pacifica",
    "summary": "Gentle blue-green ocean waves.",
-   "speed": "Speed",
-   "intensity": "Whitecaps",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Whitecaps",
    "palette": false,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -659,10 +766,17 @@
    "id": 19,
    "name": "Sunrise",
    "summary": "A slow wake-up: dark, red, orange, warm white.",
-   "speed": "Duration (10 s .. 1 h)",
-   "intensity": "Spread along the strip",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Duration (10 s .. 1 h)",
+   "intensity": true,
+   "intensity_label": "Spread along the strip",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -694,10 +808,17 @@
    "id": 20,
    "name": "Sunset",
    "summary": "The wake-up backwards: warm white to dark, and it stays dark.",
-   "speed": "Duration (10 s .. 1 h)",
-   "intensity": "Spread along the strip",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Duration (10 s .. 1 h)",
+   "intensity": true,
+   "intensity_label": "Spread along the strip",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -729,12 +850,17 @@
    "id": 21,
    "name": "Glitter",
    "summary": "A palette backdrop with short sparkles.",
-   "speed": "Speed",
-   "intensity": "Sparkle density",
-   "palette": true,
-   "colors": [
-    "Sparkle"
+   "colors": 1,
+   "color_slots": [
+    "Sparkle",
+    null,
+    null
    ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Sparkle density",
+   "palette": true,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -766,13 +892,17 @@
    "id": 22,
    "name": "Meteor",
    "summary": "A meteor with a shimmering tail runs along the strip.",
-   "speed": "Speed",
-   "intensity": "Tail length",
-   "palette": false,
-   "colors": [
+   "colors": 2,
+   "color_slots": [
     "Meteor",
-    "Background"
+    "Background",
+    null
    ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Tail length",
+   "palette": false,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -804,12 +934,17 @@
    "id": 23,
    "name": "Fairy",
    "summary": "Sparse, soft, slow twinkles like fairy lights.",
-   "speed": "Speed",
-   "intensity": "Density",
-   "palette": true,
-   "colors": [
-    "Background"
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
    ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Density",
+   "palette": true,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -841,10 +976,17 @@
    "id": 24,
    "name": "Plasma",
    "summary": "Smooth overlapping waves through the palette.",
-   "speed": "Speed",
-   "intensity": "Scale",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Scale",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -876,10 +1018,17 @@
    "id": 25,
    "name": "Noise",
    "summary": "Drifting smooth noise through the palette.",
-   "speed": "Speed",
-   "intensity": "Scale",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Scale",
    "palette": true,
-   "colors": [],
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -911,13 +1060,17 @@
    "id": 26,
    "name": "Running",
    "summary": "Waves of colour 1 on colour 2 run along the strip.",
-   "speed": "Speed",
-   "intensity": "Wavelength",
-   "palette": false,
-   "colors": [
+   "colors": 2,
+   "color_slots": [
     "Colour 1",
-    "Colour 2"
+    "Colour 2",
+    null
    ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Wavelength",
+   "palette": false,
    "custom1": null,
    "custom2": null,
    "defaults": {
@@ -956,37 +1109,37 @@
   {
    "id": 1,
    "name": "Analogous",
-   "origin": "cpt-city (http://seaviewsensing.com/pub/cpt-city/nd/red/Analogous_1.c3g), the collection's terms: free to use, attribution",
+   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/nd/red/Analogous_1.c3g: author and licence not confirmed (cpt-city's COPYING record for the gradient decides; 'free to use' does not by itself allow redistribution)",
    "cyclic": false
   },
   {
    "id": 2,
    "name": "April Night",
-   "origin": "hand-made for WLED by Aircoookie (the colour stops are data; WLED is EUPL-1.2)",
+   "origin": "palette by Aircoookie, from WLED (colour stops only; WLED was MIT-licensed, current releases are EUPL-1.2; the licence at the time of the palette is not verified)",
    "cyclic": true
   },
   {
    "id": 3,
    "name": "C9 New",
-   "origin": "hand-made for WLED by Aircoookie (the colour stops are data; WLED is EUPL-1.2); derived from Mark Kriegsman's C9 colours (https://gist.github.com/kriegsman/756ea6dcae8e30845b5a)",
+   "origin": "palette by Aircoookie, from WLED (colour stops only; WLED was MIT-licensed, current releases are EUPL-1.2; the licence at the time of the palette is not verified); derived from Mark Kriegsman's C9 colours (https://gist.github.com/kriegsman/756ea6dcae8e30845b5a)",
    "cyclic": false
   },
   {
    "id": 4,
    "name": "Hult",
-   "origin": "cpt-city (http://seaviewsensing.com/pub/cpt-city/hult/gr65_hult.c3g), the collection's terms: free to use, attribution",
+   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/hult/gr65_hult.c3g: author Hult (2007), cpt-city marks it free to use: that is use, not redistribution; confirm before release",
    "cyclic": false
   },
   {
    "id": 5,
    "name": "Magred",
-   "origin": "cpt-city (http://seaviewsensing.com/pub/cpt-city/nd/basic/BlacK_Magenta_Red.c3g), the collection's terms: free to use, attribution",
+   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/nd/basic/BlacK_Magenta_Red.c3g: author and licence not confirmed (cpt-city's COPYING record for the gradient decides; 'free to use' does not by itself allow redistribution)",
    "cyclic": false
   },
   {
    "id": 6,
    "name": "Orange & Teal",
-   "origin": "hand-made for WLED by Aircoookie (the colour stops are data; WLED is EUPL-1.2)",
+   "origin": "palette by Aircoookie, from WLED (colour stops only; WLED was MIT-licensed, current releases are EUPL-1.2; the licence at the time of the palette is not verified)",
    "cyclic": false
   },
   {
@@ -998,13 +1151,13 @@
   {
    "id": 8,
    "name": "Retro Clown",
-   "origin": "cpt-city (http://seaviewsensing.com/pub/cpt-city/bhw/bhw1/bhw1_01.c3g), the collection's terms: free to use, attribution",
+   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/bhw/bhw1/bhw1_01.c3g: author Blackheartedwolf (2011), Creative Commons Attribution 3.0 per the bhw1 collection",
    "cyclic": false
   },
   {
    "id": 9,
    "name": "Yelmag",
-   "origin": "cpt-city (http://seaviewsensing.com/pub/cpt-city/nd/basic/BlacK_Red_Magenta_Yellow.c3g), the collection's terms: free to use, attribution",
+   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/nd/basic/BlacK_Red_Magenta_Yellow.c3g: author and licence not confirmed (cpt-city's COPYING record for the gradient decides; 'free to use' does not by itself allow redistribution)",
    "cyclic": false
   },
   {

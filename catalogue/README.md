@@ -9,8 +9,9 @@ from it; the receiver's page 0x81 (parts 1 and 2) says which of them its firmwar
   `"retired": true`, never removed or renamed.
 - **`catalogue_version`** (a u16, also in page 0x81 part 0) goes up whenever the content changes.
 - **Per effect:** its name (the name Home Assistant shows), a summary, the labels of the Speed and Intensity sliders it
-  uses (`null`: unused), whether it uses the palette, the labels of the colours it uses, its two extra sliders, the
-  defaults, the state bytes per pixel it needs and where the algorithm is from (for the licence notices).
+  uses (`speed` / `intensity` true or false, with `speed_label` / `intensity_label`), whether it uses the palette, how
+  many colours it uses (`colors`) with their labels by position (`color_slots`), its two extra sliders (`null` or a
+  label), the defaults, the state bytes per pixel it needs and where the algorithm is from (for the licence notices).
 - The file is written by the receiver firmware's effect engine (`tools/gen_fx_tables.py` in
   [quinled-ultra-firmware](https://github.com/intermittech/quinled-ultra-firmware)); this repository holds the copy
   hosts take, and the ESPHome component keeps a byte-identical copy of it.

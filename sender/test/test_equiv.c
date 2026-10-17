@@ -63,7 +63,7 @@ static void old_stamp(uint8_t *s, int64_t start_us, int64_t hdr_us, int floor, u
         ultra_put24(s + ULTRA_PAYLOAD + 22, duration);
         ms = ms < -32768 ? -32768 : ms > 32767 ? 32767 : ms;
         ultra_put16(s + ULTRA_PAYLOAD + 25, (uint32_t)(uint16_t)(int16_t)ms);
-    } else if (s[0] == ULTRA_EFFECT) {
+    } else if (s[0] == ULTRA_EFFECT || s[0] == ULTRA_PIXEL_FX) {   /* (0.2.8: PIXEL_FX's START is stamped as EFFECT's) */
         ms = ms < INT32_MIN ? INT32_MIN : ms > INT32_MAX ? INT32_MAX : ms;
         ultra_put32(s + ULTRA_PAYLOAD + 1, (uint32_t)(int32_t)ms);
     }
@@ -132,7 +132,7 @@ static int64_t old_start_error(const ultra_sender_t *l, const uint8_t *out, int6
             if (off == -32768 || off == 32767) {
                 continue;
             }
-        } else if (sl[0] == ULTRA_EFFECT) {
+        } else if (sl[0] == ULTRA_EFFECT || sl[0] == ULTRA_PIXEL_FX) {
             off = (int32_t)ultra_get32(sl + ULTRA_PAYLOAD + 1);
         } else {
             continue;

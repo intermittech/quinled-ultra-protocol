@@ -243,6 +243,13 @@ typedef struct {
     uint32_t lead, marker, bit0, bit1, tail;
 } ultra_dp_rmt_t;
 
+/* (the encoder runs in the RMT's interrupt, in IRAM on the ESP32: these two are inlined into it) */
+#if defined(__GNUC__)
+#define ULTRA_DP_ISR_INLINE static inline __attribute__((always_inline))
+#else
+#define ULTRA_DP_ISR_INLINE static inline
+#endif
+
 /* LOW for us microseconds as one word (two halves); 0 for 0 us. A duration over 2 x 32767 ticks is clipped. */
 static inline uint32_t ultra_dp_rmt_low(uint32_t us, uint32_t resolution_hz)
 {
@@ -267,15 +274,15 @@ static inline uint32_t ultra_dp_rmt_marker(uint32_t resolution_hz)
 }
 
 /* the number of symbols of a transmission of nbytes */
-static inline uint32_t ultra_dp_rmt_count(const ultra_dp_rmt_t *s, uint32_t nbytes)
+ULTRA_DP_ISR_INLINE uint32_t ultra_dp_rmt_count(const ultra_dp_rmt_t *s, uint32_t nbytes)
 {
     return (s->lead != 0u) + (s->marker != 0u) + nbytes * 8u + (s->tail != 0u);
 }
 
 /* Symbols from symbol `pos` on (pos = symbols already written), up to max; returns how many; *done once the tail
  * (or the last bit when there is none) is out. The shape of ESP-IDF's rmt_simple_encoder callback. */
-static inline uint32_t ultra_dp_rmt_encode(const ultra_dp_rmt_t *s, const uint8_t *bytes, uint32_t nbytes, uint32_t pos,
-                                           uint32_t *out, uint32_t max, int *done)
+ULTRA_DP_ISR_INLINE uint32_t ultra_dp_rmt_encode(const ultra_dp_rmt_t *s, const uint8_t *bytes, uint32_t nbytes,
+                                                 uint32_t pos, uint32_t *out, uint32_t max, int *done)
 {
     const uint32_t total = ultra_dp_rmt_count(s, nbytes);
     const uint32_t head = (s->lead != 0u) + (s->marker != 0u);

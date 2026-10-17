@@ -23,6 +23,10 @@ PATCH number; an incompatible wire change would be 0.3.0 (VERSION 3).
 - **Sender library 0.2.8:** `ultra_sender_pixel_fx()` / `_at()`, `ultra_sender_pixel_fx_start()` and
   `ultra_sender_pixel_config()` (a new effect takes a new START, a change of its parameters keeps it), the START
   stamped like an EFFECT's, the refresh and a resync covering them; `test_pixel`.
+- **Digital ports in the sender library:** `ultra_dport.h` (the planner: when a transmission may start and the LOW around
+  it, the power-up wait, the local beacon, the hand-back, the 3 + 3 back-off, the ESP32 RMT words) and
+  `ultra_sender_digital()` (no preamble, no chain lock, the digital poll window); `test_dport`, and the `dline` step: the
+  reference hub on the receiver's own delay line.
 
 ## v0.2.7 (wire VERSION 2), not tagged yet
 

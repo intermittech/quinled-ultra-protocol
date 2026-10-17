@@ -44,6 +44,7 @@ Version 0.2.8: the protocol release it targets. One package for PlatformIO, Ardu
 | `src/ultra_sender_bits.h`, `.c` | Bit timing, and the encoders: `{high_ns, low_ns}` pulses, ESP32 RMT symbols, SPI bytes. |
 | `src/ultra_esp32_rmt.h` | ESP32 only, header-only: an RMT output for a line (ESP-IDF 5.3+, Arduino-ESP32 3.1+). |
 | `src/ultra_sender_rc.h`, `.c` | Optional: the return channel (POLL frames, answers; Diff-Power Ultra receivers only). |
+| `src/ultra_dport.h` | Optional, header-only: a digital port (an Ultra-Digital receiver in a pixel strip's data path): when a transmission may start, the LOW around it, the back-off, the RMT words. |
 | `src/ultra_sender.hpp` | Optional: a thin C++ wrapper with the storage built in. |
 | `src/ultra_protocol.h` | The protocol header of release 0.2.8, unchanged. |
 | `examples/` | `host_minimal.c` (any PC), `esp32_idf_rmt/` (ESP-IDF, the library as a component), `esp32_arduino/` (Arduino-ESP32). |
@@ -165,6 +166,40 @@ A receiver on a digital port has no lights: call `ultra_sender_set_lights(&line,
 is cleared) and give it one pool item per segment and two for its CONFIG. The library builds the slots; the line's
 marker framing and the pixel stream (`ULTRA_DP_*`, the return channel's digital ports) are the caller's. The effect
 list is the catalogue (`catalogue/pixel_fx_catalogue.json` in the protocol repository).
+
+**Digital ports** (`ultra_dport.h`; `ultra_sender_digital(&line, 1)` on a line of one receiver). Every Ultra frame of such
+a port goes out *behind a marker* in a latch gap the hub stretches (the strip never sees it), the pixel stream goes
+between the frames, and a poll leaves the line to the receiver's answer. The library's frames are unchanged (no preamble
+and no chain lock on this line, the poll's window is the digital one); `ultra_dport.h` decides **when** a transmission
+may start and **what LOW goes around it**, and gives the ESP32's RMT words; you drive the output and build the frames:
+
+```c
+ultra_dp_t dp;
+ultra_dp_init(&dp, 300 /* the strip's reset, us */);
+ultra_dp_powered(&dp, now_us);
+/* ... in the loop: */
+unsigned want = (ultra_sender_busy(&line) ? ULTRA_DP_W_CMD : 0) | (poll_due ? ULTRA_DP_W_POLL : 0) |
+                (frame_ready ? ULTRA_DP_W_PIXELS : 0);
+ultra_dp_tx_t tx;
+if (ultra_dp_next(&dp, now_us, want, &tx)) {
+    /* tx.kind: PIXELS, FRAME (a command, a refresh, a header) or POLL; tx.lead_low_us / tx.tail_low_us: the LOW around
+       it. A marker frame starts its first bit at now_us + tx.lead_low_us + ULTRA_DP_MARKER_US + ULTRA_DP_GAP_HUB_US:
+       build it there (ultra_sender_next_frame() / ultra_sender_rc_frame()), encode it with ultra_dp_rmt_encode(). */
+    ultra_dp_started(&dp, &tx, now_us, wire_us, t_end_us, ULTRA_RW_RATE_1M);
+}
+/* when a poll's window is over: */
+ultra_dp_poll_result(&dp, now_us, answered);
+```
+
+| Call | |
+|---|---|
+| `ultra_dp_next()` / `ultra_dp_started()` | The next transmission that may start (a command or refresh frame, a poll, the header a local port is due, then pixels; a pixel frame that is due goes before a second marker frame in a row, a poll before the next command frame) and what it did to the line. |
+| `ultra_dp_powered()` | No marker for `ULTRA_DP_POWERUP_MS` after the port is powered (pixels may go). |
+| `ultra_dp_local()` / `ultra_dp_handback()` | A local effect runs: no pixels, a header at least every `ULTRA_DP_BEACON_MS`. PIXEL_FX 0: the pixels wait for the receiver's frame and a reset. |
+| `ultra_dp_poll_result()` / `ultra_dp_retry()` / `ultra_dp_blocked()` | The back-off: 3 polls in quick succession, 3 more 60 s later, then no marker frame until the user's retry; an answer in between starts it over. |
+| `ultra_dp_rmt_*()` | The RMT words (lead LOW, marker, bits, tail LOW) at any resolution, and an encoder step in the shape of ESP-IDF's simple-encoder callback. |
+
+The ESPHome component `dig2analog_ultra` (`digital:`) keeps a byte-identical copy of `ultra_dport.h`.
 
 **Start times.** `ultra_sender_set()`, `_effect()` and `_strobe()` start at `ultra_sender_start_time()`: far
 enough ahead that the commands reach every board first (one slot per board per frame), and shared by the commands
@@ -344,6 +379,14 @@ python sender/test/run_tests.py
 - **`manifests`** (no compiler needed; `--only manifests` for CI): the four manifests list exactly the sources and
   headers in `src/`, every version is the release of `src/ultra_protocol.h`, that header and `LICENSE` are
   byte-identical to the repository's, and `src/` includes nothing from outside itself.
+- **`test_dport`:** a digital port (0.2.8): `ultra_dport.h`'s planner and RMT words, and the sender library as a hub (a
+  reference hub in `test/dport_driver.h`), checked on the wire the words describe: the LOW before every marker and after a
+  frame, the 20 µs marker, the window and the retake, a header a second to a local port, the hand-back, the wait after the
+  power-up, the 3 + 3 back-off, a command storm that starves neither the stream nor the polls; negative controls.
+- **`dline`** (needs the firmware, like `test_sim`): the same reference hub on the Ultra-Digital receiver's own delay line
+  (`core/dline.c` on the firmware's sample-exact model of its hardware, `test/test_dline.c` patched as text): every pixel
+  frame whole and in order on the strip, no marker, frame, release or answer on it, every poll answered, for the chips of
+  the receiver's table, frames back to back, commands, and a local effect.
 - **`test_pixel`:** the local pixel effects (0.2.8): PIXEL_FX (3 copies, the START against TIME, a parameter change
   keeping it, replacement, the refresh, a resync), the pixel CONFIG pages (one SEQ per changed page, an unchanged value
   queues nothing), the refusals and the pool, and a board next to a pixel receiver sending what it sent without.

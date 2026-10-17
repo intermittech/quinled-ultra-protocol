@@ -145,13 +145,13 @@
    "speed": true,
    "speed_label": "Speed",
    "intensity": true,
-   "intensity_label": "Size (rainbows per strip)",
+   "intensity_label": "Size (128: one rainbow per strip, doubling every 32)",
    "palette": false,
    "custom1": null,
    "custom2": null,
    "defaults": {
     "speed": 128,
-    "intensity": 40,
+    "intensity": 128,
     "palette": 255,
     "c1": [
      255,
@@ -187,13 +187,13 @@
    "speed": true,
    "speed_label": "Speed",
    "intensity": true,
-   "intensity_label": "Size (repeats per strip)",
+   "intensity_label": "Size (128: one palette per strip, doubling every 32)",
    "palette": true,
    "custom1": null,
    "custom2": null,
    "defaults": {
     "speed": 128,
-    "intensity": 40,
+    "intensity": 128,
     "palette": 10,
     "c1": [
      255,
@@ -313,7 +313,7 @@
    "speed": true,
    "speed_label": "Speed",
    "intensity": true,
-   "intensity_label": "Tail length",
+   "intensity_label": "Trail (higher: shorter tail)",
    "palette": true,
    "custom1": "Dots (0-127: one, 128-255: two)",
    "custom2": null,
@@ -430,10 +430,10 @@
    "id": 11,
    "name": "Candle",
    "summary": "The whole strip flickers like a candle.",
-   "colors": 1,
+   "colors": 2,
    "color_slots": [
     "Flame",
-    null,
+    "Dim colour",
     null
    ],
    "speed": true,
@@ -472,10 +472,10 @@
    "id": 12,
    "name": "Candle Multi",
    "summary": "Every pixel flickers on its own like a candle.",
-   "colors": 1,
+   "colors": 2,
    "color_slots": [
     "Flame",
-    null,
+    "Dim colour",
     null
    ],
    "speed": true,
@@ -555,7 +555,7 @@
   {
    "id": 14,
    "name": "Blends",
-   "summary": "Patches of palette colour that slowly blend into each other.",
+   "summary": "A smooth rippling wash of the palette's colours that drifts along.",
    "colors": 0,
    "color_slots": [
     null,
@@ -565,13 +565,13 @@
    "speed": true,
    "speed_label": "Speed",
    "intensity": true,
-   "intensity_label": "Patch size",
+   "intensity_label": "Ripple tightness (higher: shorter ripples)",
    "palette": true,
    "custom1": null,
    "custom2": null,
    "defaults": {
     "speed": 128,
-    "intensity": 128,
+    "intensity": 190,
     "palette": 10,
     "c1": [
      255,
@@ -598,16 +598,16 @@
    "id": 15,
    "name": "Flow",
    "summary": "Zones that each show the palette, flowing in turn in opposite directions.",
-   "colors": 1,
+   "colors": 0,
    "color_slots": [
-    "Edge fill",
+    null,
     null,
     null
    ],
    "speed": true,
    "speed_label": "Speed",
    "intensity": true,
-   "intensity_label": "Zones",
+   "intensity_label": "Zones (higher: more, shorter zones)",
    "palette": true,
    "custom1": null,
    "custom2": null,
@@ -1109,37 +1109,37 @@
   {
    "id": 1,
    "name": "Analogous",
-   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/nd/red/Analogous_1.c3g: author and licence not confirmed (cpt-city's COPYING record for the gradient decides; 'free to use' does not by itself allow redistribution)",
+   "origin": "our own look-alike of the palette of this name (WLED / cpt-city have one): same mood and colour progression, stops chosen by eye from its description, no values copied",
    "cyclic": false
   },
   {
    "id": 2,
    "name": "April Night",
-   "origin": "palette by Aircoookie, from WLED (colour stops only; WLED was MIT-licensed, current releases are EUPL-1.2; the licence at the time of the palette is not verified)",
+   "origin": "palette by Aircoookie (Christian Schwinne) from WLED, added while WLED was MIT-licensed (Copyright (c) 2016 Christian Schwinne; same stops in v0.14.4); colour stops only",
    "cyclic": true
   },
   {
    "id": 3,
    "name": "C9 New",
-   "origin": "palette by Aircoookie, from WLED (colour stops only; WLED was MIT-licensed, current releases are EUPL-1.2; the licence at the time of the palette is not verified); derived from Mark Kriegsman's C9 colours (https://gist.github.com/kriegsman/756ea6dcae8e30845b5a)",
+   "origin": "palette by Aircoookie (Christian Schwinne) from WLED, added while WLED was MIT-licensed (Copyright (c) 2016 Christian Schwinne; same stops in v0.14.4); colour stops only; derived from Mark Kriegsman's C9 colours (https://gist.github.com/kriegsman/756ea6dcae8e30845b5a)",
    "cyclic": false
   },
   {
    "id": 4,
    "name": "Hult",
-   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/hult/gr65_hult.c3g: author Hult (2007), cpt-city marks it free to use: that is use, not redistribution; confirm before release",
+   "origin": "our own look-alike of the palette of this name (WLED / cpt-city have one): same mood and colour progression, stops chosen by eye from its description, no values copied",
    "cyclic": false
   },
   {
    "id": 5,
    "name": "Magred",
-   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/nd/basic/BlacK_Magenta_Red.c3g: author and licence not confirmed (cpt-city's COPYING record for the gradient decides; 'free to use' does not by itself allow redistribution)",
+   "origin": "our own look-alike of the palette of this name (WLED / cpt-city have one): same mood and colour progression, stops chosen by eye from its description, no values copied",
    "cyclic": false
   },
   {
    "id": 6,
    "name": "Orange & Teal",
-   "origin": "palette by Aircoookie, from WLED (colour stops only; WLED was MIT-licensed, current releases are EUPL-1.2; the licence at the time of the palette is not verified)",
+   "origin": "palette by Aircoookie (Christian Schwinne) from WLED, added while WLED was MIT-licensed (Copyright (c) 2016 Christian Schwinne; same stops in v0.14.4); colour stops only",
    "cyclic": false
   },
   {
@@ -1151,13 +1151,13 @@
   {
    "id": 8,
    "name": "Retro Clown",
-   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/bhw/bhw1/bhw1_01.c3g: author Blackheartedwolf (2011), Creative Commons Attribution 3.0 per the bhw1 collection",
+   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/bhw/bhw1/bhw1_01.c3g: gradient \"bhw1_01\" by Blackheartedwolf (2011), Creative Commons Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/); resampled to 16 entries",
    "cyclic": false
   },
   {
    "id": 9,
    "name": "Yelmag",
-   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/nd/basic/BlacK_Red_Magenta_Yellow.c3g: author and licence not confirmed (cpt-city's COPYING record for the gradient decides; 'free to use' does not by itself allow redistribution)",
+   "origin": "our own look-alike of the palette of this name (WLED / cpt-city have one): same mood and colour progression, stops chosen by eye from its description, no values copied",
    "cyclic": false
   },
   {

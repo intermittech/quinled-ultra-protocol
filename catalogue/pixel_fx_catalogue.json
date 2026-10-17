@@ -1,0 +1,35 @@
+{
+"catalogue_version": 0,
+"stand_in": true,
+"effects": [
+{"id": 1, "name": "Solid", "colors": 1, "speed": false, "intensity": false, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 2, "name": "Blink", "colors": 2, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 3, "name": "Breathe", "colors": 1, "speed": true, "intensity": false, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 4, "name": "Wipe", "colors": 2, "speed": true, "intensity": false, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 5, "name": "Rainbow", "colors": 0, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 6, "name": "Rainbow Cycle", "colors": 0, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 7, "name": "Palette Flow", "colors": 0, "speed": true, "intensity": true, "palette": true, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 8, "name": "Theater", "colors": 2, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 9, "name": "Scanner", "colors": 2, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 10, "name": "Comet", "colors": 1, "speed": true, "intensity": true, "palette": true, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 11, "name": "Twinkle", "colors": 1, "speed": true, "intensity": true, "palette": true, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 12, "name": "Sparkle", "colors": 2, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 13, "name": "Fire", "colors": 0, "speed": true, "intensity": true, "palette": true, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 14, "name": "Plasma", "colors": 0, "speed": true, "intensity": true, "palette": true, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 15, "name": "Running", "colors": 2, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 16, "name": "Gradient", "colors": 3, "speed": true, "intensity": false, "palette": true, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 17, "name": "Chase", "colors": 2, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 18, "name": "Meteor", "colors": 1, "speed": true, "intensity": true, "palette": false, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}},
+{"id": 19, "name": "Noise", "colors": 0, "speed": true, "intensity": true, "palette": true, "custom1": null, "custom2": null, "defaults": {"speed": 128, "intensity": 128, "palette": 255}}
+],
+"palettes": [
+{"id": 0, "name": "Rainbow"},
+{"id": 1, "name": "Party"},
+{"id": 2, "name": "Ocean"},
+{"id": 3, "name": "Forest"},
+{"id": 4, "name": "Lava"},
+{"id": 5, "name": "Heat"},
+{"id": 6, "name": "Cloud"},
+{"id": 7, "name": "Sunset"}
+]
+}

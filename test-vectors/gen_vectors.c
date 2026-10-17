@@ -350,6 +350,59 @@ int main(int argc, char **argv)
                     "feature bits (0: the board, its UID, versions, hardware id and revision, capabilities; 2-255: "
                     "UNSUPPORTED). SEQ 0x66.", s, 1);
     }
+    {
+        /* (0.2.8) the Ultra-Digital receiver's local pixel effects */
+        ultra_pixel_fx_t fx;
+        static const uint8_t px_ids[9] = { ULTRA_CFG_PX_CHIP, ULTRA_CFG_PX_ORDER, ULTRA_CFG_PX_PIXELS, ULTRA_CFG_PX_FPS,
+                                           ULTRA_CFG_PX_MA_CH, ULTRA_CFG_PX_LIMIT_MA, ULTRA_CFG_PX_WHITE,
+                                           ULTRA_CFG_PX_VOFFSET, ULTRA_CFG_PX_VLENGTH };
+        static const uint16_t px_vals[9] = { ULTRA_PXC_SK6812_RGBW, ULTRA_PX_ORDER(ULTRA_PXCH_G, ULTRA_PXCH_R, ULTRA_PXCH_B,
+                                                                                   ULTRA_PXCH_W, 0),
+                                             300, 60, 200, 0, ULTRA_PXW_ACCURATE, 0, 0 };
+        static const uint8_t px_arg[1] = { ULTRA_PXG_PART_EFFECTS };
+        memset(&fx, 0, sizeof fx);
+        fx.effect = 7;
+        fx.start_ms = -1234;
+        fx.speed = 100;
+        fx.intensity = 150;
+        fx.palette = ULTRA_PX_PAL_COLORS;
+        fx.c[0][0] = 255, fx.c[0][1] = 128, fx.c[0][2] = 0;
+        fx.c[1][0] = 10, fx.c[1][1] = 20, fx.c[1][2] = 30;
+        fx.c[2][0] = 40, fx.c[2][1] = 50, fx.c[2][2] = 60;
+        fx.brightness = 128;
+        fx.transition_ms = 1500;
+        fx.seg_start = 5;
+        fx.seg_len = 90;
+        fx.flags = ULTRA_PXF_REVERSE | (ULTRA_PXW_ACCURATE << ULTRA_PXF_WHITE_SHIFT);
+        fx.custom1 = 1;
+        fx.custom2 = 2;
+        ultra_slot_pixel_fx(s, 2, 9, &fx);
+        slot_vector("slot_pixel_fx", "PIXEL_FX, segment 2 (0.2.8)",
+                    "Effect 7, START -1234 ms (relative to the header TIME), speed 100, intensity 150, palette 0xFE "
+                    "(c1 -> c2 -> c3), c1 = 255 128 0, c2 = 10 20 30, c3 = 40 50 60, brightness 128, transition 1500 ms, "
+                    "pixels 5 .. 94 of the strip, FLAGS 0x09 (reverse, auto-white accurate), custom 1 and 2 = 1, 2. Only "
+                    "the Ultra-Digital receiver (ULTRA_HWCAP_PIXEL_FX) takes it; every other board ignores the type. "
+                    "SEQ 0x09.", s, 1);
+        memset(&fx, 0, sizeof fx);
+        fx.effect = ULTRA_PX_FX_STREAM;
+        fx.start_ms = 500;
+        ultra_slot_pixel_fx(s, 0, 0x0A, &fx);
+        slot_vector("slot_pixel_fx_stream", "PIXEL_FX effect 0, back to the stream (0.2.8)",
+                    "Effect 0: the hub's pixels pass again (every other field but STORE is ignored). START 500 ms. "
+                    "SEQ 0x0A.", s, 1);
+        ultra_slot_config(s, 0x47, px_ids, px_vals, 9);
+        slot_vector("slot_config_pixel", "CONFIG of an Ultra-Digital receiver's strip (0.2.8)",
+                    "LIGHT 0xF (board). Nine pairs: id 129 chip = 3 (SK6812 RGBW), 130 wire order G R B W, 131 "
+                    "pixels = 300, 132 frames per second at most = 60, 133 LED current per channel = 200 x 0.1 mA, 134 "
+                    "current limit = 0 (the link's), 135 auto-white accurate, 136 / 137 no virtual strip. Ids 138 "
+                    "and 139 follow in a second CONFIG. A board without these ids skips them. SEQ 0x47.", s, 1);
+        ultra_slot_poll(s, 0x67, 0, 1, ULTRA_PAGE_HW_FX, ULTRA_RW_RATE_500K, px_arg, sizeof px_arg);
+        check(ultra_poll_valid(s) == 0, "slot_poll_pixel_fx_effects");
+        slot_vector("slot_poll_pixel_fx_effects", "POLL page 0x81 part 1, the effects (0.2.8)",
+                    "Index 0, R = 1, page 0x81 PIXEL_FX, rate 1. Argument 0 (slot byte 7) = 1: the effects the "
+                    "firmware has, as a 192-bit map (0: the state; 2: the palettes; 3-255: UNSUPPORTED). SEQ 0x67.",
+                    s, 1);
+    }
     ultra_slot_power_off(s, 0x59);
     slot_vector("slot_identify_power_off", "IDENTIFY planned power-off (0.2.6)",
                 "Value 7, argument 0 (ultra_slot_power_off): 3 copies with the same SEQ (applied once) at 0, 50 and "

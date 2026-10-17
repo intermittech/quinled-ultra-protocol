@@ -386,6 +386,50 @@ TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x66`, CRC-16 `0x02A5` (valid)
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A5
 ```
 
+### `slot_pixel_fx`: PIXEL_FX, segment 2 (0.2.8)
+
+Effect 7, START -1234 ms (relative to the header TIME), speed 100, intensity 150, palette 0xFE (c1 -> c2 -> c3), c1 = 255 128 0, c2 = 10 20 30, c3 = 40 50 60, brightness 128, transition 1500 ms, pixels 5 .. 94 of the strip, FLAGS 0x09 (reverse, auto-white accurate), custom 1 and 2 = 1, 2. Only the Ultra-Digital receiver (ULTRA_HWCAP_PIXEL_FX) takes it; every other board ignores the type. SEQ 0x09.
+
+TYPE `0x0B`, LIGHT 2, FLAGS `0x0`, SEQ `0x09`, CRC-16 `0x00DD` (valid)
+
+```
+0B 20 09 07 FF FF FB 2E 64 96 FE FF 80 00 0A 14
+1E 28 32 3C 80 05 DC 00 05 00 5A 09 01 02 00 DD
+```
+
+### `slot_pixel_fx_stream`: PIXEL_FX effect 0, back to the stream (0.2.8)
+
+Effect 0: the hub's pixels pass again (every other field but STORE is ignored). START 500 ms. SEQ 0x0A.
+
+TYPE `0x0B`, LIGHT 0, FLAGS `0x0`, SEQ `0x0A`, CRC-16 `0xB5E8` (valid)
+
+```
+0B 00 0A 00 00 00 01 F4 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 B5 E8
+```
+
+### `slot_config_pixel`: CONFIG of an Ultra-Digital receiver's strip (0.2.8)
+
+LIGHT 0xF (board). Nine pairs: id 129 chip = 3 (SK6812 RGBW), 130 wire order G R B W, 131 pixels = 300, 132 frames per second at most = 60, 133 LED current per channel = 200 x 0.1 mA, 134 current limit = 0 (the link's), 135 auto-white accurate, 136 / 137 no virtual strip. Ids 138 and 139 follow in a second CONFIG. A board without these ids skips them. SEQ 0x47.
+
+TYPE `0x05`, LIGHT 15, FLAGS `0x0`, SEQ `0x47`, CRC-16 `0x025D` (valid)
+
+```
+05 F0 47 81 00 03 82 06 81 83 01 2C 84 00 3C 85
+00 C8 86 00 00 87 00 02 88 00 00 89 00 00 02 5D
+```
+
+### `slot_poll_pixel_fx_effects`: POLL page 0x81 part 1, the effects (0.2.8)
+
+Index 0, R = 1, page 0x81 PIXEL_FX, rate 1. Argument 0 (slot byte 7) = 1: the effects the firmware has, as a 192-bit map (0: the state; 2: the palettes; 3-255: UNSUPPORTED). SEQ 0x67.
+
+TYPE `0x07`, LIGHT 15, FLAGS `0x0`, SEQ `0x67`, CRC-16 `0xBB54` (valid)
+
+```
+07 F0 67 00 01 81 01 01 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 BB 54
+```
+
 ### `slot_identify_power_off`: IDENTIFY planned power-off (0.2.6)
 
 Value 7, argument 0 (ultra_slot_power_off): 3 copies with the same SEQ (applied once) at 0, 50 and 100 ms, the line's power cut at 200 ms. A Diff-Power Ultra-Analog receiver (ULTRA_FEAT_STANDBY) fades to dark and takes the cut as planned (no supply dip); other boards and firmware from before 0.2.6 ignore it. SEQ 0x59.

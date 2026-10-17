@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (C) 2026 QuinLED
  *
- * QuinLED Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.7 (CHANGELOG.md). Shared by the
+ * QuinLED Ultra protocol 0.2 (wire VERSION 2), this file: release 0.2.8 (CHANGELOG.md). Shared by the
  * board firmware (C) and the controllers (C / C++).
  * Master: include/ultra_protocol.h in https://github.com/intermittech/quinled-ultra-protocol (spec in its wiki).
  * Every copy (board firmware, ESPHome component, other controllers) must be byte-identical to one tagged release
@@ -29,8 +29,8 @@
  * Compatibility rules (the wiki: Compatibility and versioning): a board ignores what it doesn't know, so a feature
  * it lacks never disturbs it; the host sends only values defined here (the builders below never set
  * anything else).
- *  - Unknown slot TYPE (0x0B-0xFF), LIGHT 5-14, IDENTIFY value or argument, SCENE mode: the slot
- *    is ignored.
+ *  - Unknown slot TYPE (0x0C-0xFF, and ULTRA_PIXEL_FX 0x0B on every board but the QuinLED Diff-Power Ultra-Digital
+ *    receiver), LIGHT 5-14, IDENTIFY value or argument, SCENE mode: the slot is ignored.
  *  - Unknown CONFIG id: that pair is skipped, the others apply. Unknown effect id: ULTRA_FX_NONE (the light's plain
  *    state). Unknown role: the channel is not part of the light.
  *  - Unknown flag bits (header HINT, slot FLAGS, SET / LIGHT_DEF / LIGHT_OPT flags), reserved bits and spare payload
@@ -99,7 +99,11 @@ enum {
     ULTRA_SCENE = 0x08,        /* light: power-on scene (persisted on the board) */
     ULTRA_LIGHT_OPT = 0x09,    /* light: options (dim to warm) */
     ULTRA_SCENE_EFFECT = 0x0A, /* light: power-on effect on the SCENE values (persisted on the board) */
-    ULTRA_TYPES = 0x0B,        /* 0x0B-0x7F: future per-board commands (ignored) */
+    ULTRA_PIXEL_FX = 0x0B,     /* segment: a local pixel effect (the Ultra-Digital receiver, ULTRA_HWCAP_PIXEL_FX; below).
+                                  Every other board ignores it as an unknown type */
+    ULTRA_TYPES = 0x0B,        /* the light engine's types are 0 .. ULTRA_TYPES - 1 (the Ultra-Analog receivers and the
+                                  Dig2Analog-Ultra-5ch size their per-type state by it and ignore the types from
+                                  here on); 0x0C-0x7F: future per-board commands (ignored) */
     ULTRA_TYPE_BCAST = 0x80,   /* 0x80-0xFF: broadcast / extension slots only (after the last board's slot), never
                                   applied as a board's own slot. (The UPD frame's block types 0x81-0x85 are another
                                   namespace: ultra_update.h) */
@@ -223,8 +227,10 @@ enum {
     ULTRA_PAGE_LIFE_SYNC = 0x0E,       /* the hub's lifetime counters for the board to merge (ULTRA_LS_*; the
                                           answer: the counters after it and the result) (ULTRA_FEAT_LIFE_SYNC) */
     ULTRA_PAGE_HW = 0x80,              /* 0x0F-0x7F: future official pages; 0x80-0xFD: hardware-specific, by hardware id
-                                          (hardware 3, the Ultra-Digital receiver: 0x80 PIXEL, its pixel statistics; its
-                                          firmware's wiki) */
+                                          (hardware 3, the Ultra-Digital receiver: 0x80 PIXEL, its pixel statistics, and
+                                          0x81 PIXEL_FX, its local effects (ULTRA_PXG_* below); its firmware's wiki) */
+    ULTRA_PAGE_HW_FX = 0x81,           /* hardware 3: PIXEL_FX, in three parts (POLL argument 0: 0 = state, 1 = the
+                                          effects it has, 2 = its palettes; 3-255: UNSUPPORTED) (ULTRA_PXG_*) */
     ULTRA_PAGE_BUSY = 0xFE, ULTRA_PAGE_UNSUPPORTED = 0xFF,
 };
 /* IDENTITY page DATA, two parts (POLL argument 0 = ULTRA_ID_PART_*, 2-255: UNSUPPORTED). A host reads both at
@@ -259,8 +265,10 @@ enum {
 #define ULTRA_HWCAP_NTC           0x00000010u  /* a board temperature sensor (STATUS 11) */
 #define ULTRA_HWCAP_PIXEL         0x00000040u  /* a pixel delay line on a digital port (the Ultra-Digital
                                                   receiver): polled behind a marker (ULTRA_DP_* above), one per port */
+#define ULTRA_HWCAP_PIXEL_FX      0x00000080u  /* runs local pixel effects (the Ultra-Digital receiver): PIXEL_FX,
+                                                  CONFIG 129-139, page 0x81 (ULTRA_PX_* below) */
 /*      0x00000020                reserved
- *      0x00000080-0x80000000     reserved: later official capabilities */
+ *      0x00000100-0x80000000     reserved: later official capabilities */
 /* STATUS page DATA (wiki: Return channel), the fields the firmware measures already (console `status`):
  * the MCU (die) temperature from the CH32V203's internal sensor, int16 0.1 C, ULTRA_ST_NA = not valid (no good
  * conversion yet, or 5 bad ones in a row; core/mcutemp.h), and the 3.3 V rail from VREFINT, mV (0 = not known).
@@ -652,7 +660,140 @@ enum {
     ULTRA_CFG_HW = 128,            /* 128-255: hardware-specific (e.g. a Diff-Power receiver, a current-sense revision) */
     ULTRA_CFG_MCU_TEMP_OFFSET = 128,   /* reserved, not settable yet: MCU temperature offset, int16 0.1 C (a one-point
                                           calibration, core/mcutemp.h); the board skips it like any unknown id */
+    /* hardware 3 (the Ultra-Digital receiver): the local pixel effects' settings, all persisted (ULTRA_PX_* below) */
+    ULTRA_CFG_PX_CHIP = 129,           /* the strip's chip (ULTRA_PXC_*): its timing, bytes per pixel and colour order */
+    ULTRA_CFG_PX_ORDER = 130,          /* the wire order of the channels (ULTRA_PX_ORDER; 0 = the chip's own) */
+    ULTRA_CFG_PX_PIXELS = 131,         /* pixels on the strip (0 = none yet: no local effect runs) */
+    ULTRA_CFG_PX_FPS = 132,            /* frames per second at most (0 = as many as the line allows) */
+    ULTRA_CFG_PX_MA_CH = 133,          /* LED current of one channel at 255, 0.1 mA (0 = 20 mA), for the current limit */
+    ULTRA_CFG_PX_LIMIT_MA = 134,       /* the strip's current limit, mA (0 = the link's, 2,250 mA) */
+    ULTRA_CFG_PX_WHITE = 135,          /* bits 0-1: the default auto-white mode (ULTRA_PXW_*; 0 = accurate); bits 8-15: the
+                                          WS2805 white split, the share of the cold white (0 = even) */
+    ULTRA_CFG_PX_VOFFSET = 136,        /* this strip starts at this pixel of a virtual strip (an effect continuing over
+                                          ports and receivers) */
+    ULTRA_CFG_PX_VLENGTH = 137,        /* ... the virtual strip's length (0 = this strip alone) */
+    ULTRA_CFG_PX_POLICY = 138,         /* standalone behaviour (ULTRA_PXP_*) */
+    ULTRA_CFG_PX_LOSS_TIMEOUT = 139,   /* x 100 ms with no pixel frame and no marker = signal loss, 5..600 (0 = 30) */
+    ULTRA_CFG_PX_FIRST = 129,
+    ULTRA_CFG_PX_COUNT = 11,           /* ids 129 .. 139 */
 };
+
+/* ----------------------------------------------------------------------------------- local pixel effects (hardware 3) */
+/* The QuinLED Diff-Power Ultra-Digital receiver (ULTRA_HWCAP_PIXEL_FX) can make the strip's data itself. The hub starts
+ * an effect with PIXEL_FX, a command like any other on a digital port (behind a marker, ULTRA_DP_*; applied once per
+ * SEQ, repeated for redundancy). Until then, and after a PIXEL_FX with effect 0, the hub's pixels pass (stream mode,
+ * the delay line). The receiver changes between the two only inside a latch: the strip gets whole frames only (the
+ * hub's last one, then its own, or the other way round), and a poll never shows. The effects run on the host clock
+ * (the header TIME): receivers that got the same PIXEL_FX render the same picture at the same host time, and their frames
+ * start on a host-time grid (ULTRA_CFG_PX_FPS), so ports and receivers stay in step. The hub sends a header (a poll, a
+ * NOP) at least once a second to a local port: the receiver's phase comes from it. Frames are as long as the strip is
+ * (ULTRA_CFG_PX_PIXELS): the frame rate the line allows is the chip's, not the hub's.
+ *
+ * PIXEL_FX slot (type ULTRA_PIXEL_FX; LIGHT = the segment 0 .. ULTRA_PX_SEGMENTS - 1, ULTRA_LIGHT_BOARD = the whole
+ * strip as one segment 0 with the others stopped; LIGHT 4-14 and slot FLAGS: ignored, sent as 0). Offsets are slot
+ * bytes, 16- and 32-bit fields big-endian:
+ *   EFFECT      u8      0 = stream (leave local mode: LIGHT and every field but STORE are ignored), 1-127 the official
+ *                       catalogue (catalogue.json in the protocol repository; ids are never reused), 128-255 custom. An
+ *                       effect the receiver doesn't have shows Solid (page ULTRA_PAGE_HW_FX part 1 says which it has)
+ *   START       i32     ms relative to the header TIME: the effect's time zero (the phase anchor, as EFFECT's start). A
+ *                       PIXEL_FX applies when the host clock reaches it (a late copy catches up)
+ *   SPEED, INTENSITY, PALETTE  u8 each; the palette 0-127 built-in (the catalogue), ULTRA_PX_PAL_COLORS c1 -> c2 -> c3,
+ *                       ULTRA_PX_PAL_DEFAULT the effect's own
+ *   C1, C2, C3  R, G, B (white comes from the auto-white mode)
+ *   BRIGHTNESS  u8      0 = dark (the strip is held LOW: flash writes allowed), 255 = full; scaled down by the current limit
+ *   TRANSITION  u16     ms: brightness and colour ramps, and the crossfade from the effect it replaces
+ *   SEG_START, SEG_LEN  u16 each: the segment's first pixel and its length (0 = to the end of the strip). Segments are
+ *                       drawn in order, a higher one over a lower one
+ *   FLAGS       u8      ULTRA_PXF_*
+ *   CUSTOM1, CUSTOM2  u8 each: the effect's extra sliders (the catalogue names them)
+ */
+#define ULTRA_PX_SEGMENTS     4u
+#define ULTRA_PX_EFFECT       3u
+#define ULTRA_PX_START        4u
+#define ULTRA_PX_SPEED        8u
+#define ULTRA_PX_INTENSITY    9u
+#define ULTRA_PX_PALETTE      10u
+#define ULTRA_PX_C1           11u      /* C2 at 14, C3 at 17 */
+#define ULTRA_PX_C2           14u
+#define ULTRA_PX_C3           17u
+#define ULTRA_PX_BRIGHTNESS   20u
+#define ULTRA_PX_TRANSITION   21u
+#define ULTRA_PX_SEG_START    23u
+#define ULTRA_PX_SEG_LEN      25u
+#define ULTRA_PX_FLAGS        27u
+#define ULTRA_PX_CUSTOM1      28u
+#define ULTRA_PX_CUSTOM2      29u
+#define ULTRA_PX_FX_STREAM    0u       /* EFFECT 0 */
+#define ULTRA_PX_PAL_COLORS   0xFEu    /* PALETTE: c1 -> c2 -> c3 -> c1 */
+#define ULTRA_PX_PAL_DEFAULT  0xFFu    /* PALETTE: the effect's own */
+/* FLAGS. STORE: this segment's fields (not START and SEQ) and CONFIG 129-139 become the power-on / standalone effect
+ * (CONFIG 138); with EFFECT 0 the stored effect is cleared. The record is written only in stream mode or while the strip
+ * is dark, never as a visible pause. LOCK: a plain pixel stream from the controller doesn't take the strip back
+ * (otherwise, with ULTRA_PXP_STREAM_WINS, it does). Bits 6-7: reserved, sent as 0 */
+#define ULTRA_PXF_REVERSE     0x01u
+#define ULTRA_PXF_MIRROR      0x02u
+#define ULTRA_PXF_WHITE_MASK  0x0Cu    /* auto-white mode, ULTRA_PXW_*, of RGBW and RGBCCT strips (0: CONFIG 135's) */
+#define ULTRA_PXF_WHITE_SHIFT 2u
+#define ULTRA_PXF_STORE       0x10u
+#define ULTRA_PXF_LOCK        0x20u
+#define ULTRA_PXW_DEFAULT     0u       /* in FLAGS: the strip's own (CONFIG 135); in CONFIG 135: accurate */
+#define ULTRA_PXW_OFF         1u       /* no white from the colour (white only where an effect asks for it) */
+#define ULTRA_PXW_ACCURATE    2u       /* W = min(R, G, B), taken out of R, G, B: the colour stays true */
+#define ULTRA_PXW_BRIGHT      3u       /* W = min(R, G, B), R, G, B kept: brighter, paler */
+
+/* CONFIG 129: the chip (one preset: the timing on the receiver's 1.333 us bit grid, the bytes per pixel, the default
+ * colour order; the strip's reset time). The presets of the V5 class share one timing */
+#define ULTRA_PXC_WS2812B_V5      0u   /* WS2812B V5 / 2020, WS2811 V2.2 and later: RGB, wire order G R B */
+#define ULTRA_PXC_WS2812B_CLASSIC 1u   /* WS2812B before V5: RGB, G R B */
+#define ULTRA_PXC_SK6812_RGB      2u   /* SK6812, SK6812 B/1 RGB: G R B */
+#define ULTRA_PXC_SK6812_RGBW     3u   /* SK6812 RGBW: G R B W */
+#define ULTRA_PXC_WS2814_RGBW     4u   /* WS2814 (24 V): R G B W; ULTRA_CFG_PX_ORDER picks WRGB and the others */
+#define ULTRA_PXC_WS2805_RGBCCT   5u   /* WS2805 (RGB + warm + cold white, 5 bytes): R G B WW CW */
+#define ULTRA_PXC_WS2815          6u   /* WS2815 (12 V, backup data line): G R B */
+#define ULTRA_PXC_WS2811_400K     7u   /* WS2811 at 400 kHz: R G B */
+#define ULTRA_PXC_COUNT           8u
+/* CONFIG 130: wire byte k (0-4) = the channel in bits 3k .. 3k + 2 (ULTRA_PXCH_*); only as many bytes as the chip has,
+ * each channel once; anything else is ignored. 0 = the chip's own order */
+#define ULTRA_PXCH_R   0u
+#define ULTRA_PXCH_G   1u
+#define ULTRA_PXCH_B   2u
+#define ULTRA_PXCH_W   3u              /* the white (WS2805: the warm white) */
+#define ULTRA_PXCH_CW  4u              /* WS2805: the cold white */
+#define ULTRA_PX_ORDER(b0, b1, b2, b3, b4) \
+    ((uint16_t)((b0) | ((b1) << 3) | ((b2) << 6) | ((b3) << 9) | ((b4) << 12)))
+/* CONFIG 138 (0 = none of them: the hub's stream is all the strip shows, as before). The stored effect is the one a
+ * PIXEL_FX with STORE left */
+#define ULTRA_PXP_POWER_ON     0x01u   /* from power-up: when the line stays quiet (no pixel frame, no marker) for 2 s,
+                                          the stored effect fades in */
+#define ULTRA_PXP_ON_LOSS      0x02u   /* signal loss (CONFIG 139) starts the stored effect (else the strip holds its last
+                                          frame, as a WS28xx strip does) */
+#define ULTRA_PXP_STREAM_WINS  0x04u   /* a pixel stream from the controller takes the strip back from a local effect
+                                          that isn't locked (ULTRA_PXF_LOCK): at the second frame, inside a latch */
+
+/* Page ULTRA_PAGE_HW_FX (0x81), three parts (POLL argument 0), big-endian. Part 0, the state: */
+#define ULTRA_PXG_STATE        0u      /* part 0 */
+#define ULTRA_PXG_CATALOGUE    0u      /* u16: the catalogue's version (catalogue.json) */
+#define ULTRA_PXG_EFFECTS      2u      /* u8: effects the firmware has */
+#define ULTRA_PXG_PALETTES     3u      /* u8: palettes */
+#define ULTRA_PXG_CHIPS        4u      /* u8: chip presets (ULTRA_PXC_COUNT) */
+#define ULTRA_PXG_SEGMENTS     5u      /* u8: segments (ULTRA_PX_SEGMENTS) */
+#define ULTRA_PXG_MAX_PIXELS   6u      /* u16: the most pixels CONFIG 131 takes with the chip's bytes per pixel now */
+#define ULTRA_PXG_MODE         8u      /* u8: ULTRA_PXM_* */
+#define ULTRA_PXG_RUNNING      9u      /* 4 x u8: each segment's running effect (0 = none) */
+#define ULTRA_PXG_SEQ          13u     /* 4 x u8: the SEQ of each segment's last PIXEL_FX applied */
+#define ULTRA_PXG_FPS10        17u     /* u16: frames per second x 10 (local frames, the last second) */
+#define ULTRA_PXG_LOAD         19u     /* u8: the render's CPU share, 0.5 % steps (0-200) */
+#define ULTRA_PXG_LIMIT        20u     /* u8: the current limiter's brightness scale now, 255 = none */
+#define ULTRA_PXG_LATE         21u     /* u8: frames that started after their grid time (saturating) */
+#define ULTRA_PXG_CONFIG_CRC   22u     /* u16: ultra_px_config_crc over CONFIG 129-139 as the receiver has them */
+/* part 1: bit (id & 7) of byte id >> 3 (ids 0-191) = the effect id is in the firmware's catalogue; part 2 the same for
+ * the palettes */
+#define ULTRA_PXG_PART_STATE    0u
+#define ULTRA_PXG_PART_EFFECTS  1u
+#define ULTRA_PXG_PART_PALETTES 2u
+#define ULTRA_PXM_STREAM        0u     /* the hub's pixels pass */
+#define ULTRA_PXM_LOCAL         1u     /* a PIXEL_FX effect runs */
+#define ULTRA_PXM_STANDALONE    2u     /* the stored effect runs (CONFIG 138: power-on, signal loss) */
 
 /* ----------------------------------------------------------------------------------------------- helpers */
 /* CRC-8/SMBus (poly 0x07, init 0) and CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF), a nibble at a time: 16-entry
@@ -890,14 +1031,15 @@ static inline void ultra_slot_step(uint8_t *s, uint8_t light, uint8_t seq, uint8
     ultra_slot_seal(s);
 }
 
-/* CONFIG: up to 9 (id, value) pairs; an unused pair is (0, 0). Ids that aren't defined are left out. */
+/* CONFIG: up to 9 (id, value) pairs; an unused pair is (0, 0). Ids that aren't defined (25-127) are left out; the
+ * hardware-specific ids (128-255) pass: the board that has them takes them, the others skip them. */
 static inline void ultra_slot_config(uint8_t *s, uint8_t seq, const uint8_t *ids, const uint16_t *values, uint32_t n)
 {
     uint8_t *p = s + ULTRA_PAYLOAD;
     uint32_t i, j = 0;
     ultra_slot_begin(s, ULTRA_CONFIG, ULTRA_LIGHT_BOARD, 0, seq);
     for (i = 0; i < n && j < 9u; i++) {
-        if (ids[i] != ULTRA_CFG_NONE && ids[i] < ULTRA_CFG_COUNT) {
+        if (ids[i] != ULTRA_CFG_NONE && (ids[i] < ULTRA_CFG_COUNT || ids[i] >= ULTRA_CFG_HW)) {
             p[3 * j] = ids[i];
             ultra_put16(p + 3 * j + 1, values[i]);
             j++;
@@ -1008,6 +1150,76 @@ static inline void ultra_slot_scene_effect(uint8_t *s, uint8_t light, uint8_t se
         p[1 + i] = params[i];
     }
     ultra_slot_seal(s);
+}
+
+/* PIXEL_FX (the Ultra-Digital receiver's local pixel effects, ULTRA_PX_* above) */
+typedef struct {
+    uint8_t  effect, speed, intensity, palette;
+    uint8_t  c[3][3];                  /* c1, c2, c3: R, G, B */
+    uint8_t  brightness, flags, custom1, custom2;
+    int32_t  start_ms;                 /* relative to the header TIME */
+    uint16_t transition_ms, seg_start, seg_len;
+} ultra_pixel_fx_t;
+
+static inline void ultra_slot_pixel_fx(uint8_t *s, uint8_t segment, uint8_t seq, const ultra_pixel_fx_t *f)
+{
+    uint32_t i;
+    ultra_slot_begin(s, ULTRA_PIXEL_FX, segment, 0, seq);
+    s[ULTRA_PX_EFFECT] = f->effect;
+    ultra_put32(s + ULTRA_PX_START, (uint32_t)f->start_ms);
+    s[ULTRA_PX_SPEED] = f->speed;
+    s[ULTRA_PX_INTENSITY] = f->intensity;
+    s[ULTRA_PX_PALETTE] = f->palette;
+    for (i = 0; i < 9u; i++) {
+        s[ULTRA_PX_C1 + i] = f->c[i / 3u][i % 3u];
+    }
+    s[ULTRA_PX_BRIGHTNESS] = f->brightness;
+    ultra_put16(s + ULTRA_PX_TRANSITION, f->transition_ms);
+    ultra_put16(s + ULTRA_PX_SEG_START, f->seg_start);
+    ultra_put16(s + ULTRA_PX_SEG_LEN, f->seg_len);
+    s[ULTRA_PX_FLAGS] = (uint8_t)(f->flags & 0x3Fu);
+    s[ULTRA_PX_CUSTOM1] = f->custom1;
+    s[ULTRA_PX_CUSTOM2] = f->custom2;
+    ultra_slot_seal(s);
+}
+
+/* a CRC-checked slot of type ULTRA_PIXEL_FX into f: the segment (LIGHT) 0 .. ULTRA_PX_SEGMENTS - 1 or ULTRA_LIGHT_BOARD
+ * (the whole strip), else -1 (LIGHT 4-14: the slot is ignored) */
+static inline int ultra_pixel_fx_parse(const uint8_t *s, ultra_pixel_fx_t *f)
+{
+    const uint32_t light = (uint32_t)s[1] >> 4, flags = s[ULTRA_PX_FLAGS];
+    uint32_t i;
+    if (light >= ULTRA_PX_SEGMENTS && light != ULTRA_LIGHT_BOARD) {
+        return -1;
+    }
+    f->effect = s[ULTRA_PX_EFFECT];
+    f->start_ms = (int32_t)ultra_get32(s + ULTRA_PX_START);
+    f->speed = s[ULTRA_PX_SPEED];
+    f->intensity = s[ULTRA_PX_INTENSITY];
+    f->palette = s[ULTRA_PX_PALETTE];
+    for (i = 0; i < 9u; i++) {
+        f->c[i / 3u][i % 3u] = s[ULTRA_PX_C1 + i];
+    }
+    f->brightness = s[ULTRA_PX_BRIGHTNESS];
+    f->transition_ms = (uint16_t)ultra_get16(s + ULTRA_PX_TRANSITION);
+    f->seg_start = (uint16_t)ultra_get16(s + ULTRA_PX_SEG_START);
+    f->seg_len = (uint16_t)ultra_get16(s + ULTRA_PX_SEG_LEN);
+    f->flags = (uint8_t)(flags & 0x3Fu);
+    f->custom1 = s[ULTRA_PX_CUSTOM1];
+    f->custom2 = s[ULTRA_PX_CUSTOM2];
+    return (int)light;
+}
+
+/* page 0x81's CONFIG CRC: ultra_crc16 over (id, value u16) of ids 129 .. 139 in order; values[k] = id 129 + k */
+static inline uint16_t ultra_px_config_crc(const uint16_t *values)
+{
+    uint8_t b[ULTRA_CFG_PX_COUNT * 3u];
+    uint32_t k;
+    for (k = 0; k < ULTRA_CFG_PX_COUNT; k++) {
+        b[3u * k] = (uint8_t)(ULTRA_CFG_PX_FIRST + k);
+        ultra_put16(b + 3u * k + 1u, values[k]);
+    }
+    return ultra_crc16(b, (uint32_t)sizeof b);
 }
 
 /* NOP: a valid slot that does nothing (keep-alive frames to boards that are locked to Ultra) */

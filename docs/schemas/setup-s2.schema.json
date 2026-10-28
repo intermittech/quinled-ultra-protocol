@@ -1,0 +1,192 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "S2"
+    },
+    "boards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{24}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 239
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "desc_crc": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 14
+                },
+                "lim_ma": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                }
+              },
+              "required": [
+                "id",
+                "lim_ma"
+              ],
+              "additionalProperties": true
+            },
+            "maxItems": 15
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "i": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 239
+                },
+                "dom": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 14
+                },
+                "lim_ma": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                }
+              },
+              "required": [
+                "i",
+                "dom",
+                "lim_ma"
+              ],
+              "additionalProperties": true
+            },
+            "maxItems": 240
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "o": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 14
+                },
+                "dom": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 14
+                },
+                "n": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                },
+                "source": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 16
+                },
+                "lim_ma": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                }
+              },
+              "required": [
+                "o",
+                "dom",
+                "n",
+                "source",
+                "lim_ma"
+              ],
+              "additionalProperties": true
+            },
+            "maxItems": 15
+          },
+          "config": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "id": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 127
+                },
+                "value": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                }
+              },
+              "required": [
+                "target",
+                "id",
+                "value"
+              ],
+              "additionalProperties": true
+            },
+            "maxItems": 4096
+          }
+        },
+        "required": [
+          "uid",
+          "port",
+          "position",
+          "target",
+          "desc_crc",
+          "domains",
+          "channels",
+          "outputs",
+          "config"
+        ],
+        "additionalProperties": true
+      },
+      "maxItems": 240
+    }
+  },
+  "required": [
+    "schema",
+    "boards"
+  ],
+  "additionalProperties": true,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quinled:ultra:setup:S2"
+}

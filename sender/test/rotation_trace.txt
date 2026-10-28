@@ -1,0 +1,120 @@
+init b0 r0 clear 1,2,3,4 | used DEF0 SET0
+init b0 r1 clear 1,2,3,4 | used DEF0 SET0
+init b0 r2 clear 1,2,3,4 | used DEF0 SET0
+init b0 r3 clear - | used DEF0 SET0
+init b0 r4 clear - | used DEF0 SET0
+init b0 r5 clear - | used DEF0 SET0
+init b0 r6 clear 1,2,3,4 | used DEF0 SET0
+init b0 r7 clear - | used DEF0 SET0
+init b0 r8 clear - | used DEF0 SET0
+init b0 r9 clear - | used DEF0 SET0
+init b0 r10 clear 1,2,3,4 | used DEF0 SET0
+init b0 r11 clear - | used DEF0 SET0
+init b0 r12 clear - | used DEF0 SET0
+init b0 r13 clear - | used DEF0 SET0
+init b0 r14 clear 1,2,3,4 | used DEF0 SET0
+init b0 r15 clear - | used DEF0 SET0
+init b0 r16 clear - | used DEF0 SET0
+init b0 r17 clear - | used DEF0 SET0
+init b0 r18 clear 1,2,3,4 | used DEF0 SET0
+init b0 r19 clear - | used DEF0 SET0
+init b1 r0 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r1 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r2 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r3 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r4 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r5 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r6 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r7 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r8 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r9 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r10 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r11 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r12 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r13 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r14 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r15 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r16 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r17 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r18 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b1 r19 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+init b2 r0 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r1 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r2 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r3 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r4 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r5 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r6 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r7 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r8 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r9 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r10 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r11 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r12 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r13 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r14 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r15 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r16 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r17 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r18 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+init b2 r19 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b0 r0 clear 2,3,4 | used DEF0 SET0 DEF1 SET1
+set_lights b0 r1 clear 2,3,4 | used DEF0 SET0 DEF1 SET1
+set_lights b0 r2 clear 2,3,4 | used DEF0 SET0 DEF1 SET1
+set_lights b0 r3 clear - | used DEF0 SET0 DEF1 SET1
+set_lights b0 r4 clear - | used DEF0 SET0 DEF1 SET1
+set_lights b0 r5 clear - | used DEF0 SET0 DEF1 SET1
+set_lights b0 r6 clear 2,3,4 | used DEF0 SET0 DEF1 SET1
+set_lights b0 r7 clear - | used DEF0 SET0 DEF1 SET1
+set_lights b0 r8 clear - | used DEF0 SET0 DEF1 SET1
+set_lights b0 r9 clear - | used DEF0 SET0 DEF1 SET1
+set_lights b1 r20 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r21 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r22 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r23 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r24 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r25 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r26 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r27 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r28 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b1 r29 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+set_lights b2 r20 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r21 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r22 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r23 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r24 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r25 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r26 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r27 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r28 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+set_lights b2 r29 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b0 r0 clear 2,3,4 | used DEF0 SET0 DEF1 SET1
+resync b0 r1 clear 2,3,4 | used DEF0 SET0 DEF1 SET1
+resync b0 r2 clear 2,3,4 | used DEF0 SET0 DEF1 SET1
+resync b0 r3 clear - | used DEF0 SET0 DEF1 SET1
+resync b0 r4 clear - | used DEF0 SET0 DEF1 SET1
+resync b0 r5 clear - | used DEF0 SET0 DEF1 SET1
+resync b0 r6 clear 2,3,4 | used DEF0 SET0 DEF1 SET1
+resync b0 r7 clear - | used DEF0 SET0 DEF1 SET1
+resync b0 r8 clear - | used DEF0 SET0 DEF1 SET1
+resync b0 r9 clear - | used DEF0 SET0 DEF1 SET1
+resync b1 r0 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r1 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r2 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r3 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r4 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r5 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r6 clear 3,4 | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r7 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r8 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b1 r9 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2
+resync b2 r0 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r1 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r2 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r3 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r4 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r5 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r6 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r7 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r8 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4
+resync b2 r9 clear - | used DEF0 SET0 DEF1 SET1 DEF2 SET2 DEF3 SET3 DEF4 SET4

@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT
+version: "0.3.2-draft"
+description: "QuinLED Ultra protocol sender: drive QuinLED Dig2Analog-Plus-5ch boards (portable C99, no heap, ESP32 RMT output)"
+url: "https://github.com/intermittech/quinled-ultra-protocol/tree/main/sender"
+repository: "https://github.com/intermittech/quinled-ultra-protocol.git"
+license: "MIT"
+tags:
+  - quinled
+  - ultra
+  - led
+  - dimmer
+  - rmt
+dependencies:
+  idf: ">=5.0"
+files:
+  exclude:
+    - "build/**/*"
+    - "test/**/*"
+    - "examples/**/build/**/*"
+examples:
+  - path: examples/esp32_idf_rmt

@@ -1,0 +1,8 @@
+*.o
+*.exe
+*.obj
+gen_vectors
+build/
+
+__pycache__/
+*.pyc

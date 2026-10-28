@@ -1,0 +1,1807 @@
+{
+ "catalogue_version": 4,
+ "note": "ids are never reused; 1-127 official, 128-255 custom. Every effect takes a palette: palette 254 = colour 1 -> 2 -> 3, 255 = Effect default: default_palette_id, or the effect's own colours when default_palette is \"own\". colors = how many of c1..c3 the effect uses, color_slots = their labels by position (null: that slot is unused); palette_slots = the colour slots it still uses while a palette is chosen, palette_note = what the palette colours; speed / intensity: true when used; the labels say what they do; custom1 / custom2: null or a label. A retired id would stay with retired: true.",
+ "palette_special": {
+  "colors": 254,
+  "default": 255
+ },
+ "effects": [
+  {
+   "id": 1,
+   "name": "Solid",
+   "summary": "One colour; fades smoothly to another (the transition).",
+   "colors": 1,
+   "color_slots": [
+    "Colour",
+    null,
+    null
+   ],
+   "speed": false,
+   "speed_label": null,
+   "intensity": false,
+   "intensity_label": null,
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the palette laid end to end along the strip, standing still.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 255,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 2,
+   "name": "Breathe",
+   "summary": "The colour swells and fades like breathing.",
+   "colors": 2,
+   "color_slots": [
+    "Colour",
+    "Low colour",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Rate",
+   "intensity": true,
+   "intensity_label": "Depth",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the palette laid along the strip breathes in and out as one.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 255,
+    "palette": 255,
+    "c1": [
+     255,
+     140,
+     30
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 3,
+   "name": "Colorloop",
+   "summary": "The whole strip cycles through the hues.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Rate",
+   "intensity": true,
+   "intensity_label": "Saturation",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the whole strip cycles through the palette; Saturation still whitens it.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 255,
+    "palette": 255,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 4,
+   "name": "Rainbow",
+   "summary": "A rainbow moves along the strip.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Size (128: one rainbow per strip, doubling every 32)",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the palette moves along the strip at the rainbow's pace.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 255,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 5,
+   "name": "Palette",
+   "summary": "The chosen palette moves along the strip.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Size (128: one palette per strip, doubling every 32)",
+   "default_palette_id": 10,
+   "palette_slots": [],
+   "palette_note": "With a palette: the palette runs along the strip and scrolls slowly.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 10,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 6,
+   "name": "Colorwaves",
+   "summary": "Slow, ever-changing waves of palette colour.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Wave density",
+   "default_palette_id": 10,
+   "palette_slots": [],
+   "palette_note": "With a palette: the palette sweeps back and forth along the strip in waves of brightness.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 10,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "FastLED ColorWavesWithPalettes (Mark Kriegsman), MIT"
+  },
+  {
+   "id": 7,
+   "name": "Pride 2015",
+   "summary": "Animated, ever-changing rainbows (not palette-based).",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Wave density",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the bright waves run through the palette instead of the rainbow.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 255,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "FastLED Pride2015 (Mark Kriegsman), MIT"
+  },
+  {
+   "id": 8,
+   "name": "Sinelon",
+   "summary": "A dot sweeps back and forth, trailing a fading tail.",
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Trail (higher: shorter tail)",
+   "default_palette_id": 0,
+   "palette_slots": [
+    "Background"
+   ],
+   "palette_note": "With a palette: the swinging dot slowly cycles through the palette (about 11 s a round).",
+   "custom1": "Dots (0-127: one, 128-255: two)",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 0,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "FastLED DemoReel100 sinelon (Mark Kriegsman, MIT), tail computed instead of faded"
+  },
+  {
+   "id": 9,
+   "name": "Twinklefox",
+   "summary": "Twinkling holiday lights that fade in and out.",
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Density",
+   "default_palette_id": 3,
+   "palette_slots": [
+    "Background"
+   ],
+   "palette_note": "With a palette: each twinkle takes a palette colour, a new one each time it lights.",
+   "custom1": "Incandescent cooling (0-127: on, 128-255: off)",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 150,
+    "palette": 3,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "FastLED TwinkleFOX (Mark Kriegsman), MIT"
+  },
+  {
+   "id": 10,
+   "name": "Colortwinkles",
+   "summary": "Pixels light up in random palette colours and fade away.",
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Density",
+   "default_palette_id": 10,
+   "palette_slots": [
+    "Background"
+   ],
+   "palette_note": "With a palette: each twinkle takes a random palette colour.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 100,
+    "palette": 10,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 11,
+   "name": "Candle",
+   "summary": "The whole strip flickers like a candle.",
+   "colors": 2,
+   "color_slots": [
+    "Flame",
+    "Dim colour",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Flicker rate",
+   "intensity": true,
+   "intensity_label": "Flicker amount",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the palette laid along the strip flickers as one flame.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 255,
+    "c1": [
+     255,
+     140,
+     30
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 12,
+   "name": "Candle Multi",
+   "summary": "Every pixel flickers on its own like a candle.",
+   "colors": 2,
+   "color_slots": [
+    "Flame",
+    "Dim colour",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Flicker rate",
+   "intensity": true,
+   "intensity_label": "Flicker amount",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: every pixel flickers on its own, in its colour of the palette laid along the strip.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 255,
+    "c1": [
+     255,
+     140,
+     30
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 13,
+   "name": "Aurora",
+   "summary": "Drifting curtains of northern-light colour.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Curtain size",
+   "default_palette_id": 17,
+   "palette_slots": [],
+   "palette_note": "With a palette: which of the two drifting curtains leads picks the palette colour.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 17,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 14,
+   "name": "Blends",
+   "summary": "A smooth rippling wash of the palette's colours that drifts along.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Ripple tightness (higher: shorter ripples)",
+   "default_palette_id": 10,
+   "palette_slots": [],
+   "palette_note": "With a palette: the palette ripples back and forth along the strip and drifts through.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 190,
+    "palette": 10,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 15,
+   "name": "Flow",
+   "summary": "Zones that each show the palette, flowing in turn in opposite directions.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Zones (higher: more, shorter zones)",
+   "default_palette_id": 0,
+   "palette_slots": [],
+   "palette_note": "With a palette: each zone shows the whole palette, neighbours flowing in opposite ways.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 0,
+    "c1": [
+     0,
+     0,
+     0
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own, from the described behaviour"
+  },
+  {
+   "id": 16,
+   "name": "Fire 2012",
+   "summary": "Flames rising from the start of the strip.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Sparking",
+   "default_palette_id": 14,
+   "palette_slots": [],
+   "palette_note": "With a palette: the heat runs through the palette, coolest to hottest.",
+   "custom1": "Cooling",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 120,
+    "palette": 14,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 85,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 1,
+   "origin": "FastLED Fire2012 (Mark Kriegsman), MIT"
+  },
+  {
+   "id": 17,
+   "name": "Gradient",
+   "summary": "Colour 1 to colour 2 to colour 3 across the strip.",
+   "colors": 3,
+   "color_slots": [
+    "Colour 1",
+    "Colour 2",
+    "Colour 3"
+   ],
+   "speed": true,
+   "speed_label": "Scroll speed (0: still)",
+   "intensity": true,
+   "intensity_label": "Repeats (0: one gradient, no loop)",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the palette runs across the strip instead of colours 1-2-3, repeating and scrolling as set.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 0,
+    "intensity": 0,
+    "palette": 255,
+    "c1": [
+     255,
+     0,
+     0
+    ],
+    "c2": [
+     255,
+     160,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     255
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 18,
+   "name": "Pacifica",
+   "summary": "Gentle blue-green ocean waves.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Whitecaps",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the waves take the palette's colours, dark troughs to bright crests; the whitecaps stay white.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 255,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "FastLED Pacifica (Mark Kriegsman, Mary Corey March), MIT"
+  },
+  {
+   "id": 19,
+   "name": "Sunrise",
+   "summary": "A slow wake-up: dark, red, orange, warm white.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Duration (10 s .. 1 h)",
+   "intensity": true,
+   "intensity_label": "Spread along the strip",
+   "default_palette_id": 19,
+   "palette_slots": [],
+   "palette_note": "With a palette: each pixel moves from the palette's start to its end as the sun rises.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 0,
+    "palette": 19,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 20,
+   "name": "Sunset",
+   "summary": "The wake-up backwards: warm white to dark, and it stays dark.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Duration (10 s .. 1 h)",
+   "intensity": true,
+   "intensity_label": "Spread along the strip",
+   "default_palette_id": 19,
+   "palette_slots": [],
+   "palette_note": "With a palette: each pixel moves from the palette's end back to its start as it sets.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 0,
+    "palette": 19,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 21,
+   "name": "Glitter",
+   "summary": "A palette backdrop with short sparkles.",
+   "colors": 1,
+   "color_slots": [
+    "Sparkle",
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Sparkle density",
+   "default_palette_id": 0,
+   "palette_slots": [
+    "Sparkle"
+   ],
+   "palette_note": "With a palette: the palette drifts slowly along the strip, twice over; the sparkles stay Sparkle.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 40,
+    "palette": 0,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 22,
+   "name": "Meteor",
+   "summary": "A meteor with a shimmering tail runs along the strip.",
+   "colors": 2,
+   "color_slots": [
+    "Meteor",
+    "Background",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Tail length",
+   "default_palette": "own",
+   "palette_slots": [
+    "Background"
+   ],
+   "palette_note": "With a palette: the head takes the palette's last colour and the tail runs back through it to the first.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 255,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 23,
+   "name": "Fairy",
+   "summary": "Sparse, soft, slow twinkles like fairy lights.",
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Density",
+   "default_palette_id": 18,
+   "palette_slots": [
+    "Background"
+   ],
+   "palette_note": "With a palette: each slow twinkle takes a random palette colour.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 100,
+    "intensity": 60,
+    "palette": 18,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 24,
+   "name": "Plasma",
+   "summary": "Smooth overlapping waves through the palette.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Scale",
+   "default_palette_id": 10,
+   "palette_slots": [],
+   "palette_note": "With a palette: three moving waves add up to pick the palette colour along the strip.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 10,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 25,
+   "name": "Noise",
+   "summary": "Drifting smooth noise through the palette.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Scale",
+   "default_palette_id": 13,
+   "palette_slots": [],
+   "palette_note": "With a palette: slowly drifting noise picks the palette colour along the strip.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 13,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 26,
+   "name": "Running",
+   "summary": "Waves of colour 1 on colour 2 run along the strip.",
+   "colors": 2,
+   "color_slots": [
+    "Colour 1",
+    "Colour 2",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Wavelength",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the waves carry the palette along the strip; the troughs go dark.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 255,
+    "c1": [
+     255,
+     120,
+     0
+    ],
+    "c2": [
+     0,
+     0,
+     30
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 27,
+   "name": "Ripples",
+   "summary": "Raindrops on a pond: soft rings spread out and fade.",
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Ripple size",
+   "default_palette_id": 24,
+   "palette_slots": [
+    "Background"
+   ],
+   "palette_note": "With a palette: each ring takes a random palette colour.",
+   "custom1": "Rain (how many of the drops fall; 0: none)",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 128,
+    "palette": 24,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 200,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 28,
+   "name": "Wipe",
+   "summary": "One colour wipes over the other along the strip, then back.",
+   "colors": 2,
+   "color_slots": [
+    "Colour 1",
+    "Colour 2",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Hold (0: none, 255: three quarters of the cycle)",
+   "default_palette_id": 23,
+   "palette_slots": [
+    "Colour 1",
+    "Colour 2"
+   ],
+   "palette_note": "With a palette: with Colours 128 and up, each wipe brings a new palette colour.",
+   "custom1": "Colours (0-127: Colour 1 and 2 alternate, 128-255: a new palette colour each wipe)",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 64,
+    "palette": 23,
+    "c1": [
+     255,
+     0,
+     0
+    ],
+    "c2": [
+     0,
+     150,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 29,
+   "name": "Stripes",
+   "summary": "Hard stripes of colour 1 and colour 2 move along the strip (candy cane).",
+   "colors": 2,
+   "color_slots": [
+    "Colour 1",
+    "Colour 2",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed (0: still)",
+   "intensity": true,
+   "intensity_label": "Stripe size (higher: finer)",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the stripes take the palette's 16 colours in turn, hard-edged as ever.",
+   "custom1": "Share of Colour 1 (128: half)",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 190,
+    "palette": 255,
+    "c1": [
+     255,
+     0,
+     0
+    ],
+    "c2": [
+     255,
+     255,
+     255
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 128,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 30,
+   "name": "Bulbs",
+   "summary": "A string of coloured bulbs; the colours hop along it.",
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Unlit",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Shift speed (0: still)",
+   "intensity": true,
+   "intensity_label": "Spacing (higher: closer bulbs)",
+   "default_palette_id": 3,
+   "palette_slots": [
+    "Unlit"
+   ],
+   "palette_note": "With a palette: the bulbs step through the palette by Colour step; the colours hop along.",
+   "custom1": "Bulb size (share of the spacing, 128: half)",
+   "custom2": "Colour step (64: a quarter of the palette)",
+   "defaults": {
+    "speed": 40,
+    "intensity": 200,
+    "palette": 3,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 128,
+    "custom2": 64
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 31,
+   "name": "Lava Lamp",
+   "summary": "Big soft blobs of palette colour drift and merge.",
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Background",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Blob size",
+   "default_palette_id": 16,
+   "palette_slots": [
+    "Background"
+   ],
+   "palette_note": "With a palette: the three blobs take colours a third apart, turning about once a minute.",
+   "custom1": null,
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 200,
+    "palette": 16,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 0,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 32,
+   "name": "Mosaic Drift",
+   "summary": "Fixed adjoining tiles that slowly melt from one colour to the next.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Colour change speed",
+   "intensity": true,
+   "intensity_label": "Tile size (higher: smaller tiles)",
+   "default_palette_id": 1,
+   "palette_slots": [],
+   "palette_note": "With a palette: each tile melts from one random palette colour to another.",
+   "custom1": "Whiten (mixes neutral white in; 0: none)",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 180,
+    "palette": 1,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 90,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 33,
+   "name": "Silk Weave",
+   "summary": "Two broad ribbons of light slide through each other and turn pearly where they cross.",
+   "colors": 3,
+   "color_slots": [
+    "Ribbon 1",
+    "Ribbon 2",
+    "Ground"
+   ],
+   "speed": true,
+   "speed_label": "Speed",
+   "intensity": true,
+   "intensity_label": "Ribbon spacing (higher: closer)",
+   "default_palette": "own",
+   "palette_slots": [
+    "Ground"
+   ],
+   "palette_note": "With a palette: each ribbon carries the palette along its length, the two half a palette apart.",
+   "custom1": "White at the crossings",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 100,
+    "palette": 255,
+    "c1": [
+     255,
+     150,
+     110
+    ],
+    "c2": [
+     110,
+     160,
+     255
+    ],
+    "c3": [
+     20,
+     12,
+     14
+    ],
+    "custom1": 130,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 34,
+   "name": "Canopy Shade",
+   "summary": "A pale wash with soft leaf-like shadows that breathe and lean a little.",
+   "colors": 2,
+   "color_slots": [
+    "Wash",
+    "Shadow",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Sway speed",
+   "intensity": true,
+   "intensity_label": "Shadow depth",
+   "default_palette": "own",
+   "palette_slots": [],
+   "palette_note": "With a palette: the wash is the palette laid along the strip; the leaf shadows darken it.",
+   "custom1": "Leaf spacing (higher: closer)",
+   "custom2": null,
+   "defaults": {
+    "speed": 100,
+    "intensity": 180,
+    "palette": 255,
+    "c1": [
+     255,
+     236,
+     200
+    ],
+    "c2": [
+     40,
+     70,
+     30
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 150,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 35,
+   "name": "Opal Facets",
+   "summary": "Fixed glass-like facets in palette colours; a pearly reflection rolls across each one.",
+   "colors": 0,
+   "color_slots": [
+    null,
+    null,
+    null
+   ],
+   "speed": true,
+   "speed_label": "Reflection speed",
+   "intensity": true,
+   "intensity_label": "Facet width (higher: narrower)",
+   "default_palette_id": 27,
+   "palette_slots": [],
+   "palette_note": "With a palette: each facet takes a random palette colour.",
+   "custom1": "Reflection strength",
+   "custom2": null,
+   "defaults": {
+    "speed": 110,
+    "intensity": 170,
+    "palette": 27,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 190,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  },
+  {
+   "id": 36,
+   "name": "Quiet Landings",
+   "summary": "One to three soft pearls rise and fall in arcs and touch down without a trail.",
+   "colors": 1,
+   "color_slots": [
+    null,
+    "Ground",
+    null
+   ],
+   "speed": true,
+   "speed_label": "Bounce pace",
+   "intensity": true,
+   "intensity_label": "Height (share of the strip)",
+   "default_palette_id": 24,
+   "palette_slots": [
+    "Ground"
+   ],
+   "palette_note": "With a palette: the pearls take the palette's colours at its start, a third and two thirds.",
+   "custom1": "Pearls (0-85: one, 86-170: two, 171-255: three)",
+   "custom2": null,
+   "defaults": {
+    "speed": 128,
+    "intensity": 160,
+    "palette": 24,
+    "c1": [
+     255,
+     255,
+     255
+    ],
+    "c2": [
+     0,
+     0,
+     0
+    ],
+    "c3": [
+     0,
+     0,
+     0
+    ],
+    "custom1": 128,
+    "custom2": 0
+   },
+   "state_bytes_per_pixel": 0,
+   "origin": "own"
+  }
+ ],
+ "palettes": [
+  {
+   "id": 0,
+   "name": "Rainbow",
+   "origin": "FastLED colorpalettes.cpp, MIT (Daniel Garcia and contributors): RainbowColors_p",
+   "cyclic": true
+  },
+  {
+   "id": 1,
+   "name": "Analogous",
+   "origin": "our own look-alike of the palette of this name (WLED / cpt-city have one): same mood and colour progression, stops chosen by eye from its description, no values copied",
+   "cyclic": false
+  },
+  {
+   "id": 2,
+   "name": "April Night",
+   "origin": "palette by Aircoookie (Christian Schwinne) from WLED, added while WLED was MIT-licensed (Copyright (c) 2016 Christian Schwinne; same stops in v0.14.4); colour stops only",
+   "cyclic": true
+  },
+  {
+   "id": 3,
+   "name": "C9 New",
+   "origin": "palette by Aircoookie (Christian Schwinne) from WLED, added while WLED was MIT-licensed (Copyright (c) 2016 Christian Schwinne; same stops in v0.14.4); colour stops only; derived from Mark Kriegsman's C9 colours (https://gist.github.com/kriegsman/756ea6dcae8e30845b5a)",
+   "cyclic": false
+  },
+  {
+   "id": 4,
+   "name": "Hult",
+   "origin": "our own look-alike of the palette of this name (WLED / cpt-city have one): same mood and colour progression, stops chosen by eye from its description, no values copied",
+   "cyclic": false
+  },
+  {
+   "id": 5,
+   "name": "Magred",
+   "origin": "our own look-alike of the palette of this name (WLED / cpt-city have one): same mood and colour progression, stops chosen by eye from its description, no values copied",
+   "cyclic": false
+  },
+  {
+   "id": 6,
+   "name": "Orange & Teal",
+   "origin": "palette by Aircoookie (Christian Schwinne) from WLED, added while WLED was MIT-licensed (Copyright (c) 2016 Christian Schwinne; same stops in v0.14.4); colour stops only",
+   "cyclic": false
+  },
+  {
+   "id": 7,
+   "name": "Rainbow Bands",
+   "origin": "FastLED colorpalettes.cpp, MIT (Daniel Garcia and contributors): RainbowStripeColors_p",
+   "cyclic": true
+  },
+  {
+   "id": 8,
+   "name": "Retro Clown",
+   "origin": "cpt-city, http://seaviewsensing.com/pub/cpt-city/bhw/bhw1/bhw1_01.c3g: gradient \"bhw1_01\" by Blackheartedwolf (2011), Creative Commons Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/); resampled to 16 entries",
+   "cyclic": false
+  },
+  {
+   "id": 9,
+   "name": "Yelmag",
+   "origin": "our own look-alike of the palette of this name (WLED / cpt-city have one): same mood and colour progression, stops chosen by eye from its description, no values copied",
+   "cyclic": false
+  },
+  {
+   "id": 10,
+   "name": "Party",
+   "origin": "FastLED colorpalettes.cpp, MIT (Daniel Garcia and contributors): PartyColors_p",
+   "cyclic": true
+  },
+  {
+   "id": 11,
+   "name": "Ocean",
+   "origin": "FastLED colorpalettes.cpp, MIT (Daniel Garcia and contributors): OceanColors_p",
+   "cyclic": false
+  },
+  {
+   "id": 12,
+   "name": "Forest",
+   "origin": "FastLED colorpalettes.cpp, MIT (Daniel Garcia and contributors): ForestColors_p",
+   "cyclic": false
+  },
+  {
+   "id": 13,
+   "name": "Lava",
+   "origin": "FastLED colorpalettes.cpp, MIT (Daniel Garcia and contributors): LavaColors_p",
+   "cyclic": false
+  },
+  {
+   "id": 14,
+   "name": "Heat",
+   "origin": "FastLED colorpalettes.cpp, MIT (Daniel Garcia and contributors): HeatColors_p (the black-body ramp of HeatColor)",
+   "cyclic": false
+  },
+  {
+   "id": 15,
+   "name": "Cloud",
+   "origin": "FastLED colorpalettes.cpp, MIT (Daniel Garcia and contributors): CloudColors_p",
+   "cyclic": false
+  },
+  {
+   "id": 16,
+   "name": "Sunset",
+   "origin": "own, made for this firmware (GPL-3.0-or-later)",
+   "cyclic": true
+  },
+  {
+   "id": 17,
+   "name": "Aurora",
+   "origin": "own, made for this firmware (GPL-3.0-or-later)",
+   "cyclic": true
+  },
+  {
+   "id": 18,
+   "name": "Fairy",
+   "origin": "own, made for this firmware (GPL-3.0-or-later)",
+   "cyclic": true
+  },
+  {
+   "id": 19,
+   "name": "Sunrise",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (Sunrise / Sunset: a warm sky from dark to day)",
+   "cyclic": false
+  },
+  {
+   "id": 20,
+   "name": "Candlelight",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (candle flame, amber to warm white)",
+   "cyclic": false
+  },
+  {
+   "id": 21,
+   "name": "Warm White",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (warm whites, about 1900 K - 3000 K; on RGBW strips the white LED carries little of them: auto-white takes min(r, g, b), and a warm white has almost no blue)",
+   "cyclic": true
+  },
+  {
+   "id": 22,
+   "name": "Daylight",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (whites from 2700 K to 6500 K, colour temperatures from the common black-body RGB table; the cool end puts ~30 % of its light on the white LED of RGBW strips)",
+   "cyclic": true
+  },
+  {
+   "id": 23,
+   "name": "Christmas",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (red, green, warm white, gold)",
+   "cyclic": true
+  },
+  {
+   "id": 24,
+   "name": "Winter",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (ice blue and white)",
+   "cyclic": true
+  },
+  {
+   "id": 25,
+   "name": "Halloween",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (orange, purple, green)",
+   "cyclic": true
+  },
+  {
+   "id": 26,
+   "name": "Autumn",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (leaves: rust, orange, gold)",
+   "cyclic": true
+  },
+  {
+   "id": 27,
+   "name": "Pastel",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (soft pink, peach, lemon, mint, sky, lilac)",
+   "cyclic": true
+  },
+  {
+   "id": 28,
+   "name": "Embers",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (glowing coals)",
+   "cyclic": false
+  },
+  {
+   "id": 29,
+   "name": "Rose",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (deep rose to blush)",
+   "cyclic": true
+  },
+  {
+   "id": 30,
+   "name": "Moonlight",
+   "origin": "own, made for this firmware (GPL-3.0-or-later) (night blue to silver)",
+   "cyclic": true
+  }
+ ]
+}

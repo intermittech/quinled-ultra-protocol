@@ -1,0 +1,2834 @@
+{
+  "protocol": "0.3.2-draft",
+  "wire": 3,
+  "vectors": [
+    {
+      "name": "header_normal",
+      "kind": "header",
+      "description": "Normal wire VERSION 3 trailer",
+      "fields": {
+        "flags": 0,
+        "time": 11259375
+      },
+      "hex": "5ad23000abcdefe6"
+    },
+    {
+      "name": "header_return",
+      "kind": "header",
+      "description": "Return-window trailer",
+      "fields": {
+        "flags": 1,
+        "time": 11259375
+      },
+      "hex": "5ad23100abcdef84"
+    },
+    {
+      "name": "slot_set_target19",
+      "kind": "slot",
+      "description": "slot set target19",
+      "fields": {
+        "type": 2,
+        "target": 19,
+        "seq": 66,
+        "flags": 96,
+        "payload": "800012341234123412341234ffffffffffffffffffff0003e8fffe"
+      },
+      "hex": "621342800012341234123412341234ffffffffffffffffffff0003e8fffe5083"
+    },
+    {
+      "name": "slot_set_target239",
+      "kind": "slot",
+      "description": "slot set target239",
+      "fields": {
+        "type": 2,
+        "target": 239,
+        "seq": 67,
+        "flags": 32,
+        "payload": "000000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "22ef430000000000000000000000000000000000000000000000000000007af7"
+    },
+    {
+      "name": "slot_config_channel19",
+      "kind": "slot",
+      "description": "slot config channel19",
+      "fields": {
+        "type": 5,
+        "target": 19,
+        "seq": 68,
+        "flags": 0,
+        "payload": "0c09c4000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0513440c09c4000000000000000000000000000000000000000000000000097e"
+    },
+    {
+      "name": "slot_config_domain1",
+      "kind": "slot",
+      "description": "slot config domain1",
+      "fields": {
+        "type": 5,
+        "target": 255,
+        "seq": 69,
+        "flags": 0,
+        "payload": "2105dc000000000000000000000000000000000000000000000000"
+      },
+      "hex": "05ff452105dc0000000000000000000000000000000000000000000000005738"
+    },
+    {
+      "name": "slot_config_output1_source2",
+      "kind": "slot",
+      "description": "slot config output1 source2",
+      "fields": {
+        "type": 5,
+        "target": 1,
+        "seq": 70,
+        "flags": 0,
+        "payload": "4d0003000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0501464d0003000000000000000000000000000000000000000000000000b4a6"
+    },
+    {
+      "name": "slot_config_input",
+      "kind": "slot",
+      "description": "slot config input",
+      "fields": {
+        "type": 5,
+        "target": 255,
+        "seq": 71,
+        "flags": 0,
+        "payload": "1507d0000000000000000000000000000000000000000000000000"
+      },
+      "hex": "05ff471507d0000000000000000000000000000000000000000000000000c2bb"
+    },
+    {
+      "name": "slot_light_def_base15",
+      "kind": "slot",
+      "description": "slot light def base15",
+      "fields": {
+        "type": 1,
+        "target": 19,
+        "seq": 72,
+        "flags": 0,
+        "payload": "12345003e80000000000000000000000ffffffffffffffffffff0f"
+      },
+      "hex": "01134812345003e80000000000000000000000ffffffffffffffffffff0f1f50"
+    },
+    {
+      "name": "slot_pixel_fx_output1_all",
+      "kind": "slot",
+      "description": "slot pixel fx output1 all",
+      "fields": {
+        "type": 11,
+        "target": 31,
+        "seq": 73,
+        "flags": 0,
+        "payload": "01fffffffe8040ffff000000ff000000ffff00fa000004b0100102"
+      },
+      "hex": "0b1f4901fffffffe8040ffff000000ff000000ffff00fa000004b01001020d94"
+    },
+    {
+      "name": "poll_outputs_bank0",
+      "kind": "slot",
+      "description": "poll outputs bank0",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000101000000000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000101000000000000000000000000000000000000000000000000569b"
+    },
+    {
+      "name": "poll_outputs_bank3",
+      "kind": "slot",
+      "description": "poll outputs bank3",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000101000000000300000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000101000000000300000000000000000000000000000000000000084e"
+    },
+    {
+      "name": "poll_acks_bank3",
+      "kind": "slot",
+      "description": "poll acks bank3",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000102000000000300000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000102000000000300000000000000000000000000000000000000c692"
+    },
+    {
+      "name": "poll_cal_pwm_bank3",
+      "kind": "slot",
+      "description": "poll cal pwm bank3",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000106000000000300000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000106000000000300000000000000000000000000000000000000c063"
+    },
+    {
+      "name": "poll_cal_pixel_output1",
+      "kind": "slot",
+      "description": "poll cal pixel output1",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000106000101000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000106000101000100000000000000000000000000000000000000a3d6"
+    },
+    {
+      "name": "poll_descriptor_part10",
+      "kind": "slot",
+      "description": "poll descriptor part10",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "00010f000a00000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff4200010f000a0000000000000000000000000000000000000000000004cd"
+    },
+    {
+      "name": "poll_identity_target",
+      "kind": "slot",
+      "description": "poll identity target",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000104000200000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000104000200000000000000000000000000000000000000000000dfc8"
+    },
+    {
+      "name": "poll_pixel_output1",
+      "kind": "slot",
+      "description": "poll pixel output1",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000110000100000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff420001100001000001000000000000000000000000000000000000005853"
+    },
+    {
+      "name": "poll_pixel_fx_output1",
+      "kind": "slot",
+      "description": "poll pixel fx output1",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000111000000000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff4200011100000000010000000000000000000000000000000000000078ec"
+    },
+    {
+      "name": "poll_limits_domain1",
+      "kind": "slot",
+      "description": "poll limits domain1",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000112000001000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000112000001000000000000000000000000000000000000000000ee5b"
+    },
+    {
+      "name": "answer_outputs_bank0",
+      "kind": "answer",
+      "description": "answer outputs bank0",
+      "fields": {
+        "page": 1,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00010002000300040005006400c8012c019001f4001f0001"
+      },
+      "hex": "a5010042767300010002000300040005006400c8012c019001f4001f0001b571"
+    },
+    {
+      "name": "answer_outputs_bank3",
+      "kind": "answer",
+      "description": "answer outputs bank3",
+      "fields": {
+        "page": 1,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00010002000300040005006400c8012c019001f4001f0001"
+      },
+      "hex": "a5010042767300010002000300040005006400c8012c019001f4001f0001b571"
+    },
+    {
+      "name": "answer_unsupported_bank",
+      "kind": "answer",
+      "description": "answer unsupported bank",
+      "fields": {
+        "page": 255,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000000000000000000000000000000000000000000000000"
+      },
+      "hex": "a5ff00427673000000000000000000000000000000000000000000000000ff5f"
+    },
+    {
+      "name": "answer_limits_domain1",
+      "kind": "answer",
+      "description": "answer limits domain1",
+      "fields": {
+        "page": 18,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0001013407d005dc05dc032001f40000060005dc00000000"
+      },
+      "hex": "a512004276730001013407d005dc05dc032001f40000060005dc00000000e8dc"
+    },
+    {
+      "name": "answer_pixel_output1",
+      "kind": "answer",
+      "description": "answer pixel output1",
+      "fields": {
+        "page": 16,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000300000258003c0307d007081234000000000000000000"
+      },
+      "hex": "a51000427673000300000258003c0307d0070812340000000000000000001a1c"
+    },
+    {
+      "name": "answer_diag_part2",
+      "kind": "answer",
+      "description": "answer diag part2",
+      "fields": {
+        "page": 13,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0d0100070000000000000000000000000000000000000000"
+      },
+      "hex": "a50d004276730d0100070000000000000000000000000000000000000000737f"
+    },
+    {
+      "name": "answer_pixel_part0",
+      "kind": "answer",
+      "description": "answer pixel part0",
+      "fields": {
+        "page": 16,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "02021901006400020000005a005900010001400003000000"
+      },
+      "hex": "a5100042767302021901006400020000005a0059000100014000030000006410"
+    },
+    {
+      "name": "answer_status_config_crc_targets",
+      "kind": "answer",
+      "description": "answer status config crc targets",
+      "fields": {
+        "page": 0,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0000000000000000000000000000000000000000005e1600"
+      },
+      "hex": "a500004276730000000000000000000000000000000000000000005e16004412"
+    },
+    {
+      "name": "answer_lifetime_65a",
+      "kind": "answer",
+      "description": "answer lifetime 65a",
+      "fields": {
+        "page": 12,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000000000000000000000000000000000082000000000000"
+      },
+      "hex": "a50c00427673000000000000000000000000000000000082000000000000673e"
+    },
+    {
+      "name": "answer_diag_trip_64a_dip_65a",
+      "kind": "answer",
+      "description": "answer diag trip 64a dip 65a",
+      "fields": {
+        "page": 13,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "810000000082000000000000000000000000000000000000"
+      },
+      "hex": "a50d0042767381000000008200000000000000000000000000000000000077cd"
+    },
+    {
+      "name": "answer_power_peak_saturated",
+      "kind": "answer",
+      "description": "answer power peak saturated",
+      "fields": {
+        "page": 8,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00000000000000000000000000000000000000ffff000000"
+      },
+      "hex": "a5080042767300000000000000000000000000000000000000ffff0000004ed3"
+    },
+    {
+      "name": "answer_energy_supply_z",
+      "kind": "answer",
+      "description": "answer energy supply z",
+      "fields": {
+        "page": 11,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000000000000000000000000000000000008ca019c000000"
+      },
+      "hex": "a50b00427673000000000000000000000000000000000008ca019c000000d6b7"
+    },
+    {
+      "name": "answer_health_dark_65a",
+      "kind": "answer",
+      "description": "answer health dark 65a",
+      "fields": {
+        "page": 10,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000000000000000000000000000000007ef4000000000000"
+      },
+      "hex": "a50a00427673000000000000000000000000000000007ef40000000000006e71"
+    },
+    {
+      "name": "answer_pixel_cal_idle_65a",
+      "kind": "answer",
+      "description": "answer pixel cal idle 65a",
+      "fields": {
+        "page": 6,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000000000000007ef4000000000000000000000000000000"
+      },
+      "hex": "a50600427673000000000000007ef400000000000000000000000000000074d0"
+    },
+    {
+      "name": "slot_config_pixel_coefficient_65a",
+      "kind": "slot",
+      "description": "slot config pixel coefficient 65a",
+      "fields": {
+        "type": 5,
+        "target": 0,
+        "seq": 80,
+        "flags": 0,
+        "payload": "44fde8000000000000000000000000000000000000000000000000"
+      },
+      "hex": "05005044fde80000000000000000000000000000000000000000000000002df4"
+    },
+    {
+      "name": "descriptor_nano2",
+      "kind": "descriptor",
+      "description": "Synthetic format example, no production identity or ratings",
+      "fields": {
+        "board": 254,
+        "lights": 2,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "002704012c1801f450070101003001000f"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 3,
+            "value": "00020000070817700800fa00"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206e616e6f32"
+          }
+        ]
+      },
+      "hex": "010b004e89e8fe020401c90111002704012c1801f450070101003001000f020d0f0101f412c01b582710080064030c00020000070817700800fa000811466f726d61742074657374206e616e6f32"
+    },
+    {
+      "name": "target_nano2",
+      "kind": "target",
+      "description": "Immutable target tuple",
+      "fields": {
+        "board": 254,
+        "mcu": 4,
+        "package": 5,
+        "layout": 4,
+        "abi": 3,
+        "features": 3,
+        "variant": 201,
+        "revision": 0,
+        "slot_base": 134238208,
+        "slot_size": 503808
+      },
+      "hex": "fe0405040303c900080050000007b000"
+    },
+    {
+      "name": "boot_info_nano2",
+      "kind": "boot_info",
+      "description": "Protected QDB2 info block",
+      "fields": {
+        "version": 3,
+        "target": "fe0405040303c900080050000007b000",
+        "geometry": "8c1e64",
+        "entry_10ms": 10,
+        "build_id": "30313233343536"
+      },
+      "hex": "5144423203fe0405040303c900080050000007b0008c1e640a30313233343536"
+    },
+    {
+      "name": "identity_part0_nano2",
+      "kind": "answer",
+      "description": "identity part0 nano2",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b000700ff03fe0003004e89e8"
+      },
+      "hex": "a50400427673000102030405060708090a0b000700ff03fe0003004e89e8bd22"
+    },
+    {
+      "name": "identity_part2_nano2",
+      "kind": "answer",
+      "description": "identity part2 nano2",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "fe0405040303c900080050000007b0008c1e6402010a0000"
+      },
+      "hex": "a50400427673fe0405040303c900080050000007b0008c1e6402010a000073f3"
+    },
+    {
+      "name": "descriptor_last_nano2",
+      "kind": "answer",
+      "description": "descriptor last nano2",
+      "fields": {
+        "page": 15,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "206e616e6f32000000000000000000000000000000000000"
+      },
+      "hex": "a50f00427673206e616e6f32000000000000000000000000000000000000afec"
+    },
+    {
+      "name": "descriptor_partial7",
+      "kind": "descriptor",
+      "description": "Synthetic format example, no production identity or ratings",
+      "fields": {
+        "board": 254,
+        "lights": 7,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "002704012c1801f450070101003001000f"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 3,
+            "value": "00050000070817700800fa00"
+          },
+          {
+            "type": 3,
+            "value": "05020000070817700800fa00"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374207061727469616c37"
+          }
+        ]
+      },
+      "hex": "010b005f79fefe070501c90111002704012c1801f450070101003001000f020d0f0101f412c01b582710080064030c00050000070817700800fa00030c05020000070817700800fa000814466f726d61742074657374207061727469616c37"
+    },
+    {
+      "name": "target_partial7",
+      "kind": "target",
+      "description": "Immutable target tuple",
+      "fields": {
+        "board": 254,
+        "mcu": 4,
+        "package": 5,
+        "layout": 4,
+        "abi": 3,
+        "features": 3,
+        "variant": 201,
+        "revision": 0,
+        "slot_base": 134238208,
+        "slot_size": 503808
+      },
+      "hex": "fe0405040303c900080050000007b000"
+    },
+    {
+      "name": "boot_info_partial7",
+      "kind": "boot_info",
+      "description": "Protected QDB2 info block",
+      "fields": {
+        "version": 3,
+        "target": "fe0405040303c900080050000007b000",
+        "geometry": "8c1e64",
+        "entry_10ms": 10,
+        "build_id": "30313233343536"
+      },
+      "hex": "5144423203fe0405040303c900080050000007b0008c1e640a30313233343536"
+    },
+    {
+      "name": "identity_part0_partial7",
+      "kind": "answer",
+      "description": "identity part0 partial7",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b000700ff03fe0003005f79fe"
+      },
+      "hex": "a50400427673000102030405060708090a0b000700ff03fe0003005f79fea847"
+    },
+    {
+      "name": "identity_part2_partial7",
+      "kind": "answer",
+      "description": "identity part2 partial7",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "fe0405040303c900080050000007b0008c1e6402010a0000"
+      },
+      "hex": "a50400427673fe0405040303c900080050000007b0008c1e6402010a000073f3"
+    },
+    {
+      "name": "descriptor_last_partial7",
+      "kind": "answer",
+      "description": "descriptor last partial7",
+      "fields": {
+        "page": 15,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000814466f726d61742074657374207061727469616c3700"
+      },
+      "hex": "a50f00427673000814466f726d61742074657374207061727469616c3700963b"
+    },
+    {
+      "name": "descriptor_local10",
+      "kind": "descriptor",
+      "description": "Synthetic format example, no production identity or ratings",
+      "fields": {
+        "board": 254,
+        "lights": 10,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "000100000000000000000200003002000000280032"
+          },
+          {
+            "type": 1,
+            "value": "010100000000000000000300003002000000280032"
+          },
+          {
+            "type": 1,
+            "value": "020100000000000000000400003002000000280032"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 3,
+            "value": "00050000070817700800fa00"
+          },
+          {
+            "type": 3,
+            "value": "05050000070817700800fa00"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206c6f63616c3130"
+          }
+        ]
+      },
+      "hex": "010b0090f8f3fe0a0701c9011500010000000000000000020000300200000028003201150101000000000000000003000030020000002800320115020100000000000000000400003002000000280032020d0f0101f412c01b582710080064030c00050000070817700800fa00030c05050000070817700800fa000813466f726d61742074657374206c6f63616c3130"
+    },
+    {
+      "name": "target_local10",
+      "kind": "target",
+      "description": "Immutable target tuple",
+      "fields": {
+        "board": 254,
+        "mcu": 4,
+        "package": 5,
+        "layout": 4,
+        "abi": 3,
+        "features": 3,
+        "variant": 201,
+        "revision": 0,
+        "slot_base": 134238208,
+        "slot_size": 503808
+      },
+      "hex": "fe0405040303c900080050000007b000"
+    },
+    {
+      "name": "boot_info_local10",
+      "kind": "boot_info",
+      "description": "Protected QDB2 info block",
+      "fields": {
+        "version": 3,
+        "target": "fe0405040303c900080050000007b000",
+        "geometry": "8c1e64",
+        "entry_10ms": 10,
+        "build_id": "30313233343536"
+      },
+      "hex": "5144423203fe0405040303c900080050000007b0008c1e640a30313233343536"
+    },
+    {
+      "name": "identity_part0_local10",
+      "kind": "answer",
+      "description": "identity part0 local10",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b000700ff03fe00030090f8f3"
+      },
+      "hex": "a50400427673000102030405060708090a0b000700ff03fe00030090f8f35b85"
+    },
+    {
+      "name": "identity_part2_local10",
+      "kind": "answer",
+      "description": "identity part2 local10",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "fe0405040303c900080050000007b0008c1e6402010a0000"
+      },
+      "hex": "a50400427673fe0405040303c900080050000007b0008c1e6402010a000073f3"
+    },
+    {
+      "name": "descriptor_last_local10",
+      "kind": "answer",
+      "description": "descriptor last local10",
+      "fields": {
+        "page": 15,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00fa000813466f726d61742074657374206c6f63616c3130"
+      },
+      "hex": "a50f0042767300fa000813466f726d61742074657374206c6f63616c31301da0"
+    },
+    {
+      "name": "descriptor_analog20",
+      "kind": "descriptor",
+      "description": "Synthetic format example, no production identity or ratings",
+      "fields": {
+        "board": 254,
+        "lights": 20,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "002704012c1801f450070101003001000f"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 3,
+            "value": "00050000070817700800fa00"
+          },
+          {
+            "type": 3,
+            "value": "05050000070817700800fa00"
+          },
+          {
+            "type": 3,
+            "value": "0a050000070817700800fa00"
+          },
+          {
+            "type": 3,
+            "value": "0f050000070817700800fa00"
+          },
+          {
+            "type": 8,
+            "value": "466f726d6174207465737420616e616c6f673230"
+          }
+        ]
+      },
+      "hex": "010b007bd9bcfe140701c90111002704012c1801f450070101003001000f020d0f0101f412c01b582710080064030c00050000070817700800fa00030c05050000070817700800fa00030c0a050000070817700800fa00030c0f050000070817700800fa000814466f726d6174207465737420616e616c6f673230"
+    },
+    {
+      "name": "target_analog20",
+      "kind": "target",
+      "description": "Immutable target tuple",
+      "fields": {
+        "board": 254,
+        "mcu": 4,
+        "package": 5,
+        "layout": 4,
+        "abi": 3,
+        "features": 3,
+        "variant": 201,
+        "revision": 0,
+        "slot_base": 134238208,
+        "slot_size": 503808
+      },
+      "hex": "fe0405040303c900080050000007b000"
+    },
+    {
+      "name": "boot_info_analog20",
+      "kind": "boot_info",
+      "description": "Protected QDB2 info block",
+      "fields": {
+        "version": 3,
+        "target": "fe0405040303c900080050000007b000",
+        "geometry": "8c1e64",
+        "entry_10ms": 10,
+        "build_id": "30313233343536"
+      },
+      "hex": "5144423203fe0405040303c900080050000007b0008c1e640a30313233343536"
+    },
+    {
+      "name": "identity_part0_analog20",
+      "kind": "answer",
+      "description": "identity part0 analog20",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b000700ff03fe0003007bd9bc"
+      },
+      "hex": "a50400427673000102030405060708090a0b000700ff03fe0003007bd9bc87b9"
+    },
+    {
+      "name": "identity_part2_analog20",
+      "kind": "answer",
+      "description": "identity part2 analog20",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "fe0405040303c900080050000007b0008c1e6402010a0000"
+      },
+      "hex": "a50400427673fe0405040303c900080050000007b0008c1e6402010a000073f3"
+    },
+    {
+      "name": "descriptor_last_analog20",
+      "kind": "answer",
+      "description": "descriptor last analog20",
+      "fields": {
+        "page": 15,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "673230000000000000000000000000000000000000000000"
+      },
+      "hex": "a50f00427673673230000000000000000000000000000000000000000000f48a"
+    },
+    {
+      "name": "descriptor_dual_pixel",
+      "kind": "descriptor",
+      "description": "Synthetic format example, no production identity or ratings",
+      "fields": {
+        "board": 254,
+        "lights": 0,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "000100000000000000000200003002000000280032"
+          },
+          {
+            "type": 1,
+            "value": "010100000000000000000300003002000000280032"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 4,
+            "value": "00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400"
+          },
+          {
+            "type": 4,
+            "value": "01000423177007d005dc04b004e20190007f07d0003c0803000201f401f401"
+          },
+          {
+            "type": 7,
+            "value": "2ee02ee000030d400000ea600201"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206475616c5f706978656c"
+          }
+        ]
+      },
+      "hex": "010b00b2bb0efe000701c901150001000000000000000002000030020000002800320115010100000000000000000300003002000000280032020d0f0101f412c01b582710080064041f00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400041f01000423177007d005dc04b004e20190007f07d0003c0803000201f401f401070e2ee02ee000030d400000ea6002010816466f726d61742074657374206475616c5f706978656c"
+    },
+    {
+      "name": "target_dual_pixel",
+      "kind": "target",
+      "description": "Immutable target tuple",
+      "fields": {
+        "board": 254,
+        "mcu": 4,
+        "package": 5,
+        "layout": 4,
+        "abi": 3,
+        "features": 3,
+        "variant": 201,
+        "revision": 0,
+        "slot_base": 134238208,
+        "slot_size": 503808
+      },
+      "hex": "fe0405040303c900080050000007b000"
+    },
+    {
+      "name": "boot_info_dual_pixel",
+      "kind": "boot_info",
+      "description": "Protected QDB2 info block",
+      "fields": {
+        "version": 3,
+        "target": "fe0405040303c900080050000007b000",
+        "geometry": "8c1e64",
+        "entry_10ms": 10,
+        "build_id": "30313233343536"
+      },
+      "hex": "5144423203fe0405040303c900080050000007b0008c1e640a30313233343536"
+    },
+    {
+      "name": "identity_part0_dual_pixel",
+      "kind": "answer",
+      "description": "identity part0 dual pixel",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b000700ff03fe000300b2bb0e"
+      },
+      "hex": "a50400427673000102030405060708090a0b000700ff03fe000300b2bb0ed50e"
+    },
+    {
+      "name": "identity_part2_dual_pixel",
+      "kind": "answer",
+      "description": "identity part2 dual pixel",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "fe0405040303c900080050000007b0008c1e6402010a0000"
+      },
+      "hex": "a50400427673fe0405040303c900080050000007b0008c1e6402010a000073f3"
+    },
+    {
+      "name": "descriptor_last_dual_pixel",
+      "kind": "answer",
+      "description": "descriptor last dual pixel",
+      "fields": {
+        "page": 15,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "6475616c5f706978656c0000000000000000000000000000"
+      },
+      "hex": "a50f004276736475616c5f706978656c0000000000000000000000000000b5a7"
+    },
+    {
+      "name": "descriptor_single_pixel",
+      "kind": "descriptor",
+      "description": "Synthetic format example, no production identity or ratings",
+      "fields": {
+        "board": 254,
+        "lights": 0,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "002704012c1801f450070101003001000f"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 4,
+            "value": "00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400"
+          },
+          {
+            "type": 7,
+            "value": "2ee02ee000030d400000ea600101"
+          },
+          {
+            "type": 8,
+            "value": "466f726d617420746573742073696e676c655f706978656c"
+          }
+        ]
+      },
+      "hex": "010b007805f0fe000501c90111002704012c1801f450070101003001000f020d0f0101f412c01b582710080064041f00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400070e2ee02ee000030d400000ea6001010818466f726d617420746573742073696e676c655f706978656c"
+    },
+    {
+      "name": "target_single_pixel",
+      "kind": "target",
+      "description": "Immutable target tuple",
+      "fields": {
+        "board": 254,
+        "mcu": 4,
+        "package": 5,
+        "layout": 4,
+        "abi": 3,
+        "features": 3,
+        "variant": 201,
+        "revision": 0,
+        "slot_base": 134238208,
+        "slot_size": 503808
+      },
+      "hex": "fe0405040303c900080050000007b000"
+    },
+    {
+      "name": "boot_info_single_pixel",
+      "kind": "boot_info",
+      "description": "Protected QDB2 info block",
+      "fields": {
+        "version": 3,
+        "target": "fe0405040303c900080050000007b000",
+        "geometry": "8c1e64",
+        "entry_10ms": 10,
+        "build_id": "30313233343536"
+      },
+      "hex": "5144423203fe0405040303c900080050000007b0008c1e640a30313233343536"
+    },
+    {
+      "name": "identity_part0_single_pixel",
+      "kind": "answer",
+      "description": "identity part0 single pixel",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b000700ff03fe0003007805f0"
+      },
+      "hex": "a50400427673000102030405060708090a0b000700ff03fe0003007805f007eb"
+    },
+    {
+      "name": "identity_part2_single_pixel",
+      "kind": "answer",
+      "description": "identity part2 single pixel",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "fe0405040303c900080050000007b0008c1e6402010a0000"
+      },
+      "hex": "a50400427673fe0405040303c900080050000007b0008c1e6402010a000073f3"
+    },
+    {
+      "name": "descriptor_last_single_pixel",
+      "kind": "answer",
+      "description": "descriptor last single pixel",
+      "fields": {
+        "page": 15,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "466f726d617420746573742073696e676c655f706978656c"
+      },
+      "hex": "a50f00427673466f726d617420746573742073696e676c655f706978656c4f46"
+    },
+    {
+      "name": "descriptor_over255_unknown_tlv",
+      "kind": "descriptor",
+      "description": "u16 length beyond 255 and host skip of unknown type 200",
+      "fields": {
+        "board": 254,
+        "lights": 0,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "000100000000000000000200003002000000280032"
+          },
+          {
+            "type": 1,
+            "value": "010100000000000000000300003002000000280032"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 4,
+            "value": "00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400"
+          },
+          {
+            "type": 4,
+            "value": "01000423177007d005dc04b004e20190007f07d0003c0803000201f401f401"
+          },
+          {
+            "type": 7,
+            "value": "2ee02ee000030d400000ea600201"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206475616c5f706978656c"
+          },
+          {
+            "type": 200,
+            "value": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "hex": "010b015411bdfe000801c901150001000000000000000002000030020000002800320115010100000000000000000300003002000000280032020d0f0101f412c01b582710080064041f00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400041f01000423177007d005dc04b004e20190007f07d0003c0803000201f401f401070e2ee02ee000030d400000ea6002010816466f726d61742074657374206475616c5f706978656cc8a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "descriptor_known_extended",
+      "kind": "descriptor",
+      "description": "Known LINK prefix plus appended tail must remain usable",
+      "fields": {
+        "board": 254,
+        "lights": 0,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "000100000000000000000200003002000000280032aabbcc"
+          },
+          {
+            "type": 1,
+            "value": "010100000000000000000300003002000000280032"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 4,
+            "value": "00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400"
+          },
+          {
+            "type": 4,
+            "value": "01000423177007d005dc04b004e20190007f07d0003c0803000201f401f401"
+          },
+          {
+            "type": 7,
+            "value": "2ee02ee000030d400000ea600201"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206475616c5f706978656c"
+          },
+          {
+            "type": 200,
+            "value": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "hex": "010b015759d6fe000801c90118000100000000000000000200003002000000280032aabbcc0115010100000000000000000300003002000000280032020d0f0101f412c01b582710080064041f00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400041f01000423177007d005dc04b004e20190007f07d0003c0803000201f401f401070e2ee02ee000030d400000ea6002010816466f726d61742074657374206475616c5f706978656cc8a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "descriptor_sense_10a_board",
+      "kind": "descriptor",
+      "description": "10 A board can declare 16.5 A ADC full scale without changing transport",
+      "fields": {
+        "board": 254,
+        "lights": 0,
+        "flags": 0,
+        "variant": 0,
+        "records": [
+          {
+            "type": 2,
+            "value": "0f0101f412c027100000080300"
+          },
+          {
+            "type": 5,
+            "value": "000100ff01004074"
+          },
+          {
+            "type": 8,
+            "value": "53796e7468657469632073656e7365"
+          }
+        ]
+      },
+      "hex": "010b0035e8a6fe00030000020d0f0101f412c0271000000803000508000100ff01004074080f53796e7468657469632073656e7365"
+    },
+    {
+      "name": "image_v407_range",
+      "kind": "image",
+      "description": "64-byte image descriptor, full u8 revision range and >64 KiB body",
+      "fields": {
+        "record_format": 2,
+        "wire": 3,
+        "descriptor_format": 1,
+        "rev_min": 0,
+        "rev_max": 255,
+        "board": 254,
+        "mcu": 4,
+        "package": 5,
+        "layout": 4,
+        "abi": 3,
+        "features": 3,
+        "variant": 201,
+        "min_bl": 3,
+        "firmware": 459007,
+        "length": 503808,
+        "body_crc": 305419896,
+        "load": 134238208,
+        "entry": 134238210,
+        "build_id": "000102030405060708090a0b0c0d0e0f"
+      },
+      "hex": "51445536020000fffe0405040303c903000700ff0007b00012345678080050000800500202030100000102030405060708090a0b0c0d0e0f000000001cc43b39"
+    },
+    {
+      "name": "image_future_app_formats",
+      "kind": "image",
+      "description": "ABI 3 accepts future app-owned record, wire and descriptor formats",
+      "fields": {
+        "record_format": 3,
+        "wire": 4,
+        "descriptor_format": 2,
+        "rev_min": 0,
+        "rev_max": 255,
+        "board": 254,
+        "mcu": 4,
+        "package": 5,
+        "layout": 4,
+        "abi": 3,
+        "features": 3,
+        "variant": 201,
+        "min_bl": 3,
+        "firmware": 459007,
+        "length": 503808,
+        "body_crc": 305419896,
+        "load": 134238208,
+        "entry": 134238210,
+        "build_id": "000102030405060708090a0b0c0d0e0f"
+      },
+      "hex": "51445536020000fffe0405040303c903000700ff0007b00012345678080050000800500203040200000102030405060708090a0b0c0d0e0f0000000000a6b0b5"
+    },
+    {
+      "name": "answer_fw_update_confirmed",
+      "kind": "answer",
+      "description": "answer fw update confirmed",
+      "fields": {
+        "page": 5,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "01070100000700ff0007b000123456781cc43b3900000000"
+      },
+      "hex": "a5050042767301070100000700ff0007b000123456781cc43b39000000009060"
+    },
+    {
+      "name": "update_announce0",
+      "kind": "update",
+      "description": "update announce0",
+      "fields": {
+        "opcode": 129,
+        "session": 7,
+        "index": 0,
+        "flags": 0,
+        "data": "51445536020000fffe0405040303c903000700ff0007b0001234567808005000",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "81070000000051445536020000fffe0405040303c903000700ff0007b00012345678080050003aae5ad23800abcdefff"
+    },
+    {
+      "name": "update_announce1",
+      "kind": "update",
+      "description": "update announce1",
+      "fields": {
+        "opcode": 129,
+        "session": 7,
+        "index": 1,
+        "flags": 0,
+        "data": "0800500202030100000102030405060708090a0b0c0d0e0f000000001cc43b39",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "8107000100000800500202030100000102030405060708090a0b0c0d0e0f000000001cc43b39eb9e5ad23800abcdefff"
+    },
+    {
+      "name": "update_data_index65535",
+      "kind": "update",
+      "description": "update data index65535",
+      "fields": {
+        "opcode": 130,
+        "session": 7,
+        "index": 65535,
+        "flags": 0,
+        "data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "8207ffff0000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f3a645ad23800abcdefff"
+    },
+    {
+      "name": "update_end",
+      "kind": "update",
+      "description": "update end",
+      "fields": {
+        "opcode": 131,
+        "session": 7,
+        "index": 0,
+        "flags": 0,
+        "data": "123456780007b000000000000000000000000000000000000000000000000000",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "830700000000123456780007b00000000000000000000000000000000000000000000000000067555ad23800abcdefff"
+    },
+    {
+      "name": "update_select",
+      "kind": "update",
+      "description": "update select",
+      "fields": {
+        "opcode": 135,
+        "session": 7,
+        "index": 0,
+        "flags": 0,
+        "data": "000102030405060708090a0bfe0405040303c900080050000007b00000000000",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "870700000000000102030405060708090a0bfe0405040303c900080050000007b0000000000019c95ad23800abcdefff"
+    },
+    {
+      "name": "update_status_poll",
+      "kind": "update",
+      "description": "update status poll",
+      "fields": {
+        "opcode": 134,
+        "session": 7,
+        "index": 0,
+        "flags": 0,
+        "data": "000102030405060708090a0b0001020000000000000000000000000000000000",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "860700000000000102030405060708090a0b00010200000000000000000000000000000000004a105ad23900abcdef9d"
+    },
+    {
+      "name": "update_status_busy",
+      "kind": "answer",
+      "description": "update status busy",
+      "fields": {
+        "page": 134,
+        "index": 0,
+        "flags": 0,
+        "seq": 7,
+        "uid16": 30323,
+        "data": "01020000070200000000010000000100000000c812345678"
+      },
+      "hex": "a5860007767301020000070200000000010000000100000000c81234567827d4"
+    },
+    {
+      "name": "update_status_ready",
+      "kind": "answer",
+      "description": "update status ready",
+      "fields": {
+        "page": 134,
+        "index": 0,
+        "flags": 0,
+        "seq": 7,
+        "uid16": 30323,
+        "data": "010300080702000000000100000001000000000012345678"
+      },
+      "hex": "a58600077673010300080702000000000100000001000000000012345678bc3c"
+    },
+    {
+      "name": "answer_outputs_nano2",
+      "kind": "answer",
+      "description": "answer outputs nano2",
+      "fields": {
+        "page": 1,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000100020000000000000064006400000000000003030001"
+      },
+      "hex": "a501004276730001000200000000000000640064000000000000030300019978"
+    },
+    {
+      "name": "poll_outputs_nano2",
+      "kind": "slot",
+      "description": "poll outputs nano2",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000101000000000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000101000000000000000000000000000000000000000000000000569b"
+    },
+    {
+      "name": "answer_acks_nano2",
+      "kind": "answer",
+      "description": "answer acks nano2",
+      "fields": {
+        "page": 2,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000000000000000000000000000000000000007fc0000000"
+      },
+      "hex": "a50200427673000000000000000000000000000000000000007fc0000000923e"
+    },
+    {
+      "name": "answer_outputs_partial7",
+      "kind": "answer",
+      "description": "answer outputs partial7",
+      "fields": {
+        "page": 1,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000100020000000000000064006400000000000003030001"
+      },
+      "hex": "a501004276730001000200000000000000640064000000000000030300019978"
+    },
+    {
+      "name": "poll_outputs_partial7",
+      "kind": "slot",
+      "description": "poll outputs partial7",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000101000000000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff420001010000000001000000000000000000000000000000000000006328"
+    },
+    {
+      "name": "answer_acks_partial7",
+      "kind": "answer",
+      "description": "answer acks partial7",
+      "fields": {
+        "page": 2,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000000000000000000000000000000000000007fc0000000"
+      },
+      "hex": "a50200427673000000000000000000000000000000000000007fc0000000923e"
+    },
+    {
+      "name": "answer_outputs_local10",
+      "kind": "answer",
+      "description": "answer outputs local10",
+      "fields": {
+        "page": 1,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00010002000300040005006400640064006400641f1f0001"
+      },
+      "hex": "a5010042767300010002000300040005006400640064006400641f1f000179e5"
+    },
+    {
+      "name": "poll_outputs_local10",
+      "kind": "slot",
+      "description": "poll outputs local10",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000101000000000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff420001010000000001000000000000000000000000000000000000006328"
+    },
+    {
+      "name": "answer_acks_local10",
+      "kind": "answer",
+      "description": "answer acks local10",
+      "fields": {
+        "page": 2,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000000000000000000000000000000000000000000000000"
+      },
+      "hex": "a5020042767300000000000000000000000000000000000000000000000059e5"
+    },
+    {
+      "name": "answer_link_stats",
+      "kind": "answer",
+      "description": "answer link stats",
+      "fields": {
+        "page": 19,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0001031d012c01450139039803b603aa0200020000000007"
+      },
+      "hex": "a513004276730001031d012c01450139039803b603aa0200020000000007471e"
+    },
+    {
+      "name": "poll_link_stats",
+      "kind": "slot",
+      "description": "poll link stats",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000113020000000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000113020000000000000000000000000000000000000000000000a831"
+    },
+    {
+      "name": "answer_link_context_0",
+      "kind": "answer",
+      "description": "answer link context 0",
+      "fields": {
+        "page": 19,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0000030f000704d804ec012e03b4000c0000000000c80000"
+      },
+      "hex": "a513004276730000030f000704d804ec012e03b4000c0000000000c80000e8d6"
+    },
+    {
+      "name": "answer_link_context_1",
+      "kind": "answer",
+      "description": "answer link context 1",
+      "fields": {
+        "page": 19,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0001030f00070679068d019704ec000c0000000000c80000"
+      },
+      "hex": "a513004276730001030f00070679068d019704ec000c0000000000c800008396"
+    },
+    {
+      "name": "answer_link_context_2",
+      "kind": "answer",
+      "description": "answer link context 2",
+      "fields": {
+        "page": 19,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0002030f000709ba09ce0267075d000c0000000000c80000"
+      },
+      "hex": "a513004276730002030f000709ba09ce0267075d000c0000000000c80000d619"
+    },
+    {
+      "name": "answer_link_context_3",
+      "kind": "answer",
+      "description": "answer link context 3",
+      "fields": {
+        "page": 19,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0003030f0007137e139204d80eb0000c0000000000c80000"
+      },
+      "hex": "a513004276730003030f0007137e139204d80eb0000c0000000000c8000031c6"
+    },
+    {
+      "name": "poll_link_context",
+      "kind": "slot",
+      "description": "poll link context",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000113020000010000000000000000000000000000000000000000"
+      },
+      "hex": "07ff420001130200000100000000000000000000000000000000000000007dc7"
+    },
+    {
+      "name": "pixel_begin",
+      "kind": "slot",
+      "description": "pixel begin",
+      "fields": {
+        "type": 12,
+        "target": 0,
+        "seq": 9,
+        "flags": 0,
+        "payload": "000000001e35540000000000000000000000000000000000000000"
+      },
+      "hex": "0c0009000000001e35540000000000000000000000000000000000000000dff0"
+    },
+    {
+      "name": "pixel_chunk0",
+      "kind": "slot",
+      "description": "pixel chunk0",
+      "fields": {
+        "type": 12,
+        "target": 0,
+        "seq": 9,
+        "flags": 0,
+        "payload": "010000000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "0c0009010000000102030405060708090a0b0c0d0e0f101112131415161707a6"
+    },
+    {
+      "name": "pixel_chunk1",
+      "kind": "slot",
+      "description": "pixel chunk1",
+      "fields": {
+        "type": 12,
+        "target": 0,
+        "seq": 9,
+        "flags": 0,
+        "payload": "01001818191a1b1c1d000000000000000000000000000000000000"
+      },
+      "hex": "0c000901001818191a1b1c1d000000000000000000000000000000000000d128"
+    },
+    {
+      "name": "pixel_commit",
+      "kind": "slot",
+      "description": "pixel commit",
+      "fields": {
+        "type": 12,
+        "target": 0,
+        "seq": 9,
+        "flags": 0,
+        "payload": "02001e000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0c000902001e000000000000000000000000000000000000000000000000e7a7"
+    },
+    {
+      "name": "slot_set_flags_0",
+      "kind": "slot",
+      "description": "slot set flags 0",
+      "fields": {
+        "type": 2,
+        "target": 239,
+        "seq": 255,
+        "flags": 0,
+        "payload": "000100000001000200030004000500060007000800090000018000"
+      },
+      "hex": "02efff000100000001000200030004000500060007000800090000018000ed7d"
+    },
+    {
+      "name": "slot_set_flags_32",
+      "kind": "slot",
+      "description": "slot set flags 32",
+      "fields": {
+        "type": 2,
+        "target": 239,
+        "seq": 255,
+        "flags": 32,
+        "payload": "000100000001000200030004000500060007000800090000018000"
+      },
+      "hex": "22efff000100000001000200030004000500060007000800090000018000debc"
+    },
+    {
+      "name": "slot_set_flags_64",
+      "kind": "slot",
+      "description": "slot set flags 64",
+      "fields": {
+        "type": 2,
+        "target": 239,
+        "seq": 255,
+        "flags": 64,
+        "payload": "000100000001000200030004000500060007000800090000018000"
+      },
+      "hex": "42efff0001000000010002000300040005000600070008000900000180008aff"
+    },
+    {
+      "name": "slot_set_flags_96",
+      "kind": "slot",
+      "description": "slot set flags 96",
+      "fields": {
+        "type": 2,
+        "target": 239,
+        "seq": 255,
+        "flags": 96,
+        "payload": "000100000001000200030004000500060007000800090000018000"
+      },
+      "hex": "62efff000100000001000200030004000500060007000800090000018000b93e"
+    },
+    {
+      "name": "unknown_reserved_opcode_03",
+      "kind": "slot",
+      "description": "unknown reserved opcode 03",
+      "fields": {
+        "type": 3,
+        "target": 0,
+        "seq": 1,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "03000100000000000000000000000000000000000000000000000000000015f0"
+    },
+    {
+      "name": "unknown_reserved_opcode_04",
+      "kind": "slot",
+      "description": "unknown reserved opcode 04",
+      "fields": {
+        "type": 4,
+        "target": 0,
+        "seq": 1,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0400010000000000000000000000000000000000000000000000000000002aad"
+    },
+    {
+      "name": "unknown_reserved_opcode_0a",
+      "kind": "slot",
+      "description": "unknown reserved opcode 0a",
+      "fields": {
+        "type": 10,
+        "target": 0,
+        "seq": 1,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0a00010000000000000000000000000000000000000000000000000000005417"
+    },
+    {
+      "name": "slot_nop",
+      "kind": "slot",
+      "description": "slot nop",
+      "fields": {
+        "type": 0,
+        "target": 0,
+        "seq": 0,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0000000000000000000000000000000000000000000000000000000000002a45"
+    },
+    {
+      "name": "slot_training_55",
+      "kind": "slot",
+      "description": "slot training 55",
+      "fields": {
+        "type": 0,
+        "target": 0,
+        "seq": 0,
+        "flags": 0,
+        "payload": "555555555555555555555555555555555555555555555555555555"
+      },
+      "hex": "00000055555555555555555555555555555555555555555555555555555584de"
+    },
+    {
+      "name": "slot_training_aa",
+      "kind": "slot",
+      "description": "slot training aa",
+      "fields": {
+        "type": 0,
+        "target": 0,
+        "seq": 0,
+        "flags": 0,
+        "payload": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "hex": "000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa6752"
+    },
+    {
+      "name": "slot_training_00",
+      "kind": "slot",
+      "description": "slot training 00",
+      "fields": {
+        "type": 0,
+        "target": 0,
+        "seq": 0,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0000000000000000000000000000000000000000000000000000000000002a45"
+    },
+    {
+      "name": "slot_training_ff",
+      "kind": "slot",
+      "description": "slot training ff",
+      "fields": {
+        "type": 0,
+        "target": 0,
+        "seq": 0,
+        "flags": 0,
+        "payload": "ffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "hex": "000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffc9c9"
+    },
+    {
+      "name": "slot_light_opt_target239",
+      "kind": "slot",
+      "description": "slot light opt target239",
+      "fields": {
+        "type": 9,
+        "target": 239,
+        "seq": 12,
+        "flags": 0,
+        "payload": "0306020e780e780fa000000e7840000bb880000960ffff06020000"
+      },
+      "hex": "09ef0c0306020e780e780fa000000e7840000bb880000960ffff060200008e38"
+    },
+    {
+      "name": "slot_scene_0",
+      "kind": "slot",
+      "description": "slot scene 0",
+      "fields": {
+        "type": 8,
+        "target": 239,
+        "seq": 20,
+        "flags": 0,
+        "payload": "000300640000000100020003000400050006000700080009000000"
+      },
+      "hex": "08ef140003006400000001000200030004000500060007000800090000000c59"
+    },
+    {
+      "name": "slot_scene_1",
+      "kind": "slot",
+      "description": "slot scene 1",
+      "fields": {
+        "type": 8,
+        "target": 239,
+        "seq": 20,
+        "flags": 0,
+        "payload": "010300640000000100020003000400050006000700080009000000"
+      },
+      "hex": "08ef14010300640000000100020003000400050006000700080009000000193f"
+    },
+    {
+      "name": "slot_identify_0",
+      "kind": "slot",
+      "description": "slot identify 0",
+      "fields": {
+        "type": 6,
+        "target": 255,
+        "seq": 0,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "06ff000000000000000000000000000000000000000000000000000000004b50"
+    },
+    {
+      "name": "slot_identify_1",
+      "kind": "slot",
+      "description": "slot identify 1",
+      "fields": {
+        "type": 6,
+        "target": 255,
+        "seq": 1,
+        "flags": 0,
+        "payload": "010000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "06ff010100000000000000000000000000000000000000000000000000007aa2"
+    },
+    {
+      "name": "slot_identify_2",
+      "kind": "slot",
+      "description": "slot identify 2",
+      "fields": {
+        "type": 6,
+        "target": 255,
+        "seq": 2,
+        "flags": 0,
+        "payload": "020500000000000000000000000000000000000000000000000000"
+      },
+      "hex": "06ff020205000000000000000000000000000000000000000000000000001513"
+    },
+    {
+      "name": "slot_identify_3",
+      "kind": "slot",
+      "description": "slot identify 3",
+      "fields": {
+        "type": 6,
+        "target": 255,
+        "seq": 3,
+        "flags": 0,
+        "payload": "030000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "06ff030300000000000000000000000000000000000000000000000000001946"
+    },
+    {
+      "name": "slot_identify_4",
+      "kind": "slot",
+      "description": "slot identify 4",
+      "fields": {
+        "type": 6,
+        "target": 255,
+        "seq": 4,
+        "flags": 0,
+        "payload": "040000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "06ff040400000000000000000000000000000000000000000000000000008c98"
+    },
+    {
+      "name": "slot_identify_5",
+      "kind": "slot",
+      "description": "slot identify 5",
+      "fields": {
+        "type": 6,
+        "target": 255,
+        "seq": 5,
+        "flags": 0,
+        "payload": "050000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "06ff05050000000000000000000000000000000000000000000000000000bd6a"
+    },
+    {
+      "name": "slot_identify_7",
+      "kind": "slot",
+      "description": "slot identify 7",
+      "fields": {
+        "type": 6,
+        "target": 255,
+        "seq": 7,
+        "flags": 0,
+        "payload": "070000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "06ff07070000000000000000000000000000000000000000000000000000de8e"
+    },
+    {
+      "name": "poll_calibration_bank0",
+      "kind": "slot",
+      "description": "poll calibration bank0",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "000106020000000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff2a000106020000000000000000000000000000000000000000000000a21c"
+    },
+    {
+      "name": "answer_calibration_bank0",
+      "kind": "answer",
+      "description": "answer calibration bank0",
+      "fields": {
+        "page": 6,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "a50600427673000102030405060708090a0b0c0d0e0f1011121314151617ee0a"
+    },
+    {
+      "name": "poll_cal_test_bank0",
+      "kind": "slot",
+      "description": "poll cal test bank0",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "000107020100000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff2a00010702010000000000000000000000000000000000000000000082a3"
+    },
+    {
+      "name": "answer_cal_test_bank0",
+      "kind": "answer",
+      "description": "answer cal test bank0",
+      "fields": {
+        "page": 7,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "a50700427673000102030405060708090a0b0c0d0e0f10111213141516171eec"
+    },
+    {
+      "name": "poll_health_bank0",
+      "kind": "slot",
+      "description": "poll health bank0",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "00010a020000000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff2a00010a020000000000000000000000000000000000000000000000a90f"
+    },
+    {
+      "name": "answer_health_bank0",
+      "kind": "answer",
+      "description": "answer health bank0",
+      "fields": {
+        "page": 10,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "a50a00427673000102030405060708090a0b0c0d0e0f1011121314151617ea26"
+    },
+    {
+      "name": "poll_diag_bank0",
+      "kind": "slot",
+      "description": "poll diag bank0",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "00010d020100000000000000000000000000000000000000000000"
+      },
+      "hex": "07ff2a00010d0201000000000000000000000000000000000000000000000429"
+    },
+    {
+      "name": "answer_diag_bank0",
+      "kind": "answer",
+      "description": "answer diag bank0",
+      "fields": {
+        "page": 13,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "a50d00427673000102030405060708090a0b0c0d0e0f101112131415161718d6"
+    },
+    {
+      "name": "poll_calibration_bank3",
+      "kind": "slot",
+      "description": "poll calibration bank3",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "000106020000000300000000000000000000000000000000000000"
+      },
+      "hex": "07ff2a000106020000000300000000000000000000000000000000000000fcc9"
+    },
+    {
+      "name": "answer_calibration_bank3",
+      "kind": "answer",
+      "description": "answer calibration bank3",
+      "fields": {
+        "page": 6,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "a50600427673000102030405060708090a0b0c0d0e0f1011121314151617ee0a"
+    },
+    {
+      "name": "poll_cal_test_bank3",
+      "kind": "slot",
+      "description": "poll cal test bank3",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "000107020100000300000000000000000000000000000000000000"
+      },
+      "hex": "07ff2a000107020100000300000000000000000000000000000000000000dc76"
+    },
+    {
+      "name": "answer_cal_test_bank3",
+      "kind": "answer",
+      "description": "answer cal test bank3",
+      "fields": {
+        "page": 7,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "a50700427673000102030405060708090a0b0c0d0e0f10111213141516171eec"
+    },
+    {
+      "name": "poll_health_bank3",
+      "kind": "slot",
+      "description": "poll health bank3",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "00010a020000000300000000000000000000000000000000000000"
+      },
+      "hex": "07ff2a00010a020000000300000000000000000000000000000000000000f7da"
+    },
+    {
+      "name": "answer_health_bank3",
+      "kind": "answer",
+      "description": "answer health bank3",
+      "fields": {
+        "page": 10,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "a50a00427673000102030405060708090a0b0c0d0e0f1011121314151617ea26"
+    },
+    {
+      "name": "poll_diag_bank3",
+      "kind": "slot",
+      "description": "poll diag bank3",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "00010d020100000300000000000000000000000000000000000000"
+      },
+      "hex": "07ff2a00010d0201000003000000000000000000000000000000000000005afc"
+    },
+    {
+      "name": "answer_diag_bank3",
+      "kind": "answer",
+      "description": "answer diag bank3",
+      "fields": {
+        "page": 13,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "000102030405060708090a0b0c0d0e0f1011121314151617"
+      },
+      "hex": "a50d00427673000102030405060708090a0b0c0d0e0f101112131415161718d6"
+    },
+    {
+      "name": "identity_features_all_words",
+      "kind": "answer",
+      "description": "identity features all words",
+      "fields": {
+        "page": 4,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "12345678876543210000000180000000ffffffff55aa55aa"
+      },
+      "hex": "a5040042767312345678876543210000000180000000ffffffff55aa55aa66ae"
+    },
+    {
+      "name": "update_abort",
+      "kind": "update",
+      "description": "update abort",
+      "fields": {
+        "opcode": 132,
+        "session": 7,
+        "index": 0,
+        "flags": 0,
+        "data": "0000000000000000000000000000000000000000000000000000000000000000",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "840700000000000000000000000000000000000000000000000000000000000000000000000012b65ad23800abcdefff"
+    },
+    {
+      "name": "update_ping",
+      "kind": "update",
+      "description": "update ping",
+      "fields": {
+        "opcode": 133,
+        "session": 7,
+        "index": 0,
+        "flags": 0,
+        "data": "0000000000000000000000000000000000000000000000000000000000000000",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "8507000000000000000000000000000000000000000000000000000000000000000000000000f62d5ad23800abcdefff"
+    },
+    {
+      "name": "update_status_committed",
+      "kind": "answer",
+      "description": "update status committed",
+      "fields": {
+        "page": 134,
+        "index": 0,
+        "flags": 0,
+        "seq": 7,
+        "uid16": 30323,
+        "data": "01060000070200000007b0000007b0000000000012345678"
+      },
+      "hex": "a5860007767301060000070200000007b0000007b000000000001234567892ab"
+    },
+    {
+      "name": "update_commit_ack",
+      "kind": "update",
+      "description": "update commit ack",
+      "fields": {
+        "opcode": 133,
+        "session": 7,
+        "index": 0,
+        "flags": 0,
+        "data": "0000000000000000000000000000000000000000000000000000000000000000",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "8507000000000000000000000000000000000000000000000000000000000000000000000000f62d5ad23800abcdefff"
+    },
+    {
+      "name": "update_idle_ping",
+      "kind": "update",
+      "description": "Only session-zero idle PING can confirm an application",
+      "fields": {
+        "opcode": 133,
+        "session": 0,
+        "index": 0,
+        "flags": 0,
+        "data": "0000000000000000000000000000000000000000000000000000000000000000",
+        "time": 11259375,
+        "pass": 0
+      },
+      "hex": "85000000000000000000000000000000000000000000000000000000000000000000000000001b9e5ad23800abcdefff"
+    },
+    {
+      "name": "slot_config_target255_page0",
+      "kind": "slot",
+      "description": "slot config target255 page0",
+      "fields": {
+        "type": 5,
+        "target": 255,
+        "seq": 42,
+        "flags": 0,
+        "payload": "0100080203e803000204000a05000106000507000408000309001e"
+      },
+      "hex": "05ff2a0100080203e803000204000a05000106000507000408000309001e2c13"
+    },
+    {
+      "name": "slot_config_target255_page1",
+      "kind": "slot",
+      "description": "slot config target255 page1",
+      "fields": {
+        "type": 5,
+        "target": 255,
+        "seq": 51,
+        "flags": 0,
+        "payload": "0a000215fde816000317000118010a21fde822fde823fde824fde8"
+      },
+      "hex": "05ff330a000215fde816000317000118010a21fde822fde823fde824fde859c2"
+    },
+    {
+      "name": "slot_config_target255_page2",
+      "kind": "slot",
+      "description": "slot config target255 page2",
+      "fields": {
+        "type": 5,
+        "target": 255,
+        "seq": 60,
+        "flags": 0,
+        "payload": "25fde826fde827fde828fde829fde82afde82bfde82cfde82dfde8"
+      },
+      "hex": "05ff3c25fde826fde827fde828fde829fde82afde82bfde82cfde82dfde8551e"
+    },
+    {
+      "name": "slot_config_target255_page3",
+      "kind": "slot",
+      "description": "slot config target255 page3",
+      "fields": {
+        "type": 5,
+        "target": 255,
+        "seq": 69,
+        "flags": 0,
+        "payload": "2efde8000000000000000000000000000000000000000000000000"
+      },
+      "hex": "05ff452efde8000000000000000000000000000000000000000000000000a13e"
+    },
+    {
+      "name": "slot_config_target239_page0",
+      "kind": "slot",
+      "description": "slot config target239 page0",
+      "fields": {
+        "type": 5,
+        "target": 239,
+        "seq": 42,
+        "flags": 0,
+        "payload": "0bfde80cfde8000000000000000000000000000000000000000000"
+      },
+      "hex": "05ef2a0bfde80cfde8000000000000000000000000000000000000000000eb97"
+    },
+    {
+      "name": "slot_config_target14_page0",
+      "kind": "slot",
+      "description": "slot config target14 page0",
+      "fields": {
+        "type": 5,
+        "target": 14,
+        "seq": 42,
+        "flags": 0,
+        "payload": "40000041000042006443003c44001445fde8460002470000480000"
+      },
+      "hex": "050e2a40000041000042006443003c44001445fde8460002470000480000cab3"
+    },
+    {
+      "name": "slot_config_target14_page1",
+      "kind": "slot",
+      "description": "slot config target14 page1",
+      "fields": {
+        "type": 5,
+        "target": 14,
+        "seq": 51,
+        "flags": 0,
+        "payload": "4900034a001e4b00024c00034d0000000000000000000000000000"
+      },
+      "hex": "050e334900034a001e4b00024c00034d00000000000000000000000000002988"
+    },
+    {
+      "name": "slot_pixel_fx_output14_segment14",
+      "kind": "slot",
+      "description": "slot pixel fx output14 segment14",
+      "fields": {
+        "type": 11,
+        "target": 238,
+        "seq": 4,
+        "flags": 0,
+        "payload": "010000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0bee04010000000000000000000000000000000000000000000000000000a694"
+    },
+    {
+      "name": "slot_pixel_fx_output14_all",
+      "kind": "slot",
+      "description": "slot pixel fx output14 all",
+      "fields": {
+        "type": 11,
+        "target": 239,
+        "seq": 5,
+        "flags": 0,
+        "payload": "010000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0bef0501000000000000000000000000000000000000000000000000000072e6"
+    },
+    {
+      "name": "pixel_abort",
+      "kind": "slot",
+      "description": "pixel abort",
+      "fields": {
+        "type": 12,
+        "target": 14,
+        "seq": 9,
+        "flags": 0,
+        "payload": "030000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0c0e090300000000000000000000000000000000000000000000000000009cbf"
+    },
+    {
+      "name": "l1_set_past",
+      "kind": "slot",
+      "description": "l1 set past",
+      "fields": {
+        "type": 2,
+        "target": 0,
+        "seq": 91,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000008000"
+      },
+      "hex": "02005b000000000000000000000000000000000000000000000000008000a7f5"
+    },
+    {
+      "name": "l1_set_now",
+      "kind": "slot",
+      "description": "l1 set now",
+      "fields": {
+        "type": 2,
+        "target": 0,
+        "seq": 91,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "02005b000000000000000000000000000000000000000000000000000000bc6d"
+    },
+    {
+      "name": "l1_set_future",
+      "kind": "slot",
+      "description": "l1 set future",
+      "fields": {
+        "type": 2,
+        "target": 0,
+        "seq": 91,
+        "flags": 0,
+        "payload": "000000000000000000000000000000000000000000000000007fff"
+      },
+      "hex": "02005b000000000000000000000000000000000000000000000000007fffbafa"
+    },
+    {
+      "name": "l1_pixel_fx_past",
+      "kind": "slot",
+      "description": "l1 pixel fx past",
+      "fields": {
+        "type": 11,
+        "target": 0,
+        "seq": 93,
+        "flags": 0,
+        "payload": "01fffffffe00000000000000000000000000000000000000000000"
+      },
+      "hex": "0b005d01fffffffe00000000000000000000000000000000000000000000895b"
+    },
+    {
+      "name": "l1_pixel_fx_now",
+      "kind": "slot",
+      "description": "l1 pixel fx now",
+      "fields": {
+        "type": 11,
+        "target": 0,
+        "seq": 93,
+        "flags": 0,
+        "payload": "010000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0b005d0100000000000000000000000000000000000000000000000000003394"
+    },
+    {
+      "name": "l1_pixel_fx_future",
+      "kind": "slot",
+      "description": "l1 pixel fx future",
+      "fields": {
+        "type": 11,
+        "target": 0,
+        "seq": 93,
+        "flags": 0,
+        "payload": "010000001900000000000000000000000000000000000000000000"
+      },
+      "hex": "0b005d0100000019000000000000000000000000000000000000000000007ed2"
+    },
+    {
+      "name": "descriptor_pixel_fx_segments15",
+      "kind": "descriptor",
+      "description": "Synthetic receiver with 15 segments on output 1",
+      "fields": {
+        "board": 254,
+        "lights": 0,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "000100000000000000000200003002000000280032"
+          },
+          {
+            "type": 1,
+            "value": "010100000000000000000300003002000000280032"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 4,
+            "value": "00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400"
+          },
+          {
+            "type": 4,
+            "value": "01000f23177007d005dc04b004e20190007f07d0003c0803000201f401f401"
+          },
+          {
+            "type": 7,
+            "value": "2ee02ee000030d400000ea600201"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206475616c5f706978656c"
+          }
+        ]
+      },
+      "hex": "010b00b22b8efe000701c901150001000000000000000002000030020000002800320115010100000000000000000300003002000000280032020d0f0101f412c01b582710080064041f00000423177007d005dc04b004e20190007f07d0003c0803000101f401f400041f01000f23177007d005dc04b004e20190007f07d0003c0803000201f401f401070e2ee02ee000030d400000ea6002010816466f726d61742074657374206475616c5f706978656c"
+    },
+    {
+      "name": "descriptor_local_unbounded",
+      "kind": "descriptor",
+      "description": "Synthetic L1 scheduling bounds: unbounded",
+      "fields": {
+        "board": 254,
+        "lights": 10,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "00010000000000000000020000300200"
+          },
+          {
+            "type": 1,
+            "value": "01010000000000000000030000300200"
+          },
+          {
+            "type": 1,
+            "value": "02010000000000000000040000300200"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 3,
+            "value": "00050000070817700800fa00"
+          },
+          {
+            "type": 3,
+            "value": "05050000070817700800fa00"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206c6f63616c3130"
+          }
+        ]
+      },
+      "hex": "010b0081f690fe0a0701c9011000010000000000000000020000300200011001010000000000000000030000300200011002010000000000000000040000300200020d0f0101f412c01b582710080064030c00050000070817700800fa00030c05050000070817700800fa000813466f726d61742074657374206c6f63616c3130"
+    },
+    {
+      "name": "descriptor_local_unknown_jitter",
+      "kind": "descriptor",
+      "description": "Synthetic L1 scheduling bounds: unknown_jitter",
+      "fields": {
+        "board": 254,
+        "lights": 10,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "00010000000000000000020000300200000028ffff"
+          },
+          {
+            "type": 1,
+            "value": "01010000000000000000030000300200000028ffff"
+          },
+          {
+            "type": 1,
+            "value": "02010000000000000000040000300200000028ffff"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 3,
+            "value": "00050000070817700800fa00"
+          },
+          {
+            "type": 3,
+            "value": "05050000070817700800fa00"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206c6f63616c3130"
+          }
+        ]
+      },
+      "hex": "010b0090155dfe0a0701c9011500010000000000000000020000300200000028ffff011501010000000000000000030000300200000028ffff011502010000000000000000040000300200000028ffff020d0f0101f412c01b582710080064030c00050000070817700800fa00030c05050000070817700800fa000813466f726d61742074657374206c6f63616c3130"
+    },
+    {
+      "name": "descriptor_local_extended",
+      "kind": "descriptor",
+      "description": "Synthetic L1 scheduling bounds: extended",
+      "fields": {
+        "board": 254,
+        "lights": 10,
+        "flags": 1,
+        "variant": 201,
+        "records": [
+          {
+            "type": 1,
+            "value": "000100000000000000000200003002000000280032aabbcc"
+          },
+          {
+            "type": 1,
+            "value": "010100000000000000000300003002000000280032aabbcc"
+          },
+          {
+            "type": 1,
+            "value": "020100000000000000000400003002000000280032aabbcc"
+          },
+          {
+            "type": 2,
+            "value": "0f0101f412c01b582710080064"
+          },
+          {
+            "type": 3,
+            "value": "00050000070817700800fa00"
+          },
+          {
+            "type": 3,
+            "value": "05050000070817700800fa00"
+          },
+          {
+            "type": 8,
+            "value": "466f726d61742074657374206c6f63616c3130"
+          }
+        ]
+      },
+      "hex": "010b0099e346fe0a0701c90118000100000000000000000200003002000000280032aabbcc0118010100000000000000000300003002000000280032aabbcc0118020100000000000000000400003002000000280032aabbcc020d0f0101f412c01b582710080064030c00050000070817700800fa00030c05050000070817700800fa000813466f726d61742074657374206c6f63616c3130"
+    },
+    {
+      "name": "slot_pixel_fx_output1_segment14",
+      "kind": "slot",
+      "description": "slot pixel fx output1 segment14",
+      "fields": {
+        "type": 11,
+        "target": 30,
+        "seq": 73,
+        "flags": 0,
+        "payload": "010000000000000000000000000000000000000000000000000000"
+      },
+      "hex": "0b1e49010000000000000000000000000000000000000000000000000000c288"
+    },
+    {
+      "name": "poll_acks_pixel_fx_never",
+      "kind": "slot",
+      "description": "poll acks pixel fx never",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000102000b05020000000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000102000b050200000000000000000000000000000000000000005e35"
+    },
+    {
+      "name": "answer_acks_pixel_fx_never",
+      "kind": "answer",
+      "description": "answer acks pixel fx never",
+      "fields": {
+        "page": 2,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00210000220000000000000000000000330002ffed000000"
+      },
+      "hex": "a5020042767300210000220000000000000000000000330002ffed00000003e8"
+    },
+    {
+      "name": "poll_pixel_fx_output1_group0",
+      "kind": "slot",
+      "description": "poll pixel fx output1 group0",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000111000000000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff4200011100000000010000000000000000000000000000000000000078ec"
+    },
+    {
+      "name": "answer_pixel_fx_output1_group0",
+      "kind": "answer",
+      "description": "answer pixel fx output1 group0",
+      "fields": {
+        "page": 17,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00010201070f05dc010000000000000000000000ff000000"
+      },
+      "hex": "a5110042767300010201070f05dc010000000000000000000000ff0000005f90"
+    },
+    {
+      "name": "poll_pixel_fx_output1_group1",
+      "kind": "slot",
+      "description": "poll pixel fx output1 group1",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000111000001000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff420001110000010001000000000000000000000000000000000000001534"
+    },
+    {
+      "name": "answer_pixel_fx_output1_group1",
+      "kind": "answer",
+      "description": "answer pixel fx output1 group1",
+      "fields": {
+        "page": 17,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00010201070f05dc010000000000000000000000ff000000"
+      },
+      "hex": "a5110042767300010201070f05dc010000000000000000000000ff0000005f90"
+    },
+    {
+      "name": "poll_pixel_fx_output1_group2",
+      "kind": "slot",
+      "description": "poll pixel fx output1 group2",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000111000002000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000111000002000100000000000000000000000000000000000000a35c"
+    },
+    {
+      "name": "answer_pixel_fx_output1_group2",
+      "kind": "answer",
+      "description": "answer pixel fx output1 group2",
+      "fields": {
+        "page": 17,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00010201070f05dc010000000000000000000000ff000000"
+      },
+      "hex": "a5110042767300010201070f05dc010000000000000000000000ff0000005f90"
+    },
+    {
+      "name": "poll_pixel_fx_output1_group3",
+      "kind": "slot",
+      "description": "poll pixel fx output1 group3",
+      "fields": {
+        "type": 7,
+        "target": 255,
+        "seq": 66,
+        "flags": 0,
+        "payload": "000111000003000100000000000000000000000000000000000000"
+      },
+      "hex": "07ff42000111000003000100000000000000000000000000000000000000ce84"
+    },
+    {
+      "name": "answer_pixel_fx_output1_group3",
+      "kind": "answer",
+      "description": "answer pixel fx output1 group3",
+      "fields": {
+        "page": 17,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "00010201070f05dc010000010000004900000000ff000000"
+      },
+      "hex": "a5110042767300010201070f05dc010000010000004900000000ff00000087f6"
+    },
+    {
+      "name": "answer_link_stats_rate_request",
+      "kind": "answer",
+      "description": "answer link stats rate request",
+      "fields": {
+        "page": 19,
+        "index": 0,
+        "flags": 0,
+        "seq": 66,
+        "uid16": 30323,
+        "data": "0001131d012c01450139039803b603aa0200020000000007"
+      },
+      "hex": "a513004276730001131d012c01450139039803b603aa0200020000000007fa58"
+    }
+  ]
+}

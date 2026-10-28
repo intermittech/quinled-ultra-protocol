@@ -1,0 +1,387 @@
+{
+  "vectors": [
+    {
+      "name": "power_65a",
+      "kind": "P3",
+      "value": {
+        "v": 3,
+        "dom": [
+          {
+            "id": 0,
+            "parent": 15,
+            "kind": 1,
+            "lim_ma": 65535,
+            "trip_ma": 65535,
+            "enforce": 1,
+            "v": 4800,
+            "ma": 65000,
+            "mw": 3120000,
+            "meas": 5,
+            "idle_ma": 0
+          }
+        ],
+        "out": [
+          {
+            "o": 0,
+            "kind": "pwm",
+            "dom": 0,
+            "n": 1,
+            "c_ma": [
+              65000
+            ],
+            "lim_ma": 65000,
+            "model": "configured",
+            "quality": 6
+          }
+        ]
+      },
+      "canonical": "{\"dom\":[{\"enforce\":1,\"id\":0,\"idle_ma\":0,\"kind\":1,\"lim_ma\":65535,\"ma\":65000,\"meas\":5,\"mw\":3120000,\"parent\":15,\"trip_ma\":65535,\"v\":4800}],\"out\":[{\"c_ma\":[65000],\"dom\":0,\"kind\":\"pwm\",\"lim_ma\":65000,\"model\":\"configured\",\"n\":1,\"o\":0,\"quality\":6}],\"v\":3}",
+      "length": 248,
+      "sha256": "25ca64048ef95908ba673f65c61128339640525c7ca11e3146dffe34e65fa6cb",
+      "pages": [
+        "P3:25ca64048ef95908ba673f65c61128339640525c7ca11e3146dffe34e65fa6cb:0000:0002:000000f8:{\"dom\":[{\"enforce\":1,\"id\":0,\"idle_ma\":0,\"kind\":1,\"lim_ma\":65535,\"ma\":65000,\"meas\":5,\"mw\":3120000,\"parent\":15,\"trip_ma\":65535,\"v\":4800}],\"out\":[{\"c_ma\":[65000],\"dom\":0,\"",
+        "P3:25ca64048ef95908ba673f65c61128339640525c7ca11e3146dffe34e65fa6cb:0001:0002:000000f8:kind\":\"pwm\",\"lim_ma\":65000,\"model\":\"configured\",\"n\":1,\"o\":0,\"quality\":6}],\"v\":3}"
+      ]
+    },
+    {
+      "name": "power_two_outputs",
+      "kind": "P3",
+      "value": {
+        "v": 3,
+        "dom": [
+          {
+            "id": 0,
+            "parent": 15,
+            "kind": 1,
+            "lim_ma": 2250,
+            "trip_ma": 3000,
+            "enforce": 26,
+            "v": 4800,
+            "ma": 633,
+            "mw": 30384,
+            "meas": 5,
+            "idle_ma": 20
+          },
+          {
+            "id": 1,
+            "parent": 0,
+            "kind": 2,
+            "lim_ma": 2000,
+            "trip_ma": 0,
+            "enforce": 52,
+            "v": 500,
+            "ma": 2000,
+            "mw": 10000,
+            "meas": 14,
+            "idle_ma": 0
+          },
+          {
+            "id": 2,
+            "parent": 0,
+            "kind": 2,
+            "lim_ma": 3000,
+            "trip_ma": 0,
+            "enforce": 52,
+            "v": 500,
+            "ma": 3000,
+            "mw": 15000,
+            "meas": 14,
+            "idle_ma": 0
+          }
+        ],
+        "out": [
+          {
+            "o": 0,
+            "kind": "pixel",
+            "dom": 1,
+            "n": 600,
+            "c_ma": [
+              600,
+              600,
+              600,
+              0,
+              0
+            ],
+            "lim_ma": 2000,
+            "model": "configured",
+            "quality": 6
+          },
+          {
+            "o": 1,
+            "kind": "pixel",
+            "dom": 2,
+            "n": 600,
+            "c_ma": [
+              1000,
+              1000,
+              1000,
+              0,
+              0
+            ],
+            "lim_ma": 3000,
+            "model": "configured",
+            "quality": 6
+          }
+        ]
+      },
+      "canonical": "{\"dom\":[{\"enforce\":26,\"id\":0,\"idle_ma\":20,\"kind\":1,\"lim_ma\":2250,\"ma\":633,\"meas\":5,\"mw\":30384,\"parent\":15,\"trip_ma\":3000,\"v\":4800},{\"enforce\":52,\"id\":1,\"idle_ma\":0,\"kind\":2,\"lim_ma\":2000,\"ma\":2000,\"meas\":14,\"mw\":10000,\"parent\":0,\"trip_ma\":0,\"v\":500},{\"enforce\":52,\"id\":2,\"idle_ma\":0,\"kind\":2,\"lim_ma\":3000,\"ma\":3000,\"meas\":14,\"mw\":15000,\"parent\":0,\"trip_ma\":0,\"v\":500}],\"out\":[{\"c_ma\":[600,600,600,0,0],\"dom\":1,\"kind\":\"pixel\",\"lim_ma\":2000,\"model\":\"configured\",\"n\":600,\"o\":0,\"quality\":6},{\"c_ma\":[1000,1000,1000,0,0],\"dom\":2,\"kind\":\"pixel\",\"lim_ma\":3000,\"model\":\"configured\",\"n\":600,\"o\":1,\"quality\":6}],\"v\":3}",
+      "length": 609,
+      "sha256": "4348ede37733f3a0dee85bf4bf2a5b2c6ee4835630aef5537c2a1b35c6e3d7bb",
+      "pages": [
+        "P3:4348ede37733f3a0dee85bf4bf2a5b2c6ee4835630aef5537c2a1b35c6e3d7bb:0000:0004:00000261:{\"dom\":[{\"enforce\":26,\"id\":0,\"idle_ma\":20,\"kind\":1,\"lim_ma\":2250,\"ma\":633,\"meas\":5,\"mw\":30384,\"parent\":15,\"trip_ma\":3000,\"v\":4800},{\"enforce\":52,\"id\":1,\"idle_ma\":0,\"kin",
+        "P3:4348ede37733f3a0dee85bf4bf2a5b2c6ee4835630aef5537c2a1b35c6e3d7bb:0001:0004:00000261:d\":2,\"lim_ma\":2000,\"ma\":2000,\"meas\":14,\"mw\":10000,\"parent\":0,\"trip_ma\":0,\"v\":500},{\"enforce\":52,\"id\":2,\"idle_ma\":0,\"kind\":2,\"lim_ma\":3000,\"ma\":3000,\"meas\":14,\"mw\":15000",
+        "P3:4348ede37733f3a0dee85bf4bf2a5b2c6ee4835630aef5537c2a1b35c6e3d7bb:0002:0004:00000261:,\"parent\":0,\"trip_ma\":0,\"v\":500}],\"out\":[{\"c_ma\":[600,600,600,0,0],\"dom\":1,\"kind\":\"pixel\",\"lim_ma\":2000,\"model\":\"configured\",\"n\":600,\"o\":0,\"quality\":6},{\"c_ma\":[1000,10",
+        "P3:4348ede37733f3a0dee85bf4bf2a5b2c6ee4835630aef5537c2a1b35c6e3d7bb:0003:0004:00000261:00,1000,0,0],\"dom\":2,\"kind\":\"pixel\",\"lim_ma\":3000,\"model\":\"configured\",\"n\":600,\"o\":1,\"quality\":6}],\"v\":3}"
+      ]
+    },
+    {
+      "name": "setup_analog20",
+      "kind": "S2",
+      "value": {
+        "schema": "S2",
+        "boards": [
+          {
+            "uid": "000102030405060708090a0b",
+            "port": 0,
+            "position": 0,
+            "target": "fe0405040303c900080050000007b000",
+            "desc_crc": 55740,
+            "domains": [
+              {
+                "id": 0,
+                "lim_ma": 2250
+              },
+              {
+                "id": 1,
+                "lim_ma": 3000
+              }
+            ],
+            "channels": [
+              {
+                "i": 0,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 1,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 2,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 3,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 4,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 5,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 6,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 7,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 8,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 9,
+                "dom": 1,
+                "lim_ma": 3000
+              },
+              {
+                "i": 10,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 11,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 12,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 13,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 14,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 15,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 16,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 17,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 18,
+                "dom": 1,
+                "lim_ma": 5000
+              },
+              {
+                "i": 19,
+                "dom": 1,
+                "lim_ma": 2500
+              }
+            ],
+            "outputs": [],
+            "config": [
+              {
+                "target": 19,
+                "id": 12,
+                "value": 2500
+              },
+              {
+                "target": 255,
+                "id": 21,
+                "value": 2250
+              }
+            ]
+          }
+        ]
+      },
+      "canonical": "{\"boards\":[{\"channels\":[{\"dom\":1,\"i\":0,\"lim_ma\":3000},{\"dom\":1,\"i\":1,\"lim_ma\":3000},{\"dom\":1,\"i\":2,\"lim_ma\":3000},{\"dom\":1,\"i\":3,\"lim_ma\":3000},{\"dom\":1,\"i\":4,\"lim_ma\":3000},{\"dom\":1,\"i\":5,\"lim_ma\":3000},{\"dom\":1,\"i\":6,\"lim_ma\":3000},{\"dom\":1,\"i\":7,\"lim_ma\":3000},{\"dom\":1,\"i\":8,\"lim_ma\":3000},{\"dom\":1,\"i\":9,\"lim_ma\":3000},{\"dom\":1,\"i\":10,\"lim_ma\":5000},{\"dom\":1,\"i\":11,\"lim_ma\":5000},{\"dom\":1,\"i\":12,\"lim_ma\":5000},{\"dom\":1,\"i\":13,\"lim_ma\":5000},{\"dom\":1,\"i\":14,\"lim_ma\":5000},{\"dom\":1,\"i\":15,\"lim_ma\":5000},{\"dom\":1,\"i\":16,\"lim_ma\":5000},{\"dom\":1,\"i\":17,\"lim_ma\":5000},{\"dom\":1,\"i\":18,\"lim_ma\":5000},{\"dom\":1,\"i\":19,\"lim_ma\":2500}],\"config\":[{\"id\":12,\"target\":19,\"value\":2500},{\"id\":21,\"target\":255,\"value\":2250}],\"desc_crc\":55740,\"domains\":[{\"id\":0,\"lim_ma\":2250},{\"id\":1,\"lim_ma\":3000}],\"outputs\":[],\"port\":0,\"position\":0,\"target\":\"fe0405040303c900080050000007b000\",\"uid\":\"000102030405060708090a0b\"}],\"schema\":\"S2\"}",
+      "length": 920,
+      "sha256": "491133ee88dd64826b7662e99b286f480d8cca3757e95790f04a27ccd4d9300d",
+      "pages": [
+        "S2:491133ee88dd64826b7662e99b286f480d8cca3757e95790f04a27ccd4d9300d:0000:0006:00000398:{\"boards\":[{\"channels\":[{\"dom\":1,\"i\":0,\"lim_ma\":3000},{\"dom\":1,\"i\":1,\"lim_ma\":3000},{\"dom\":1,\"i\":2,\"lim_ma\":3000},{\"dom\":1,\"i\":3,\"lim_ma\":3000},{\"dom\":1,\"i\":4,\"lim_ma\":",
+        "S2:491133ee88dd64826b7662e99b286f480d8cca3757e95790f04a27ccd4d9300d:0001:0006:00000398:3000},{\"dom\":1,\"i\":5,\"lim_ma\":3000},{\"dom\":1,\"i\":6,\"lim_ma\":3000},{\"dom\":1,\"i\":7,\"lim_ma\":3000},{\"dom\":1,\"i\":8,\"lim_ma\":3000},{\"dom\":1,\"i\":9,\"lim_ma\":3000},{\"dom\":1,\"i\"",
+        "S2:491133ee88dd64826b7662e99b286f480d8cca3757e95790f04a27ccd4d9300d:0002:0006:00000398::10,\"lim_ma\":5000},{\"dom\":1,\"i\":11,\"lim_ma\":5000},{\"dom\":1,\"i\":12,\"lim_ma\":5000},{\"dom\":1,\"i\":13,\"lim_ma\":5000},{\"dom\":1,\"i\":14,\"lim_ma\":5000},{\"dom\":1,\"i\":15,\"lim_ma\":",
+        "S2:491133ee88dd64826b7662e99b286f480d8cca3757e95790f04a27ccd4d9300d:0003:0006:00000398:5000},{\"dom\":1,\"i\":16,\"lim_ma\":5000},{\"dom\":1,\"i\":17,\"lim_ma\":5000},{\"dom\":1,\"i\":18,\"lim_ma\":5000},{\"dom\":1,\"i\":19,\"lim_ma\":2500}],\"config\":[{\"id\":12,\"target\":19,\"value",
+        "S2:491133ee88dd64826b7662e99b286f480d8cca3757e95790f04a27ccd4d9300d:0004:0006:00000398:\":2500},{\"id\":21,\"target\":255,\"value\":2250}],\"desc_crc\":55740,\"domains\":[{\"id\":0,\"lim_ma\":2250},{\"id\":1,\"lim_ma\":3000}],\"outputs\":[],\"port\":0,\"position\":0,\"target\":\"fe0",
+        "S2:491133ee88dd64826b7662e99b286f480d8cca3757e95790f04a27ccd4d9300d:0005:0006:00000398:405040303c900080050000007b000\",\"uid\":\"000102030405060708090a0b\"}],\"schema\":\"S2\"}"
+      ]
+    },
+    {
+      "name": "setup_dual_pixel",
+      "kind": "S2",
+      "value": {
+        "schema": "S2",
+        "boards": [
+          {
+            "uid": "000102030405060708090a0b",
+            "port": 0,
+            "position": 0,
+            "target": "fe0405040303c900080050000007b000",
+            "desc_crc": 47886,
+            "domains": [
+              {
+                "id": 0,
+                "lim_ma": 2250
+              },
+              {
+                "id": 1,
+                "lim_ma": 2000
+              },
+              {
+                "id": 2,
+                "lim_ma": 3000
+              }
+            ],
+            "channels": [],
+            "outputs": [
+              {
+                "o": 0,
+                "dom": 1,
+                "n": 600,
+                "source": 0,
+                "lim_ma": 3000
+              },
+              {
+                "o": 1,
+                "dom": 2,
+                "n": 600,
+                "source": 3,
+                "lim_ma": 5000
+              }
+            ],
+            "config": [
+              {
+                "target": 0,
+                "id": 77,
+                "value": 0
+              },
+              {
+                "target": 1,
+                "id": 77,
+                "value": 3
+              }
+            ]
+          },
+          {
+            "uid": "101112131415161718191a1b",
+            "port": 0,
+            "position": 1,
+            "target": "fe0405040303c900080050000007b000",
+            "desc_crc": 1520,
+            "domains": [
+              {
+                "id": 0,
+                "lim_ma": 2250
+              },
+              {
+                "id": 1,
+                "lim_ma": 65535
+              }
+            ],
+            "channels": [],
+            "outputs": [
+              {
+                "o": 0,
+                "dom": 1,
+                "n": 600,
+                "source": 0,
+                "lim_ma": 65535
+              }
+            ],
+            "config": []
+          }
+        ]
+      },
+      "canonical": "{\"boards\":[{\"channels\":[],\"config\":[{\"id\":77,\"target\":0,\"value\":0},{\"id\":77,\"target\":1,\"value\":3}],\"desc_crc\":47886,\"domains\":[{\"id\":0,\"lim_ma\":2250},{\"id\":1,\"lim_ma\":2000},{\"id\":2,\"lim_ma\":3000}],\"outputs\":[{\"dom\":1,\"lim_ma\":3000,\"n\":600,\"o\":0,\"source\":0},{\"dom\":2,\"lim_ma\":5000,\"n\":600,\"o\":1,\"source\":3}],\"port\":0,\"position\":0,\"target\":\"fe0405040303c900080050000007b000\",\"uid\":\"000102030405060708090a0b\"},{\"channels\":[],\"config\":[],\"desc_crc\":1520,\"domains\":[{\"id\":0,\"lim_ma\":2250},{\"id\":1,\"lim_ma\":65535}],\"outputs\":[{\"dom\":1,\"lim_ma\":65535,\"n\":600,\"o\":0,\"source\":0}],\"port\":0,\"position\":1,\"target\":\"fe0405040303c900080050000007b000\",\"uid\":\"101112131415161718191a1b\"}],\"schema\":\"S2\"}",
+      "length": 686,
+      "sha256": "ad8c17f6407701f0e744792753b20214fdc6481220fd25b56a5d62303c4f0ba5",
+      "pages": [
+        "S2:ad8c17f6407701f0e744792753b20214fdc6481220fd25b56a5d62303c4f0ba5:0000:0005:000002ae:{\"boards\":[{\"channels\":[],\"config\":[{\"id\":77,\"target\":0,\"value\":0},{\"id\":77,\"target\":1,\"value\":3}],\"desc_crc\":47886,\"domains\":[{\"id\":0,\"lim_ma\":2250},{\"id\":1,\"lim_ma\":2",
+        "S2:ad8c17f6407701f0e744792753b20214fdc6481220fd25b56a5d62303c4f0ba5:0001:0005:000002ae:000},{\"id\":2,\"lim_ma\":3000}],\"outputs\":[{\"dom\":1,\"lim_ma\":3000,\"n\":600,\"o\":0,\"source\":0},{\"dom\":2,\"lim_ma\":5000,\"n\":600,\"o\":1,\"source\":3}],\"port\":0,\"position\":0,\"target",
+        "S2:ad8c17f6407701f0e744792753b20214fdc6481220fd25b56a5d62303c4f0ba5:0002:0005:000002ae:\":\"fe0405040303c900080050000007b000\",\"uid\":\"000102030405060708090a0b\"},{\"channels\":[],\"config\":[],\"desc_crc\":1520,\"domains\":[{\"id\":0,\"lim_ma\":2250},{\"id\":1,\"lim_ma\":655",
+        "S2:ad8c17f6407701f0e744792753b20214fdc6481220fd25b56a5d62303c4f0ba5:0003:0005:000002ae:35}],\"outputs\":[{\"dom\":1,\"lim_ma\":65535,\"n\":600,\"o\":0,\"source\":0}],\"port\":0,\"position\":1,\"target\":\"fe0405040303c900080050000007b000\",\"uid\":\"101112131415161718191a1b\"}],",
+        "S2:ad8c17f6407701f0e744792753b20214fdc6481220fd25b56a5d62303c4f0ba5:0004:0005:000002ae:\"schema\":\"S2\"}"
+      ]
+    }
+  ]
+}
